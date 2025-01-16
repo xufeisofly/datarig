@@ -1,0 +1,15 @@
+{
+    "uuid": "66714d47-900c-4f8f-b915-fd201d2cf40b",
+    "name": "refinedweb_test",
+    "creation_date": "2025_01_16-18_09_47",
+    "dataset_url": "/root/dataprocess/dclm_output/1b-1x/refinedweb/processed_data/",
+    "manifest_url": null,
+    "sources": [],
+    "tokenized": false,
+    "tokenizer": null,
+    "num_tokens": null,
+    "size": 0,
+    "dcnlp_commit_hash": "e29606259d2383156c6d20f03dbbe3455c02a2bf",
+    "dcnlp_diff": "",
+    "data_key": "zst"
+}
