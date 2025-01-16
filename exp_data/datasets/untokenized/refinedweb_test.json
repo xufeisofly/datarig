@@ -1,7 +1,7 @@
 {
-    "uuid": "66714d47-900c-4f8f-b915-fd201d2cf40b",
+    "uuid": "12118472-6846-437a-b7e2-a603bb172191",
     "name": "refinedweb_test",
-    "creation_date": "2025_01_16-18_09_47",
+    "creation_date": "2025_01_16-18_12_46",
     "dataset_url": "/root/dataprocess/dclm_output/1b-1x/refinedweb/processed_data/",
     "manifest_url": null,
     "sources": [],
@@ -9,7 +9,7 @@
     "tokenizer": null,
     "num_tokens": null,
     "size": 0,
-    "dcnlp_commit_hash": "e29606259d2383156c6d20f03dbbe3455c02a2bf",
-    "dcnlp_diff": "",
+    "dcnlp_commit_hash": "ff09ec204829b717b5bec23806f0bb2604b696b0",
+    "dcnlp_diff": "diff --git a/baselines/core/processor.py b/baselines/core/processor.py\nindex b19a555..1f2b9d1 100644\n--- a/baselines/core/processor.py\n+++ b/baselines/core/processor.py\n@@ -101,7 +101,6 @@ def process_single_file(config_data: Dict[str, Any], raw_data_dirpath: str, json\n     # Assumption #3 - for each input shard, there is a specific stats file that accompanies it\n     \n     output_path, stats_output_path = _get_output_paths(base_output_path, jsonl_relpath)\n-    print(\"====2 base_output_path\", base_output_path, jsonl_relpath, output_path, stats_output_path)\n \n     # If a jsonl is empty (e.g., due to another chunk), the page will be skipped  \n     num_pages_in = len(pages)\ndiff --git a/exp_data/datasets/untokenized/refinedweb_test.json b/exp_data/datasets/untokenized/refinedweb_test.json\ndeleted file mode 100644\nindex b51ebf4..0000000\n--- a/exp_data/datasets/untokenized/refinedweb_test.json\n+++ /dev/null\n@@ -1,15 +0,0 @@\n-{\n-    \"uuid\": \"66714d47-900c-4f8f-b915-fd201d2cf40b\",\n-    \"name\": \"refinedweb_test\",\n-    \"creation_date\": \"2025_01_16-18_09_47\",\n-    \"dataset_url\": \"/root/dataprocess/dclm_output/1b-1x/refinedweb/processed_data/\",\n-    \"manifest_url\": null,\n-    \"sources\": [],\n-    \"tokenized\": false,\n-    \"tokenizer\": null,\n-    \"num_tokens\": null,\n-    \"size\": 0,\n-    \"dcnlp_commit_hash\": \"e29606259d2383156c6d20f03dbbe3455c02a2bf\",\n-    \"dcnlp_diff\": \"\",\n-    \"data_key\": \"zst\"\n-}\n\\ No newline at end of file\ndiff --git a/ray_processing/process.py b/ray_processing/process.py\nindex f1a02ac..0d0ef84 100644\n--- a/ray_processing/process.py\n+++ b/ray_processing/process.py\n@@ -95,7 +95,6 @@ def to_iterator(obj_ids, batch_size=100):\n \n \n def list_shard_files(data_dirpath, num_shards=None, shard_list_file=None, shard_list_filters=None):\n-    print(\"=====\", shard_list_file, data_dirpath)\n     assert bool(shard_list_file) ^ bool(data_dirpath), \"Either shard_list_file or data_dirpath must be provided, but not both.\"\n     \n     def get_files_in_directory(data_dirpath):\ndiff --git a/ray_processing/utils.py b/ray_processing/utils.py\nindex 60ac9c2..3526589 100644\n--- a/ray_processing/utils.py\n+++ b/ray_processing/utils.py\n@@ -40,9 +40,18 @@ def count_tokens(manifest_url, seqlen=2049):\n     return num_tokens\n \n \n+def get_local_dir_size(directory):\n+    total_size = 0\n+    for dirpath, dirnames, filenames in os.walk(directory):\n+        for filename in filenames:\n+            filepath = os.path.join(dirpath, filename)\n+            total_size += os.path.getsize(filepath)\n+    return total_size\n+\n+\n def get_s3_dir_size(dataset_path):\n     if not is_s3(dataset_path):\n-        return 0\n+        return get_local_dir_size(dataset_path)\n     bucket, prefix = dataset_path.replace(\"s3://\", \"\").split(\"/\", 1)\n     total_size = 0\n     for i, obj in enumerate(boto3.resource(\"s3\").Bucket(bucket).objects.filter(Prefix=prefix)):\n@@ -58,7 +67,6 @@ def get_git_info():\n \n \n def generate_untokenized_dataset_json(args, source_refs, base_output_path, data_key=\".json.zstd\"):\n-    print(\"======5\", source_refs)\n     sources = [{\"uuid\": s[\"uuid\"], \"name\": s[\"name\"]} for s in source_refs] if source_refs else []\n     dcnlp_commit_hash, dcnlp_diff = get_git_info()\n ",
     "data_key": "zst"
 }

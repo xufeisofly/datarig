@@ -40,9 +40,18 @@ def count_tokens(manifest_url, seqlen=2049):
     return num_tokens
 
 
+def get_local_dir_size(directory):
+    total_size = 0
+    for dirpath, dirnames, filenames in os.walk(directory):
+        for filename in filenames:
+            filepath = os.path.join(dirpath, filename)
+            total_size += os.path.getsize(filepath)
+    return total_size
+
+
 def get_s3_dir_size(dataset_path):
     if not is_s3(dataset_path):
-        return 0
+        return get_local_dir_size(dataset_path)
     bucket, prefix = dataset_path.replace("s3://", "").split("/", 1)
     total_size = 0
     for i, obj in enumerate(boto3.resource("s3").Bucket(bucket).objects.filter(Prefix=prefix)):
@@ -58,7 +67,6 @@ def get_git_info():
 
 
 def generate_untokenized_dataset_json(args, source_refs, base_output_path, data_key=".json.zstd"):
-    print("======5", source_refs)
     sources = [{"uuid": s["uuid"], "name": s["name"]} for s in source_refs] if source_refs else []
     dcnlp_commit_hash, dcnlp_diff = get_git_info()
 

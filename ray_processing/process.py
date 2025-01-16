@@ -95,7 +95,6 @@ def to_iterator(obj_ids, batch_size=100):
 
 
 def list_shard_files(data_dirpath, num_shards=None, shard_list_file=None, shard_list_filters=None):
-    print("=====", shard_list_file, data_dirpath)
     assert bool(shard_list_file) ^ bool(data_dirpath), "Either shard_list_file or data_dirpath must be provided, but not both."
     
     def get_files_in_directory(data_dirpath):

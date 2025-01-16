@@ -101,7 +101,6 @@ def process_single_file(config_data: Dict[str, Any], raw_data_dirpath: str, json
     # Assumption #3 - for each input shard, there is a specific stats file that accompanies it
     
     output_path, stats_output_path = _get_output_paths(base_output_path, jsonl_relpath)
-    print("====2 base_output_path", base_output_path, jsonl_relpath, output_path, stats_output_path)
 
     # If a jsonl is empty (e.g., due to another chunk), the page will be skipped  
     num_pages_in = len(pages)
