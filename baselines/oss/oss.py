@@ -24,9 +24,9 @@ def Bucket(name) -> oss2.Bucket:
     return oss2.Bucket(auth, endpoint, name, region=region)
 
 
-ZJ_Bucket = Bucket("download2")
-result = ZJ_Bucket.list_objects(prefix='cc-warc2024/', max_keys=10)
+# ZJ_Bucket = Bucket("download2")
+# result = ZJ_Bucket.list_objects(prefix='cc-warc2024/', max_keys=10)
 
-file_name = 'cc-warc2024/dclm_pool/1b-1x/CC_shard_00000000.jsonl.zst'
-ZJ_Bucket.object_exists(file_name)
+# file_name = 'cc-warc2024/dclm_pool/1b-1x/CC_shard_00000000.jsonl.zst'
+# ZJ_Bucket.object_exists(file_name)
 
