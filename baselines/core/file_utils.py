@@ -15,6 +15,9 @@ from pathlib import Path as LocalPath
 def is_s3(file_path: str):
     return file_path.startswith("s3://")
 
+def is_oss(file_path: str):
+    return file_path.startswith("oss://")
+
 def is_compressed(file_path: str):
     return any(file_path.endswith(z) for z in (".zst", ".zstd", ".gz"))
 
