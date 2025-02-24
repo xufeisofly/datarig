@@ -10,7 +10,8 @@ from cloudpathlib import S3Path
 import glob
 import pathlib
 
-from baselines.core.file_utils import is_s3
+from baselines.core.file_utils import is_s3, is_oss
+from baselines.oss import oss
 
 DATASET_REFS_DIR = os.path.join(
     pathlib.Path(__file__).parent.parent.absolute(),
@@ -51,12 +52,30 @@ def get_local_dir_size(directory):
 
 def get_s3_dir_size(dataset_path):
     if not is_s3(dataset_path):
-        return get_local_dir_size(dataset_path)
+        return 0
     bucket, prefix = dataset_path.replace("s3://", "").split("/", 1)
     total_size = 0
     for i, obj in enumerate(boto3.resource("s3").Bucket(bucket).objects.filter(Prefix=prefix)):
         total_size += obj.size
     return total_size
+
+
+def get_oss_dir_size(dataset_path):
+    if not is_oss(dataset_path):
+        return 0
+    bucket, prefix = dataset_path.replace("oss://", "").split("/", 1)
+    total_size = 0
+    for obj in oss.Bucket(bucket).list_objects(prefix=prefix).object_list:
+        total_size += obj.size
+    return total_size
+
+
+def get_dir_size(dataset_path):
+    if is_s3(dataset_path):
+        return get_s3_dir_size(dataset_path)
+    if is_oss(dataset_path):
+        return get_oss_dir_size(dataset_path)
+    return get_local_dir_size(dataset_path)
 
 
 def get_git_info():
@@ -69,7 +88,7 @@ def get_git_info():
 def generate_untokenized_dataset_json(args, source_refs, base_output_path, data_key=".json.zstd"):
     sources = [{"uuid": s["uuid"], "name": s["name"]} for s in source_refs] if source_refs else []
     dcnlp_commit_hash, dcnlp_diff = get_git_info()
-
+    
     dataset_json = {
         "uuid": str(uuid.uuid4().__str__()),
         "name": args.readable_name,
@@ -80,7 +99,7 @@ def generate_untokenized_dataset_json(args, source_refs, base_output_path, data_
         "tokenized": False,
         "tokenizer": None,
         "num_tokens": None,
-        "size": get_s3_dir_size(args.output_dir),
+        "size": get_dir_size(args.output_dir),
         "dcnlp_commit_hash": dcnlp_commit_hash,
         "dcnlp_diff": dcnlp_diff,
         "data_key": data_key,
@@ -112,7 +131,7 @@ def generate_tokenized_dataset_json(args, source_refs, data_key="json.gz"):
         "tokenized": True,
         "tokenizer": args.tokenizer,
         "num_tokens": count_tokens(manifest_url, args.seqlen + 1),
-        "size": get_s3_dir_size(args.output),
+        "size": get_dir_size(args.output_dir),
         "dcnlp_commit_hash": dcnlp_commit_hash,
         "dcnlp_diff": dcnlp_diff,
         "data_key": data_key,

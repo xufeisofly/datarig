@@ -10,7 +10,7 @@ import json
 
 from baselines.core import process_single_file
 from baselines.core.file_utils import read_jsonl, write_jsonl, delete_file, is_exists, is_s3, is_oss
-from baselines import oss
+from baselines.oss import oss
 from ray_processing import GLOBAL_FUNCTIONS
 from ray_processing.utils import generate_untokenized_dataset_json, get_source_ref, get_source_ref_by_key
 
@@ -120,7 +120,7 @@ def list_shard_files(data_dirpath, num_shards=None, shard_list_file=None, shard_
         path_within_bucket = path_within_bucket if path_within_bucket.endswith("/") else f'{path_within_bucket}/'
         bucket = oss.Bucket(bucket_name)
         shard_files = [x.key.replace(path_within_bucket, "")
-                       for x in bucket.list_objects(prefix=path_within_bucket)
+                       for x in bucket.list_objects(prefix=path_within_bucket).object_list
                        if all(s not in x.key for s in ['/stats/', 'global_stats.jsonl'])]
     else:
         shard_files = get_files_in_directory(data_dirpath=data_dirpath)

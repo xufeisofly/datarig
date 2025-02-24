@@ -1,11 +1,7 @@
 # -*- coding: utf-8 -*-
 import oss2
-from oss2.credentials import EnvironmentVariableCredentialsProvider
-from itertools import islice
 import os
 import logging
-import time
-import random
 
 # 配置日志
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -23,11 +19,14 @@ region = "cn-hangzhou"
 
 auth = oss2.Auth(os.getenv("OSS_ACCESS_KEY_ID"), os.getenv("OSS_ACCESS_KEY_SECRET"))
 
+
 def Bucket(name) -> oss2.Bucket:
     return oss2.Bucket(auth, endpoint, name, region=region)
+
 
 ZJ_Bucket = Bucket("download2")
 result = ZJ_Bucket.list_objects(prefix='cc-warc2024/', max_keys=10)
 
 file_name = 'cc-warc2024/dclm_pool/1b-1x/CC_shard_00000000.jsonl.zst'
 ZJ_Bucket.object_exists(file_name)
+
