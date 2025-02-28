@@ -6,10 +6,12 @@ import shutil
 from setuptools.command.install import install
 from setuptools import setup, find_packages
 from retrie.retrie import Blacklist
+from tools import download
 import pickle
 import re
 import nltk
 import boto3
+import subprocess
 
 
 PROJECT_ROOT = os.path.dirname(__file__)
@@ -38,6 +40,7 @@ class DevInstall(install):
     def run(self):
         install.run(self)
         print("Setting up development environment...")
+        
 
 class DownloadAssetsCommand(install):
     description = 'download and set up larger assets (e.g., models, banlists) after installation'
@@ -121,7 +124,8 @@ class DownloadAssetsCommand(install):
             if not os.path.exists(destination):
                 print(f"Downloading {MODEL_FILENAME} to {destination}...")
                 os.makedirs(os.path.dirname(destination), exist_ok=True)
-                urllib.request.urlretrieve(url, destination)
+                download.download(url, destination)
+                # urllib.request.urlretrieve(url, destination)
                 print(f"Finished downloading {MODEL_FILENAME} to {destination}")
             else:
                 print(f"File {destination} already exists")
