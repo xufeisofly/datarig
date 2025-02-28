@@ -55,7 +55,10 @@ def read_jsonl(file_path: str):
     if is_s3(file_path):
         path = S3Path(file_path)
     elif is_oss(file_path):
-        path = OSSPath(file_path)
+        try:
+            path = OSSPath(file_path)
+        except FileNotFoundError:
+            return []
     else:
         path = LocalPath(file_path)
 

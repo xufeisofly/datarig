@@ -1,6 +1,6 @@
 baselines/mappers/enrichers/language_id_enrichment_models/
 baselines/mappers/enrichers/quality_prediction_enrichment_models/
-# baselines/mappers/banlists/
+baselines/mappers/banlists/refinedweb_banned_domains_curated.txt
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
