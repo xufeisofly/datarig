@@ -113,7 +113,7 @@ def url_substring_filter(banlist: Union[str, List] = None, banlist_from_fname: s
         with open(banlist_from_fname, "rb") as file:
             pattern = pickle.load(file)
     else:
-        if banlist_from_fname is not None and os.path.exists(banlist_from_fname):        
+        if banlist_from_fname is not None:        
             with open(banlist_from_fname, "r") as file:
                     banlist = file.read().splitlines()
         elif isinstance(banlist, str):
