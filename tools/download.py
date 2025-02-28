@@ -42,6 +42,8 @@ def download_with_aria2(src, dst, num_connections=16, quiet=False, extra_args=No
         str(num_connections),
         "-s",
         str(num_connections),
+        "--retry-wait",
+        "3",
         *extra_args,
     ]
     if quiet:
