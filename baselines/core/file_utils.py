@@ -7,6 +7,7 @@ import io
 from typing import BinaryIO, List
 
 from cloudpathlib import S3Path
+from baselines.oss.oss import OSSPath, ZJ_Bucket
 import os
 import boto3
 from pathlib import Path as LocalPath
@@ -53,6 +54,8 @@ def read_jsonl(file_path: str):
     """Read a JSONL file from a given path (local or S3)."""
     if is_s3(file_path):
         path = S3Path(file_path)
+    elif is_oss(file_path):
+        path = OSSPath(file_path)
     else:
         path = LocalPath(file_path)
 
@@ -70,10 +73,13 @@ def read_jsonl(file_path: str):
             for line in _jsonl_bytes_reader(f):
                 yield line
 
+                
 def write_jsonl(data, file_path: str, mode: str = "w"):
     """Write data to a JSONL file at a given path (local or S3)."""
     if is_s3(file_path):
         path = S3Path(file_path)
+    elif is_oss(file_path):
+        path = OSSPath(file_path) # xufeisoflyishere
     else:
         path = LocalPath(file_path)
 
