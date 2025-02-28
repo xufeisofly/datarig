@@ -37,7 +37,7 @@ def download_with_aria2(src, dst, num_connections=16, quiet=False, extra_args=No
         raise ValueError(f"Invalid extra_args type {type(extra_args)}")
 
     parts = [
-        "aria2",
+        "/usr/bin/aria2",
         "-x",
         str(num_connections),
         "-s",
