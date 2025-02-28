@@ -7,7 +7,7 @@ import io
 from typing import BinaryIO, List
 
 from cloudpathlib import S3Path
-from baselines.oss.oss import OSSPath, ZJ_Bucket
+from baselines.oss.oss import OSSPath
 import os
 import boto3
 from pathlib import Path as LocalPath
