@@ -173,7 +173,10 @@ if __name__ == "__main__":
         if args.overwrite:
             delete_file(global_stats_path)
         else:
-            global_stats = list(read_jsonl(global_stats_path))
+            try:
+                global_stats = list(read_jsonl(global_stats_path))
+            except BaseException:
+                global_stats = []
 
     # Process the yaml file into chunks of either contiguous local functions OR single global functions
     with open(config_path, "r") as yaml_file:
