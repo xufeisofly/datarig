@@ -37,7 +37,7 @@ def download_with_aria2(src, dst, num_connections=16, quiet=False, extra_args=No
         raise ValueError(f"Invalid extra_args type {type(extra_args)}")
 
     parts = [
-        "/usr/bin/aria2",
+        "aria2",
         "-x",
         str(num_connections),
         "-s",
@@ -62,7 +62,7 @@ def download_with_aria2(src, dst, num_connections=16, quiet=False, extra_args=No
     parts.append("-o")
     parts.append(dst_name)
     cmd = shlex.join(parts)
-    subprocess.run(cmd, shell=True, check=True, env=os.environ.copy())
+    subprocess.run(cmd, check=True, env=os.environ.copy())
 
     return dst
 
