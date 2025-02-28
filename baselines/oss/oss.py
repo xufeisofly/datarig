@@ -43,8 +43,8 @@ class OSSPath:
     def open(self, mode) -> Union['OSSWriteStream', 'OSSReadStream']:
         if mode in ["rb", "r"]:
             return OSSReadStream(self.bucket, self.path)
-        elif mode in ["wb", "w"]:
-            return OSSWriteStream(self.bucket, self.path, BytesIO())
+        elif mode in ["wb", "w", "a"]:
+            return OSSWriteStream(self.bucket, self.path, BytesIO(), mode=mode)
         raise ValueError(f"invalid mode: {mode}")
 
 
@@ -57,10 +57,18 @@ class OSSReadStream(BytesIO):
         
     
 class OSSWriteStream():
-    def __init__(self, bucket, path, output):
+    def __init__(self, bucket, path, output, mode="w"):
         self.bucket = bucket
         self.path = path
         self.output = output
+        self.mode = mode
+
+        if self.mode == "a":
+            try:
+                self.current_data = self.bucket.get_object(self.path).read()
+                self.output.write(self.current_data)
+            except oss2.exceptions.NoSuchKey:
+                self.current_data = b''        
         
     def write(self, data):
         if isinstance(data, str):
