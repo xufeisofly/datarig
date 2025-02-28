@@ -62,7 +62,10 @@ def download_with_aria2(src, dst, num_connections=16, quiet=False, extra_args=No
     parts.append("-o")
     parts.append(dst_name)
     cmd = shlex.join(parts)
-    subprocess.run(cmd, check=True, env=os.environ.copy())
+    env = os.environ.copy()
+    env["PATH"] = "/usr/bin:" + env["PATH"]
+    
+    subprocess.run(cmd, shell=True, check=True, env=env)
 
     return dst
 
