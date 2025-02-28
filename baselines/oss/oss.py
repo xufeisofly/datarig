@@ -50,11 +50,8 @@ class OSSReadStream(BytesIO):
     def __init__(self, bucket: oss2.Bucket, path: str):
         self.bucket = bucket
         self.path = path
-        try:
-            obj = self.bucket.get_object(self.path)
-            super().__init__(obj.read())
-        except oss2.exceptions.NoSuchKey:
-            raise FileNotFoundError(f"The file at path '{self.path}' does not exist in the OSS bucket.")       
+        obj = self.bucket.get_object(self.path)
+        super().__init__(obj.read())
         
     
 class OSSWriteStream():

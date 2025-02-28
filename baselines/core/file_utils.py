@@ -57,7 +57,7 @@ def read_jsonl(file_path: str):
     elif is_oss(file_path):
         try:
             path = OSSPath(file_path)
-        except FileNotFoundError:
+        except BaseException:
             return []
     else:
         path = LocalPath(file_path)
