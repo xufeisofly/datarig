@@ -22,7 +22,7 @@ def _normalize_dst(src, dst):
 
 @lru_cache
 def detect_aria2():
-    p = subprocess.run(["aria2c", "--version"], shell=True)
+    p = subprocess.run(["aria2c", "--version"], shell=True, env=os.environ.copy())
     return p.returncode == 0
 
 
@@ -62,7 +62,7 @@ def download_with_aria2(src, dst, num_connections=16, quiet=False, extra_args=No
     parts.append("-o")
     parts.append(dst_name)
     cmd = shlex.join(parts)
-    subprocess.run(cmd, shell=True, check=True)
+    subprocess.run(cmd, shell=True, check=True, env=os.environ.copy())
 
     return dst
 
