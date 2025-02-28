@@ -21,7 +21,6 @@ def _normalize_dst(src, dst):
     return dst
 
 
-@lru_cache
 def detect_aria2():
     p = subprocess.run(["aria2c", "--version"], shell=True)
     return p.returncode == 0
