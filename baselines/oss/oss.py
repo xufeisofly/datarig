@@ -41,9 +41,11 @@ class OSSPath:
         self.path = path  # OSS 文件路径
         
     def open(self, mode) -> Union['OSSWriteStream', 'OSSReadStream']:
-        if mode == "rb":
+        if mode in ["rb", "r"]:
             return OSSReadStream(self.bucket, self.path)
-        return OSSWriteStream(self.bucket, self.path, BytesIO())
+        elif mode in ["wb", "w"]:
+            return OSSWriteStream(self.bucket, self.path, BytesIO())
+        raise ValueError(f"invalid mode: {mode}")
 
 
 class OSSReadStream(BytesIO):
