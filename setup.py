@@ -6,10 +6,12 @@ import shutil
 from setuptools.command.install import install
 from setuptools import setup, find_packages
 from retrie.retrie import Blacklist
+from tools import download
 import pickle
 import re
 import nltk
 import boto3
+import subprocess
 
 
 PROJECT_ROOT = os.path.dirname(__file__)
@@ -38,6 +40,7 @@ class DevInstall(install):
     def run(self):
         install.run(self)
         print("Setting up development environment...")
+        
 
 class DownloadAssetsCommand(install):
     description = 'download and set up larger assets (e.g., models, banlists) after installation'
@@ -99,7 +102,8 @@ class DownloadAssetsCommand(install):
         if not os.path.exists(destination):
             os.makedirs(os.path.dirname(destination), exist_ok=True)
             print(f'Downloading {url} to {destination}')
-            urllib.request.urlretrieve(url, destination)
+            # urllib.request.urlretrieve(url, destination)
+            download.download(url, destination)
             print(f"Finsihed downloading {url} to {destination}")
         else:
             print(f'File {destination} already exists')
@@ -121,7 +125,8 @@ class DownloadAssetsCommand(install):
             if not os.path.exists(destination):
                 print(f"Downloading {MODEL_FILENAME} to {destination}...")
                 os.makedirs(os.path.dirname(destination), exist_ok=True)
-                urllib.request.urlretrieve(url, destination)
+                download.download(url, destination)
+                # urllib.request.urlretrieve(url, destination)
                 print(f"Finished downloading {MODEL_FILENAME} to {destination}")
             else:
                 print(f"File {destination} already exists")
@@ -132,7 +137,8 @@ class DownloadAssetsCommand(install):
         if not os.path.exists(CURATED_BANLIST_PATH):
             print("Downloading curated banlist necessary to run refinedweb.yaml...")
             os.makedirs(os.path.dirname(CURATED_BANLIST_PATH), exist_ok=True)
-            urllib.request.urlretrieve(CURATED_BANLIST_URL, CURATED_BANLIST_PATH)
+            download.download(CURATED_BANLIST_URL, CURATED_BANLIST_PATH)
+            # urllib.request.urlretrieve(CURATED_BANLIST_URL, CURATED_BANLIST_PATH)
             print(f"Finished downloading {os.path.basename(CURATED_BANLIST_PATH)} to {CURATED_BANLIST_PATH}")
         else:
             print(f"Curated banlist for refinedweb already exists at {CURATED_BANLIST_PATH}")
@@ -155,7 +161,8 @@ class DownloadAssetsCommand(install):
 
         if not os.path.exists(f"{BANLIST_OUTPUT_DIR}/refinedweb_banned_domains_and_urls.txt"):
             print(f"Downloading {UNCURATED_BANLISTS_URL}...")
-            urllib.request.urlretrieve(UNCURATED_BANLISTS_URL, f"{BANLIST_OUTPUT_DIR}/blacklists.tar.gz")
+            download.download(UNCURATED_BANLISTS_URL, f"{BANLIST_OUTPUT_DIR}/blacklists.tar.gz")
+            # urllib.request.urlretrieve(UNCURATED_BANLISTS_URL, f"{BANLIST_OUTPUT_DIR}/blacklists.tar.gz")
 
             print("Extracting banlists...")
             with tarfile.open(f"{BANLIST_OUTPUT_DIR}/blacklists.tar.gz") as file:

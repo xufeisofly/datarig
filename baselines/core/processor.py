@@ -95,7 +95,12 @@ def process_single_file(config_data: Dict[str, Any], raw_data_dirpath: str, json
     # Assumption #2 - we keep the entire input lines in memory
     t1 = time.time()
     input_path = os.path.join(raw_data_dirpath, jsonl_relpath)
+
+    logger.info(f"=============1 {input_path}")
+    
     pages = list(read_jsonl(input_path))
+
+    logger.info(f"=============2 {len(pages)}")
     jsonl_load_secs = time.time() - t1
 
     # Assumption #3 - for each input shard, there is a specific stats file that accompanies it

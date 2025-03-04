@@ -1,5 +1,6 @@
 from typing import List, Dict, Union
 import re
+import os
 from urllib.parse import urlparse
 from retrie.retrie import Blacklist
 import pickle
