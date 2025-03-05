@@ -827,7 +827,10 @@ async fn process_file(
             let mut headers = HashMap::new();
             headers.insert("content-type", "text/plain");
             let data: &[u8] = &output_data;
-            let _ = client.put_object(data, output_key, headers, None).await;
+            let _ = client
+                .put_object(data, output_key.clone(), headers, None)
+                .await;
+            println!("Put file to oss: {}", output_key);
         } else {
             let mut output_file = OpenOptions::new()
                 .read(false)
