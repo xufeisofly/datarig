@@ -1,6 +1,5 @@
 use ahash::RandomState;
 use anyhow::{anyhow, Result};
-use async_compression::futures::bufread::{GzipDecoder, ZstdDecoder};
 use byteorder::{LittleEndian, NativeEndian, ReadBytesExt, WriteBytesExt};
 use clap::{Parser, Subcommand};
 use flate2::read::MultiGzDecoder;
@@ -28,7 +27,6 @@ use std::thread::available_parallelism;
 use std::time::Instant;
 use sysinfo::System;
 use threadpool::ThreadPool;
-use tokio::runtime::Runtime;
 use unicode_segmentation::UnicodeSegmentation;
 
 use async_compression::tokio::bufread::GzipDecoder as asyncGZ;
@@ -829,7 +827,8 @@ async fn process_file(
             let mut headers = HashMap::new();
             headers.insert("content-type", "text/plain");
             let data: &[u8] = &output_data;
-            let _ = client.put_object(data, output_key, headers, None);
+            println!("==== put object to: {output_key}");
+            let _ = client.put_object(data, output_key, headers, None).await;
         } else {
             let mut output_file = OpenOptions::new()
                 .read(false)
