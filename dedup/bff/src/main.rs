@@ -823,6 +823,13 @@ async fn process_file(
                 .body(ByteStream::from(output_data))
                 .send()
                 .await;
+        } else if is_oss(output_file) {
+            let (output_bucket, output_key) = split_oss_path(output_file);
+            let client = oss::get_bucket(output_bucket);
+            let mut headers = HashMap::new();
+            headers.insert("content-type", "text/plain");
+            let data: &[u8] = &output_data;
+            let _ = client.put_object(data, output_key, headers, None);
         } else {
             let mut output_file = OpenOptions::new()
                 .read(false)
@@ -1437,6 +1444,11 @@ async fn expand_dirs(paths: &[PathBuf]) -> Result<Vec<PathBuf>> {
         if is_s3(path) {
             let s3_result = expand_s3_dirs(path).await?;
             for file in s3_result {
+                files.push(file.clone());
+            }
+        } else if is_oss(path) {
+            let oss_result = expand_oss_dirs(path).await?;
+            for file in oss_result {
                 files.push(file.clone());
             }
         } else if path.is_dir() {

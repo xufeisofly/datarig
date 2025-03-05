@@ -1,4 +1,4 @@
-use oss_rust_sdk::oss::*;
+use oss_rust_sdk::oss::OSS;
 use std::env;
 
 pub fn get_bucket(bucket_name: String) -> OSS<'static> {
