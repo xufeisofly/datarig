@@ -830,7 +830,7 @@ async fn process_file(
             let _ = client
                 .put_object(data, output_key.clone(), headers, None)
                 .await;
-            println!("Put file to oss: {}", output_key);
+            // println!("Put file to oss: {}", output_key);
         } else {
             let mut output_file = OpenOptions::new()
                 .read(false)
