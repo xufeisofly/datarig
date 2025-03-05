@@ -1534,6 +1534,8 @@ async fn expand_oss_dirs(oss_uri: &PathBuf) -> Result<Vec<PathBuf>> {
         let mut oss_file = PathBuf::from("oss://");
         oss_file.push(bucket.clone());
         oss_file.push(key);
+
+        println!("Find oss file: {}", key);
         oss_files.push(oss_file);
     }
 
