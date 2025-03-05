@@ -10,7 +10,9 @@ RUN apt-get update && \
     apt-get install -y libssl-dev && \
     rm -rf /var/lib/apt/lists/*
 
-RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y && \
+    . /root/.cargo/env && \
+    cargo --version  # 测试 cargo 是否可用
 
 ENV PATH="/root/.cargo/bin:${PATH}"
 
@@ -20,7 +22,7 @@ COPY . /app/dedup/bff
 
 WORKDIR /app/dedup/bff
 
-RUN cargo build --release
+RUN . /root/.cargo/env && cargo build --release
 
 ENTRYPOINT ["cargo", "run", "--release", "bff"]
 
