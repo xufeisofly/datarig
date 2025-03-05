@@ -1532,10 +1532,10 @@ async fn expand_oss_dirs(oss_uri: &PathBuf) -> Result<Vec<PathBuf>> {
         let mut oss_file = PathBuf::from("oss://");
         oss_file.push(bucket.clone());
         oss_file.push(key);
-
-        println!("Find oss file: {}", key);
         oss_files.push(oss_file);
     }
+
+    println!("Find oss file num: {}", oss_files.len());
 
     Ok(oss_files)
 }
@@ -1778,25 +1778,7 @@ fn get_output_filename(
         .expect("No matching prefix found?!?");
 
     let relative_path = input_filename.strip_prefix(matching_prefix).unwrap();
-    let file_stem = relative_path
-        .file_stem() // Some("main")
-        .unwrap_or_default() // 万一没有文件名就返回空
-        .to_string_lossy();
-
-    let extension = relative_path
-        .extension() // Some("rs")
-        .unwrap_or_default()
-        .to_string_lossy();
-
-    let new_file_name = if extension.is_empty() {
-        format!("{}_deduped", file_stem)
-    } else {
-        format!("{}_deduped.{}", file_stem, extension)
-    };
-
-    let new_relative_path = relative_path.with_file_name(new_file_name);
-
-    output_directory.clone().join(new_relative_path)
+    output_directory.clone().join(relative_path)
 }
 
 fn compress_data(data: Vec<u8>, filename: &PathBuf) -> Vec<u8> {

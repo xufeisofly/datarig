@@ -600,6 +600,7 @@ dependencies = [
  "glob",
  "human_bytes",
  "indicatif",
+ "once_cell",
  "oss-rust-sdk",
  "rand",
  "rayon",
