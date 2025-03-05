@@ -6,7 +6,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 # 1. 更新系统并安装必要依赖
 RUN apt-get update && \
-    apt-get install -y curl sudo libssl-dev pkg-config && \
+    apt-get install -y libssl-dev && \
     rm -rf /var/lib/apt/lists/*
 
 # 2. 设置环境变量: 替换 Rustup 源（USTC、TUNA等）
