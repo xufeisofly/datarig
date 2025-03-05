@@ -3,8 +3,8 @@ FROM ubuntu:22.04
 
 # 切换时区交互提示，避免一些安装中的时区询问
 ENV DEBIAN_FRONTEND=noninteractive
-ENV RUSTUP_UPDATE_ROOT=https://mirrors.ustc.edu.cn/rust-static/rustup
-ENV RUSTUP_DIST_SERVER=https://mirrors.ustc.edu.cn/rust-static/rustup
+ENV RUSTUP_UPDATE_ROOT="https://mirrors.ustc.edu.cn/rust-static/rustup"
+ENV RUSTUP_DIST_SERVER="https://mirrors.tuna.tsinghua.edu.cn/rustup"
 
 RUN apt-get update && \
     apt-get install -y curl sudo libssl-dev && \
