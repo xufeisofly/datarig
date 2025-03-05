@@ -1,5 +1,5 @@
 # 使用 Ubuntu 22.04.5 LTS 作为基础镜像
-FROM ubuntu:22.04
+FROM FROM 10.200.88.53/public/ubuntu@sha256:b729117166cef7a731b8b5d2aa7ab0aa12b7b6b68b4a016199b85d1f7de68da9
 
 # 切换时区交互提示，避免一些安装中的时区询问
 ENV DEBIAN_FRONTEND=noninteractive
