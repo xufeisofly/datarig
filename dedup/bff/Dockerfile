@@ -1,5 +1,5 @@
 # 使用 Ubuntu 22.04.5 LTS 作为基础镜像
-FROM cr.registry.res.cloud.zhejianglab.com/datahub/ubuntu:22.04
+FROM ubuntu:22.04
 
 # 切换时区交互提示，避免一些安装中的时区询问
 ENV DEBIAN_FRONTEND=noninteractive
