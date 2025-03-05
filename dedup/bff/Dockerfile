@@ -15,6 +15,8 @@ RUN apt-get update && \
 RUN echo "export RUSTUP_UPDATE_ROOT=https://mirrors.ustc.edu.cn/rust-static/rustup" >> /root/.bashrc && \
     echo "export RUSTUP_DIST_SERVER=https://mirrors.tuna.tsinghua.edu.cn/rustup" >> /root/.bashrc
 
+RUN source /root/.bashrc
+
 # 3. 安装 Rust
 #    这里执行 curl 的脚本，并自动 yes (-y)
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
