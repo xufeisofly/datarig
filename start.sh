@@ -3,4 +3,4 @@ set -e
 
 ray start --head --port 6379 &
 
-python3 /app/ray_processing/process.py "$@"
+python3 /app/dclm-sci/ray_processing/process.py "$@"
