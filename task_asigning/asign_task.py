@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import argparse
+import json
 from baselines.oss import oss
-from baselines.core.file_utils import write_jsonl
 from typing import List
 
 """
@@ -47,15 +47,16 @@ def create_task_items(shard_dirs: List[str], chunk_size: int = -1) -> List[dict]
 def asign_task(parent_dir: str, tasks_file_path: str, chunk_size: int = -1):
     bucket_name, path = oss.split_file_path(parent_dir)
     bucket = oss.Bucket(bucket_name)
-    rets = bucket.list_objects(prefix=path).object_list
-    shard_dirs = [ret for ret in rets if ret.endswith('/') and ret.startswith('CC-MAIN')]
+    rets = bucket.list_objects_v2(prefix=path, delimiter='/').prefix_list
+    shard_dirs = [ret for ret in rets if ret.endswith('/') and 'CC-MAIN' in ret]
 
     task_items = create_task_items(shard_dirs)
     data = {
         "tasks": task_items,
     }
 
-    write_jsonl(data, tasks_file_path)
+    with oss.OSSPath(tasks_file_path).open("w") as f:
+        f.write(json.dumps(data, indent=4))
     
     task_bucket_name, task_file = oss.split_file_path(tasks_file_path)
     existed = oss.Bucket(task_bucket_name).object_exists(task_file)
@@ -65,8 +66,9 @@ def asign_task(parent_dir: str, tasks_file_path: str, chunk_size: int = -1):
     else:
         print(f"Failed")
 
+        
 DEFAULT_TASKS_FILE_PATH = "oss://si002558te8h/dclm/tasks.json"
-DEFAULT_PARENT_DIR = "oss://si002558te8h/dclm/origin"
+DEFAULT_PARENT_DIR = "oss://si002558te8h/dclm/origin/"
 
 
 if __name__ == '__main__':
