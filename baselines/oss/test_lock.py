@@ -3,13 +3,14 @@ import multiprocessing
 import argparse
 from baselines.oss.lock import SimpleOSSLock, DEFAULT_LOCK_FILE
 
+file_path = "./num.txt"
+
 def worker(lock_file: str, index: int, timeout: int):
     lock = SimpleOSSLock(lock_file)
     print(f"Worker {index} (PID: {os.getpid()}) trying to acquire lock...")
     if lock.acquire_or_block(timeout=timeout):
         print(f"Worker {index} (PID: {os.getpid()}) acquired the lock.")
         # 模拟执行任务，休眠 1～3 秒之间
-        file_path = "./num.txt"
         if not os.path.exists(file_path):
             with open(file_path, "w") as f:
                 f.write("0")
@@ -41,4 +42,14 @@ if __name__ == "__main__":
         p.start()
     for p in processes:
         p.join()
-    print("Distributed lock test complete.")
+
+    ret = 0
+    with open(file_path, "r") as f:
+        ret = int(f.read())
+
+    print("Distributed lock test complete.")        
+    if ret == args.num_workers:
+        print("=== Success! ===")
+    else:
+        print(f"=== Failed! expected: {args.num_workers}, actual: {ret} ===")
+    
