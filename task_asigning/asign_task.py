@@ -48,7 +48,7 @@ def asign_task(parent_dir: str, tasks_file_path: str, chunk_size: int = -1):
     bucket_name, path = oss.split_file_path(parent_dir)
     bucket = oss.Bucket(bucket_name)
     rets = bucket.list_objects(prefix=path).object_list
-    shard_dirs = [ret for ret in rets if rets.endswith('/')]
+    shard_dirs = [ret for ret in rets if ret.endswith('/') and ret.startswith('CC-MAIN')]
 
     task_items = create_task_items(shard_dirs)
     data = {
@@ -65,10 +65,13 @@ def asign_task(parent_dir: str, tasks_file_path: str, chunk_size: int = -1):
     else:
         print(f"Failed")
 
+DEFAULT_TASKS_FILE_PATH = "oss://si002558te8h/dclm/tasks.json"
+DEFAULT_PARENT_DIR = "oss://si002558te8h/dclm/origin"
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--parent_dir", help="", type=str, default="")
-    parser.add_argument("--tasks_file_path", help="", type=str, default="")
+    parser.add_argument("--tasks_file_path", help="", type=str, default=DEFAULT_TASKS_FILE_PATH)
     args = parser.parse_args()    
     asign_task(args.parent_dir, args.tasks_file_path)

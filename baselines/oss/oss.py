@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
-from typing import BinaryIO, Union
+from typing import Union
 import oss2
+
 import logging
 from io import BytesIO
 
