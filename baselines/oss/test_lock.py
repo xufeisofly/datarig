@@ -36,7 +36,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     processes = []
     for i in range(args.num_workers):
-        p = multiprocessing.Process(target=worker, args=(DEFAULT_LOCK_FILE, i, args.timeout_ms))
+        p = multiprocessing.Process(target=worker, args=(DEFAULT_LOCK_FILE, i, args.timeout))
         processes.append(p)
         p.start()
     for p in processes:
