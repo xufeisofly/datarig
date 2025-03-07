@@ -30,10 +30,8 @@ class SimpleOSSLock:
     def acquire(self) -> bool:
         try:
             self.bucket.put_object(self.path, self.lock_value, headers={"x-oss-forbid-overwrite": "true"})
-            print("lock required")
             return True
-        except BaseException as e:
-            print("Failed to acquire lock, It might be held by another process:", e)
+        except BaseException:
             return False
 
     def acquire_or_block(self, timeout_ms=10000) -> bool:
@@ -56,12 +54,9 @@ class SimpleOSSLock:
             lock_content = self.bucket.get_object(self.path).read().decode('utf-8')
             if lock_content == self.lock_value:
                 self.bucket.delete_object(self.path)
-                print("Lock released")
                 return True
             else:
-                print("Lock not released: current lock is held by another process.")
                 return False
-        except Exception as e:
-            print("Failed to release lock:", e)
+        except BaseException:
             return False        
                 
