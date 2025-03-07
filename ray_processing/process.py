@@ -134,7 +134,7 @@ def list_shard_files(data_dirpath, num_shards=None, shard_list_file=None, shard_
     return shard_files
 
 
-if __name__ == "__main__":
+def process_all():
     os.environ["RAY_LOG_TO_STDERR"] = "1"
     args = parse_args()
 
@@ -315,3 +315,7 @@ if __name__ == "__main__":
     dataset_json = generate_untokenized_dataset_json(args, source_refs, base_output_path, data_key=shard_extension)
     with open(json_path, "w") as ref_file:
         json.dump(dataset_json, ref_file, indent=4)
+
+
+if __name__ == "__main__":
+    process_all()

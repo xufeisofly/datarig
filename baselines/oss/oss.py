@@ -1,9 +1,8 @@
 # -*- coding: utf-8 -*-
 from typing import BinaryIO, Union
 import oss2
-import os
 import logging
-from io import BufferedWriter, BytesIO, BufferedReader
+from io import BytesIO
 
 # 配置日志
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
