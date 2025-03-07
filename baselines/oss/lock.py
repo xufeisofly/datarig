@@ -34,18 +34,18 @@ class SimpleOSSLock:
         except BaseException:
             return False
 
-    def acquire_or_block(self, timeout_ms=10000) -> bool:
-        if timeout_ms == -1:
+    def acquire_or_block(self, timeout=100) -> bool:
+        if timeout == -1:
             while True:
                 if self.acquire():
                     return True
-                time.sleep(0.1)
+                time.sleep(1)
         else:
-            count = int(timeout_ms / 100)
+            count = int(timeout / 1)
             while count > 0:
                 if self.acquire():
                     return True
-                time.sleep(0.1)
+                time.sleep(1)
                 count -= 1
         return False
 
