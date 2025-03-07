@@ -10,9 +10,18 @@ def worker(lock_file: str, index: int):
     if lock.acquire_or_block(timeout_ms=5000):
         print(f"Worker {index} (PID: {os.getpid()}) acquired the lock.")
         # 模拟执行任务，休眠 1～3 秒之间
-        work_time = random.uniform(1, 3)
-        print(f"Worker {index} (PID: {os.getpid()}) working for {work_time:.2f} seconds...")
-        time.sleep(work_time)
+        file_path = "./num.txt"
+        if not os.path.exists(file_path):
+            with open(file_path, "w") as f:
+                f.write("0")
+
+        ret = 0
+        with open(file_path, "r") as f:
+            ret = int(f.read())
+
+        with open(file_path, "w") as f:
+            f.write(str(ret))
+
         if lock.release():
             print(f"Worker {index} (PID: {os.getpid()}) released the lock.")
         else:
