@@ -1,7 +1,6 @@
 import os
-import random
-import time
 import multiprocessing
+import argparse
 from baselines.oss.lock import SimpleOSSLock, DEFAULT_LOCK_FILE
 
 def worker(lock_file: str, index: int):
@@ -31,9 +30,11 @@ def worker(lock_file: str, index: int):
 
         
 if __name__ == "__main__":
-    num_workers = 100  # 启动5个子进程
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--num_workers", help="", type=int, default=5)
+    args = parser.parse_args()
     processes = []
-    for i in range(num_workers):
+    for i in range(args.num_workers):
         p = multiprocessing.Process(target=worker, args=(DEFAULT_LOCK_FILE, i))
         processes.append(p)
         p.start()
