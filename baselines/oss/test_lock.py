@@ -20,7 +20,7 @@ def worker(lock_file: str, index: int):
             ret = int(f.read())
 
         with open(file_path, "w") as f:
-            f.write(str(ret))
+            f.write(str(ret+1))
 
         if lock.release():
             print(f"Worker {index} (PID: {os.getpid()}) released the lock.")
