@@ -226,6 +226,7 @@ def process_task_item(task_item: TaskItem|None, with_init=True):
     def get_output_dir(output, shard_name):
         if shard_name == '':
             return output
+        # output dir: oss://si002558te8h/dclm/output/sci_test/CC-MAIN-2014-11/
         return os.path.join(args.output_dir, args.readable_name, shard_name)    
     
     output_dir = get_output_dir(args.output_dir, shard_name)
