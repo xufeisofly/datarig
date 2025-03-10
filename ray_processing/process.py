@@ -181,7 +181,7 @@ def process_all(mode='task'):
     while mode == 'task':
         task_item = get_task_item()
         if task_item is None:
-            break
+            return
         process_task_item(task_item, with_init)
         with_init = False
     process_task_item(None, with_init)
