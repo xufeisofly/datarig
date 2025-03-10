@@ -11,9 +11,10 @@ import json
 from baselines.core import process_single_file
 from baselines.core.file_utils import read_jsonl, write_jsonl, delete_file, is_exists, is_s3, is_oss
 from baselines.oss import oss
+from baselines.oss.lock import SimpleOSSLock, DEFAULT_LOCK_FILE
 from ray_processing import GLOBAL_FUNCTIONS
 from ray_processing.utils import generate_untokenized_dataset_json, get_source_ref, get_source_ref_by_key
-
+from task_asigning.asign_task import DEFAULT_TASKS_FILE_PATH
 
 import ray
 import traceback
@@ -134,7 +135,23 @@ def list_shard_files(data_dirpath, num_shards=None, shard_list_file=None, shard_
     return shard_files
 
 
+def get_process_key() -> str:
+    return ""
+
+
+def get_task_item():
+    lock = SimpleOSSLock(DEFAULT_LOCK_FILE)
+    # 分布式锁允许 1 hour 超时时间
+    if lock.acquire_or_block(timeout=3600):
+        # 改写 tasks.json 文件，领取任务
+        data = read_jsonl(DEFAULT_TASKS_FILE_PATH)
+        data['tasks']
+
+
 def process_all():
+    # TODO get task from oss tasks.json configuration file
+    task_item = get_task_item()
+    
     os.environ["RAY_LOG_TO_STDERR"] = "1"
     args = parse_args()
 
