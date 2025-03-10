@@ -177,14 +177,16 @@ def get_task_item():
         return None
 
 def process_all(mode='task'):
+    with_init = True 
     while mode == 'task':
         task_item = get_task_item()
         if task_item is None:
             break
-        process_task_item(task_item)
-    process_task_item(None)
+        process_task_item(task_item, with_init)
+        with_init = False
+    process_task_item(None, with_init)
 
-def process_task_item(task_item: TaskItem|None):
+def process_task_item(task_item: TaskItem|None, with_init=True):
     os.environ["RAY_LOG_TO_STDERR"] = "1"
     args = parse_args()
 
@@ -212,10 +214,11 @@ def process_task_item(task_item: TaskItem|None):
         source_ref = get_source_ref_by_key(args.raw_data_dirpath, "dataset_url")
         source_refs = [source_ref] if source_ref else []
 
-    if args.ray_use_working_dir:
-        ray.init(address=args.ray_address, runtime_env={"working_dir": "./", "excludes": ["tests/"]})
-    else:
-        ray.init(address=args.ray_address)
+    if with_init:
+        if args.ray_use_working_dir:
+            ray.init(address=args.ray_address, runtime_env={"working_dir": "./", "excludes": ["tests/"]})
+        else:
+            ray.init(address=args.ray_address)
 
     config_path = args.config_path
     output_dir = args.output_dir if shard_name != '' else os.path.join(args.output_dir, shard_name)
