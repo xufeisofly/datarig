@@ -189,14 +189,14 @@ def process_task_item(task_item: TaskItem|None):
     args = parse_args()
 
     task_input_dirpath, shard_name = '', ''
+    # Before proceeding, make sure that an existing dataset reference json won't be overwritten
+    json_path = f"exp_data/datasets/untokenized/{args.readable_name}.json"
     if task_item is not None:
         shard_dir = task_item.get_shard_dir()
         shard_name = shard_dir.split('/')[-2]
         task_input_dirpath = shard_dir
-        print(f"task shard dir: {shard_dir}")
-
-    # Before proceeding, make sure that an existing dataset reference json won't be overwritten
-    json_path = f"exp_data/datasets/untokenized/{args.readable_name}.json"
+        json_path = f"exp_data/datasets/untokenized/{args.readable_name}_{shard_name}.json"
+        print(f"task shard dir: {shard_dir}")    
     if not args.overwrite:
         assert not os.path.exists(
             json_path
