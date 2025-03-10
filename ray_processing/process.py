@@ -191,7 +191,8 @@ def process_task_item(task_item: TaskItem|None, with_init=True):
     args = parse_args()
 
     task_input_dirpath, shard_name = '', ''
-    # Before proceeding, make sure that an existing dataset reference json won't be overwritten
+    # json_path 文件用于检测该 input 是否曾经跑完
+    # TODO 由于 worker 任务是随机认领的，这个 json 文件最好放在 oss 上
     json_path = f"exp_data/datasets/untokenized/{args.readable_name}.json"
     if task_item is not None:
         shard_dir = task_item.get_shard_dir()
