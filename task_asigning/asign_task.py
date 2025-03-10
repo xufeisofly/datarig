@@ -15,7 +15,7 @@ for all the ray_process.py to accept.
       "shard_dir": "oss://si002558te8h/dclm/origin/CC-MAIN-2014-51/",
       "file_range": [0, -1],
       "worker": {
-        "id": "192.168.0.2_828282",
+        "key": "192.168.0.2_828282",
         "status": "processing" // processing/success/fail
       } // or null
     }, {
@@ -26,10 +26,13 @@ for all the ray_process.py to accept.
 """
 
 class TaskItem:
-    def __init__(self, shard_dir: str, file_range: List[int]) -> None:
+    def __init__(self, shard_dir: str, file_range: List[int], worker=None) -> None:
         self._shard_dir = shard_dir
         self._file_range = file_range
-        self._worker = None
+        self._worker = worker
+
+    def get_shard_dir(self):
+        return self._shard_dir
 
     def to_dict(self) -> dict:
         return {
@@ -46,19 +49,18 @@ def create_task_items(shard_dirs: List[str], chunk_size: int = -1) -> List[dict]
 
     
 def asign_task(parent_dir: str, tasks_file_path: str, chunk_size: int = -1):
-    bucket_name, path = oss.split_file_path(parent_dir)
+    bucket_name, path = oss.split_file_path(parent_dir) 
     bucket = oss.Bucket(bucket_name)
     rets = bucket.list_objects_v2(prefix=path, delimiter='/').prefix_list
-    shard_dirs = [ret for ret in rets if ret.endswith('/') and 'CC-MAIN' in ret]
+    shard_dirs = ["oss://" + bucket_name + "/" + ret for ret in rets if ret.endswith('/') and 'CC-MAIN' in ret]
 
     task_items = create_task_items(shard_dirs)
     data = {
         "tasks": task_items,
     }
-
-    write_jsonl(data, tasks_file_path)
-    # with oss.OSSPath(tasks_file_path).open("w") as f:
-    #     f.write(json.dumps(data, indent=4))
+    
+    with oss.OSSPath(tasks_file_path).open("w") as f:
+        f.write(json.dumps(data, indent=4))
     
     task_bucket_name, task_file = oss.split_file_path(tasks_file_path)
     existed = oss.Bucket(task_bucket_name).object_exists(task_file)
@@ -75,7 +77,7 @@ DEFAULT_PARENT_DIR = "oss://si002558te8h/dclm/origin/"
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("--parent_dir", help="", type=str, default="")
+    parser.add_argument("--parent_dir", help="", type=str, default=DEFAULT_PARENT_DIR)
     parser.add_argument("--tasks_file_path", help="", type=str, default=DEFAULT_TASKS_FILE_PATH)
     args = parser.parse_args()    
     asign_task(args.parent_dir, args.tasks_file_path)

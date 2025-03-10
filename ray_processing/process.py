@@ -11,10 +11,10 @@ import json
 from baselines.core import process_single_file
 from baselines.core.file_utils import read_jsonl, write_jsonl, delete_file, is_exists, is_s3, is_oss
 from baselines.oss import oss
-from baselines.oss.lock import SimpleOSSLock, DEFAULT_LOCK_FILE
+from baselines.oss.lock import SimpleOSSLock, DEFAULT_LOCK_FILE, get_worker_key
 from ray_processing import GLOBAL_FUNCTIONS
 from ray_processing.utils import generate_untokenized_dataset_json, get_source_ref, get_source_ref_by_key
-from task_asigning.asign_task import DEFAULT_TASKS_FILE_PATH
+from task_asigning.asign_task import DEFAULT_TASKS_FILE_PATH, TaskItem
 
 import ray
 import traceback
@@ -135,26 +135,64 @@ def list_shard_files(data_dirpath, num_shards=None, shard_list_file=None, shard_
     return shard_files
 
 
-def get_process_key() -> str:
-    return ""
-
-
 def get_task_item():
-    pass
-    # lock = SimpleOSSLock(DEFAULT_LOCK_FILE)
-    # # 分布式锁允许 1 hour 超时时间
-    # if lock.acquire_or_block(timeout=3600):
-    #     # 改写 tasks.json 文件，领取任务
-    #     data = read_jsonl(DEFAULT_TASKS_FILE_PATH)
-    #     data['tasks']
+    asigned_task = None
+    lock = SimpleOSSLock(DEFAULT_LOCK_FILE)
+    # 分布式锁允许 1 hour 超时时间
+    if lock.acquire_or_block(timeout=3600):
+        # 改写 tasks.json 文件，领取任务
+        ret = ""
+        with oss.OSSPath(DEFAULT_TASKS_FILE_PATH).open("rb") as f:
+            data = f.read()
+            ret = json.loads(data)
+        task_items = ret['tasks']
 
+        for i, task_item in enumerate(task_items):
+            if task_item['worker'] is not None:
+                continue
+            asigned_task = task_item
+            task_items[i]['worker'] = {
+                'key': get_worker_key(),
+                'status': 'processing'
+            }
+            break
 
-def process_all():
-    # TODO get task from oss tasks.json configuration file
-    task_item = get_task_item()
-    
+        if asigned_task is None:
+            return None
+
+        new_data = {
+            'tasks': task_items,
+        }
+        with oss.OSSPath(DEFAULT_TASKS_FILE_PATH).open("w") as f:
+            f.write(json.dumps(new_data, indent=4))
+
+        if lock.release():
+            print(f"Worker {get_worker_key()} released the lock.")
+        else:
+            print(f"Worker {get_worker_key()} failed to released the lock.")
+            
+        return TaskItem(asigned_task['shard_dir'], asigned_task['file_range'])
+    else:
+        print(f"Worker {get_worker_key()} could not acquire the lock within timeout.")
+        return None
+
+def process_all(mode='task'):
+    while mode == 'task':
+        task_item = get_task_item()
+        if task_item is None:
+            break
+        process_task_item(task_item)
+    process_task_item(None)
+
+def process_task_item(task_item: TaskItem|None):
     os.environ["RAY_LOG_TO_STDERR"] = "1"
     args = parse_args()
+
+    task_input_dirpath, shard_name = '', ''
+    if task_item is not None:
+        shard_dir = task_item.get_shard_dir()
+        shard_name = shard_dir.split('/')[-2]
+        task_input_dirpath = shard_dir
 
     # Before proceeding, make sure that an existing dataset reference json won't be overwritten
     json_path = f"exp_data/datasets/untokenized/{args.readable_name}.json"
@@ -179,7 +217,7 @@ def process_all():
         ray.init(address=args.ray_address)
 
     config_path = args.config_path
-    output_dir = args.output_dir
+    output_dir = args.output_dir if shard_name != '' else os.path.join(args.output_dir, shard_name)
     source_name = args.source_name
     config_name = os.path.basename(config_path).split(".")[0]
     base_output_path = os.path.join(output_dir, config_name)
@@ -218,7 +256,7 @@ def process_all():
 
     # Begin processing the chunks
     true_start = time.time()
-    working_dir = args.raw_data_dirpath
+    working_dir = task_input_dirpath if task_input_dirpath != '' is not None else args.raw_data_dirpath
     overwrite = args.overwrite
 
     for i, c in enumerate(chunks):
@@ -336,4 +374,4 @@ def process_all():
 
 
 if __name__ == "__main__":
-    process_all()
+    process_all(mode='task')

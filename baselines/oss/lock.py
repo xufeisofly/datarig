@@ -3,6 +3,7 @@ import time
 import socket
 import os
 from baselines.oss import oss
+    
 
 def get_local_ip():
     """获取本机局域网 IP 地址，避免返回 127.0.0.1"""
@@ -16,6 +17,9 @@ def get_local_ip():
     finally:
         s.close()
 
+def get_worker_key():
+    return f"{get_local_ip()}_{os.getpid()}"
+        
 
 DEFAULT_LOCK_FILE = "oss://si002558te8h/dclm/lockfile"
         
