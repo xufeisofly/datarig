@@ -221,7 +221,13 @@ def process_task_item(task_item: TaskItem|None, with_init=True):
             ray.init(address=args.ray_address)
 
     config_path = args.config_path
-    output_dir = args.output_dir if shard_name != '' else os.path.join(args.output_dir, shard_name)
+    
+    def get_output_dir(output, shard_name):
+        if shard_name == '':
+            return output
+        return os.path.join(args.output_dir, shard_name)    
+    
+    output_dir = get_output_dir(args.output_dir, shard_name)
     source_name = args.source_name
     config_name = os.path.basename(config_path).split(".")[0]
     base_output_path = os.path.join(output_dir, config_name)
