@@ -140,12 +140,13 @@ def get_process_key() -> str:
 
 
 def get_task_item():
-    lock = SimpleOSSLock(DEFAULT_LOCK_FILE)
-    # 分布式锁允许 1 hour 超时时间
-    if lock.acquire_or_block(timeout=3600):
-        # 改写 tasks.json 文件，领取任务
-        data = read_jsonl(DEFAULT_TASKS_FILE_PATH)
-        data['tasks']
+    pass
+    # lock = SimpleOSSLock(DEFAULT_LOCK_FILE)
+    # # 分布式锁允许 1 hour 超时时间
+    # if lock.acquire_or_block(timeout=3600):
+    #     # 改写 tasks.json 文件，领取任务
+    #     data = read_jsonl(DEFAULT_TASKS_FILE_PATH)
+    #     data['tasks']
 
 
 def process_all():
