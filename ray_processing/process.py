@@ -158,6 +158,7 @@ def get_task_item():
             break
 
         if asigned_task is None:
+            lock.release()
             return None
 
         new_data = {
@@ -166,10 +167,7 @@ def get_task_item():
         with oss.OSSPath(DEFAULT_TASKS_FILE_PATH).open("w") as f:
             f.write(json.dumps(new_data, indent=4))
 
-        if lock.release():
-            print(f"Worker {get_worker_key()} released the lock.")
-        else:
-            print(f"Worker {get_worker_key()} failed to released the lock.")
+        lock.release()
             
         return TaskItem(asigned_task['shard_dir'], asigned_task['file_range'])
     else:
