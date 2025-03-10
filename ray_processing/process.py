@@ -256,7 +256,7 @@ def process_task_item(task_item: TaskItem|None):
 
     # Begin processing the chunks
     true_start = time.time()
-    working_dir = task_input_dirpath if task_input_dirpath != '' is not None else args.raw_data_dirpath
+    working_dir = task_input_dirpath if task_input_dirpath != '' else args.raw_data_dirpath
     overwrite = args.overwrite
 
     for i, c in enumerate(chunks):
