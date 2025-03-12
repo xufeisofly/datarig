@@ -13,10 +13,10 @@ spec:
         app: dclm-sci
     spec:
       imagePullSecrets:
-        - name: zj-docker-registry
+        - name: cr-docker-registry
       containers:
       - name: dclm-sci
-        image: 10.200.88.53/002558/dclm-sci:v1.0
+        image: cr.registry.res.cloud.zhejianglab.com/dataprocess/dclm-sci:v1.0
         command: ["dclm-sci"]
         args:
           - "--readable_name"
