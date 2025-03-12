@@ -142,37 +142,75 @@ def get_task_item():
     if lock.acquire_or_block(timeout=3600):
         # 改写 tasks.json 文件，领取任务
         ret = ""
-        with oss.OSSPath(DEFAULT_TASKS_FILE_PATH).open("rb") as f:
-            data = f.read()
-            ret = json.loads(data)
-        task_items = ret['tasks']
+        try:
+            with oss.OSSPath(DEFAULT_TASKS_FILE_PATH).open("rb") as f:
+                data = f.read()
+                ret = json.loads(data)
+            task_items = ret['tasks']
 
-        for i, task_item in enumerate(task_items):
-            if task_item['worker'] is not None:
-                continue
-            asigned_task = task_item
-            task_items[i]['worker'] = {
-                'key': get_worker_key(),
-                'status': 'processing'
+            for i, task_item in enumerate(task_items):
+                if task_item['worker'] is not None:
+                    continue
+                asigned_task = task_item
+                task_items[i]['worker'] = {
+                    'key': get_worker_key(),
+                    'status': 'processing'
+                }
+                break
+
+            if asigned_task is None:
+                lock.release()
+                return None
+
+            new_data = {
+                'tasks': task_items,
             }
-            break
+            with oss.OSSPath(DEFAULT_TASKS_FILE_PATH).open("w") as f:
+                f.write(json.dumps(new_data, indent=4))
 
-        if asigned_task is None:
+            lock.release()
+            return TaskItem(asigned_task['shard_dir'], asigned_task['file_range'])
+        except BaseException as e:
+            print(f"get task item failed: {e}")
             lock.release()
             return None
-
-        new_data = {
-            'tasks': task_items,
-        }
-        with oss.OSSPath(DEFAULT_TASKS_FILE_PATH).open("w") as f:
-            f.write(json.dumps(new_data, indent=4))
-
-        lock.release()
-            
-        return TaskItem(asigned_task['shard_dir'], asigned_task['file_range'])
     else:
         print(f"Worker {get_worker_key()} could not acquire the lock within timeout.")
         return None
+
+def mark_task_item_finished(shard_dir: str):
+    lock = SimpleOSSLock(DEFAULT_LOCK_FILE)
+    # 分布式锁允许 1 hour 超时时间
+    if lock.acquire_or_block(timeout=3600):
+        # 改写 tasks.json 文件，领取任务
+        ret = ""
+        try:
+            with oss.OSSPath(DEFAULT_TASKS_FILE_PATH).open("rb") as f:
+                data = f.read()
+                ret = json.loads(data)
+            task_items = ret['tasks']
+
+            for i, task_item in enumerate(task_items):
+                if task_item['shard_dir'] != shard_dir:
+                    continue
+                task_items[i]['worker'] = {
+                    'key': task_items[i]['worker']['key'],
+                    'status': 'finished',
+                }
+                break
+
+            new_data = {
+                'tasks': task_items,
+            }
+            with oss.OSSPath(DEFAULT_TASKS_FILE_PATH).open("w") as f:
+                f.write(json.dumps(new_data, indent=4))
+
+            lock.release()
+        except BaseException as e:
+            print(f"get task item failed: {e}")
+            lock.release()
+    else:
+        print(f"Worker {get_worker_key()} could not acquire the lock within timeout.")
 
 def process_all(mode='task'):
     with_init = True 
@@ -223,14 +261,17 @@ def process_task_item(task_item: TaskItem|None, with_init=True):
     
     def get_output_dir(output, shard_name):
         if shard_name == '':
-            return output
+            return os.path.join(output, args.readable_name)
         # output dir: oss://si002558te8h/dclm/output/sci_test/CC-MAIN-2014-11/
-        return os.path.join(args.output_dir, args.readable_name, shard_name)    
+        return os.path.join(output, args.readable_name, shard_name)    
     
     output_dir = get_output_dir(args.output_dir, shard_name)
     source_name = args.source_name
-    config_name = os.path.basename(config_path).split(".")[0]
-    base_output_path = os.path.join(output_dir, config_name)
+    
+    # base output path 去掉 config_name，使用自定义的 readable name 去区分不同的 pipeline
+    # config_name = os.path.basename(config_path).split(".")[0]
+    # base_output_path = os.path.join(output_dir, config_name)
+    base_output_path = output_dir
 
     # Collect the global stats file, which is used to record / resume a data processing pipeline
     global_stats_path = os.path.join(base_output_path, "global_stats.jsonl")
@@ -381,6 +422,8 @@ def process_task_item(task_item: TaskItem|None, with_init=True):
     dataset_json = generate_untokenized_dataset_json(args, source_refs, base_output_path, data_key=shard_extension)
     with open(json_path, "w") as ref_file:
         json.dump(dataset_json, ref_file, indent=4)
+    if task_item is not None:    
+        mark_task_item_finished(shard_dir)
 
 
 if __name__ == "__main__":
