@@ -27,6 +27,6 @@ spec:
           - "baselines/baselines_configs/sci.yaml"
           - "--source_name"
           - "cc"
-		  - "overwrite"
+		  - "--overwrite"
         imagePullPolicy: IfNotPresent
       restartPolicy: Always
