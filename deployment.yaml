@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dclm-sci-deployment
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: dclm-sci
+  template:
+    metadata:
+      labels:
+        app: dclm-sci
+    spec:
+      imagePullSecrets:
+        - name: cr-docker-registry
+      containers:
+      - name: dclm-sci
+        image: cr.registry.res.cloud.zhejianglab.com/dataprocess/dclm-sci:v1.0
+        command: ["/app/dclm-sci/start.sh"]
+        args:
+          - "--readable_name"
+          - "sci_test_3"
+          - "--output_dir"
+          - "oss://si002558te8h/dclm/output"
+          - "--config_path"
+          - "baselines/baselines_configs/sci.yaml"
+          - "--source_name"
+          - "cc"
+          - "--overwrite"
+        imagePullPolicy: IfNotPresent
+      restartPolicy: Always

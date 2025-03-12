@@ -11,9 +11,10 @@ import json
 from baselines.core import process_single_file
 from baselines.core.file_utils import read_jsonl, write_jsonl, delete_file, is_exists, is_s3, is_oss
 from baselines.oss import oss
+from baselines.oss.lock import SimpleOSSLock, DEFAULT_LOCK_FILE, get_worker_key
 from ray_processing import GLOBAL_FUNCTIONS
 from ray_processing.utils import generate_untokenized_dataset_json, get_source_ref, get_source_ref_by_key
-
+from task_asigning.asign_task import DEFAULT_TASKS_FILE_PATH, TaskItem
 
 import ray
 import traceback
@@ -134,12 +135,69 @@ def list_shard_files(data_dirpath, num_shards=None, shard_list_file=None, shard_
     return shard_files
 
 
-if __name__ == "__main__":
+def get_task_item():
+    asigned_task = None
+    lock = SimpleOSSLock(DEFAULT_LOCK_FILE)
+    # 分布式锁允许 1 hour 超时时间
+    if lock.acquire_or_block(timeout=3600):
+        # 改写 tasks.json 文件，领取任务
+        ret = ""
+        with oss.OSSPath(DEFAULT_TASKS_FILE_PATH).open("rb") as f:
+            data = f.read()
+            ret = json.loads(data)
+        task_items = ret['tasks']
+
+        for i, task_item in enumerate(task_items):
+            if task_item['worker'] is not None:
+                continue
+            asigned_task = task_item
+            task_items[i]['worker'] = {
+                'key': get_worker_key(),
+                'status': 'processing'
+            }
+            break
+
+        if asigned_task is None:
+            lock.release()
+            return None
+
+        new_data = {
+            'tasks': task_items,
+        }
+        with oss.OSSPath(DEFAULT_TASKS_FILE_PATH).open("w") as f:
+            f.write(json.dumps(new_data, indent=4))
+
+        lock.release()
+            
+        return TaskItem(asigned_task['shard_dir'], asigned_task['file_range'])
+    else:
+        print(f"Worker {get_worker_key()} could not acquire the lock within timeout.")
+        return None
+
+def process_all(mode='task'):
+    with_init = True 
+    while mode == 'task':
+        task_item = get_task_item()
+        if task_item is None:
+            return
+        process_task_item(task_item, with_init)
+        with_init = False
+    process_task_item(None, with_init)
+
+def process_task_item(task_item: TaskItem|None, with_init=True):
     os.environ["RAY_LOG_TO_STDERR"] = "1"
     args = parse_args()
 
-    # Before proceeding, make sure that an existing dataset reference json won't be overwritten
+    task_input_dirpath, shard_name = '', ''
+    # json_path 文件用于检测该 input 是否曾经跑完
+    # TODO 由于 worker 任务是随机认领的，这个 json 文件最好放在 oss 上
     json_path = f"exp_data/datasets/untokenized/{args.readable_name}.json"
+    if task_item is not None:
+        shard_dir = task_item.get_shard_dir()
+        shard_name = shard_dir.split('/')[-2]
+        task_input_dirpath = shard_dir
+        json_path = f"exp_data/datasets/untokenized/{args.readable_name}_{shard_name}.json"
+        print(f"task shard dir: {shard_dir}")    
     if not args.overwrite:
         assert not os.path.exists(
             json_path
@@ -155,13 +213,21 @@ if __name__ == "__main__":
         source_ref = get_source_ref_by_key(args.raw_data_dirpath, "dataset_url")
         source_refs = [source_ref] if source_ref else []
 
-    if args.ray_use_working_dir:
-        ray.init(address=args.ray_address, runtime_env={"working_dir": "./", "excludes": ["tests/"]})
-    else:
-        ray.init(address=args.ray_address)
+    if with_init:
+        if args.ray_use_working_dir:
+            ray.init(address=args.ray_address, runtime_env={"working_dir": "./", "excludes": ["tests/"]})
+        else:
+            ray.init(address=args.ray_address)
 
     config_path = args.config_path
-    output_dir = args.output_dir
+    
+    def get_output_dir(output, shard_name):
+        if shard_name == '':
+            return output
+        # output dir: oss://si002558te8h/dclm/output/sci_test/CC-MAIN-2014-11/
+        return os.path.join(args.output_dir, args.readable_name, shard_name)    
+    
+    output_dir = get_output_dir(args.output_dir, shard_name)
     source_name = args.source_name
     config_name = os.path.basename(config_path).split(".")[0]
     base_output_path = os.path.join(output_dir, config_name)
@@ -200,7 +266,7 @@ if __name__ == "__main__":
 
     # Begin processing the chunks
     true_start = time.time()
-    working_dir = args.raw_data_dirpath
+    working_dir = task_input_dirpath if task_input_dirpath != '' else args.raw_data_dirpath
     overwrite = args.overwrite
 
     for i, c in enumerate(chunks):
@@ -315,3 +381,7 @@ if __name__ == "__main__":
     dataset_json = generate_untokenized_dataset_json(args, source_refs, base_output_path, data_key=shard_extension)
     with open(json_path, "w") as ref_file:
         json.dump(dataset_json, ref_file, indent=4)
+
+
+if __name__ == "__main__":
+    process_all(mode='task')
