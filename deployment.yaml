@@ -17,7 +17,7 @@ spec:
       containers:
       - name: dclm-sci
         image: cr.registry.res.cloud.zhejianglab.com/dataprocess/dclm-sci:v1.0
-		command: ["/app/dclm-sci"]
+        command: ["/app/dclm-sci"]
         args:
           - "--readable_name"
           - "sci_test_3"
@@ -27,5 +27,6 @@ spec:
           - "baselines/baselines_configs/sci.yaml"
           - "--source_name"
           - "cc"
+          - "overwrite"
         imagePullPolicy: IfNotPresent
       restartPolicy: Always
