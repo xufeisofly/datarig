@@ -11,12 +11,3 @@
       max_length: 10
     - func: symbol_ratio_filter
       max_symbol_to_word_ratio: 0.1
-    - func: bullet_count_filter
-      max_bullet_start_ratio: 0.9
-    - func: ellipsis_count_filter
-      max_ellipsis_end_ratio: 0.3 
-    - func: alphabetic_word_ratio_filter 
-      max_ratio: 0.2
-    - func: stop_word_filter  
-      count_unique: False                   
-      min_stop_word: 2
