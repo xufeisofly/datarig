@@ -61,7 +61,7 @@ def create_task_items(shard_dirs: List[str], mode: str, chunk_size: int) -> List
         else:
             total = len(file_paths)
             start = 0
-            while start >= total:
+            while start < total:
                 end = start+chunk_size
                 if end >= total:
                     end = total
