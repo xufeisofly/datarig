@@ -1924,6 +1924,10 @@ async fn main() -> Result<()> {
                         let first_path = &real_inputs[0];
                         real_output_dir = first_path.join("dedup_data");
                     }
+                } else {
+                    if let Some(ref dir) = output_directory {
+                        real_output_dir = dir.to_path_buf();
+                    }
                 }
 
                 bff(
