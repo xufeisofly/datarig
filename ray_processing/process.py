@@ -434,3 +434,4 @@ def process_task_item(task_item: TaskItem|None, with_init=True):
 
 if __name__ == "__main__":
     process_all(mode='task')
+    exit(1)

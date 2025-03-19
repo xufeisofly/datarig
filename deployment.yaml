@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: dclm-sci-deployment
 spec:
-  replicas: 20
+  replicas: 1
   selector:
     matchLabels:
       app: dclm-sci
@@ -29,11 +29,11 @@ spec:
         image: cr.registry.res.cloud.zhejianglab.com/dataprocess/datarig:v1.0
         resources:
           requests:
-            cpu: "4"
-            memory: "16Gi"
+            cpu: "8"
+            memory: "32Gi"
           limits:
             cpu: "8"
-            memory: "16Gi"				
+            memory: "32Gi"				
         command: ["/app/dclm-sci/start.sh"]
         args:
           - "--readable_name"
