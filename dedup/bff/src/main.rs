@@ -1532,6 +1532,7 @@ async fn expand_oss_dirs(oss_uri: &PathBuf) -> Result<Vec<PathBuf>> {
         if !(key.ends_with(".jsonl.gz")
             || key.ends_with(".jsonl")
             || key.ends_with(".jsonl.zstd")
+            || key.ends_with(".tsv")
             || key.ends_with(".jsonl.zst"))
         {
             continue;
