@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: dclm-sci-deployment
 spec:
-  replicas: 40
+  replicas: 20
   selector:
     matchLabels:
       app: dclm-sci
@@ -24,7 +24,7 @@ spec:
           - "--output_dir"
           - "oss://si002558te8h/dclm/output"
           - "--config_path"
-          - "baselines/baselines_configs/dclm_baseline_refinedweb.yaml"
+          - "baselines/baselines_configs/sciv2.yaml"
           - "--source_name"
           - "cc"
           - "--overwrite"
