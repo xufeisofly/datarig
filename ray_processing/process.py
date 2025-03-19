@@ -181,7 +181,7 @@ def get_task_item():
         print(f"Worker {get_worker_key()} could not acquire the lock within timeout.")
         return None
 
-def mark_task_item_finished(shard_dir: str):
+def mark_task_item_finished(shard_dir: str, file_range):
     lock = SimpleOSSLock(DEFAULT_LOCK_FILE)
     # 分布式锁允许 1 hour 超时时间
     if lock.acquire_or_block(timeout=3600):
@@ -194,7 +194,7 @@ def mark_task_item_finished(shard_dir: str):
             task_items = ret['tasks']
 
             for i, task_item in enumerate(task_items):
-                if task_item['shard_dir'] != shard_dir:
+                if task_item['shard_dir'] != shard_dir or task_item['file_range'] != file_range:
                     continue
                 task_items[i]['worker'] = {
                     'key': task_items[i]['worker']['key'],
@@ -429,7 +429,7 @@ def process_task_item(task_item: TaskItem|None, with_init=True):
     with open(json_path, "w") as ref_file:
         json.dump(dataset_json, ref_file, indent=4)
     if task_item is not None:    
-        mark_task_item_finished(shard_dir)
+        mark_task_item_finished(shard_dir, file_range)
 
 
 if __name__ == "__main__":
