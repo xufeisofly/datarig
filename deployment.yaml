@@ -46,4 +46,12 @@ spec:
           - "cc"
           - "--overwrite"
         imagePullPolicy: IfNotPresent
+		volumeMounts:
+          - name: dshm
+            mountPath: /dev/shm
       restartPolicy: Always
+      volumes:
+        - name: dshm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 5Gi	  
