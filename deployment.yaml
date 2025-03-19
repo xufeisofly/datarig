@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: dclm-sci-deployment
 spec:
-  replicas: 10
+  replicas: 40
   selector:
     matchLabels:
       app: dclm-sci
