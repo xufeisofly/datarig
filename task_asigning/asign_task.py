@@ -59,9 +59,13 @@ def create_task_items(shard_dirs: List[str], mode: str, chunk_size: int) -> List
         if chunk_size == -1:
             tasks.append(TaskItem(shard_dir, [0, -1]).to_dict())
         else:
+            total = len(file_paths)
             start = 0
-            while start >= len(file_paths):
-                file_range = [start, start+chunk_size]
+            while start >= total:
+                end = start+chunk_size
+                if end >= total:
+                    end = total
+                file_range = [start, end]
                 start += chunk_size
                 tasks.append(TaskItem(shard_dir, file_range).to_dict())
     return tasks
