@@ -75,7 +75,7 @@ def asign_task(parent_dir: str, tasks_file_path: str, mode: str='process', chunk
     bucket_name, path = oss.split_file_path(parent_dir) 
     bucket = oss.Bucket(bucket_name)
     rets = bucket.list_objects_v2(prefix=path, delimiter='/').prefix_list
-    shard_dirs = [os.path.join("oss://" + bucket_name, ret) for ret in rets if ret.endswith('/') and 'DCLM_sub_by_keywords' in ret]
+    shard_dirs = [os.path.join("oss://" + bucket_name, ret) for ret in rets if ret.endswith('/') and 'CC-MAIN' in ret]
 
     task_items = create_task_items(shard_dirs, mode, chunk_size)
     data = {
