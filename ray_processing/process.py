@@ -96,7 +96,7 @@ def to_iterator(obj_ids, batch_size=100):
             yield ray.get(d)
 
 
-def list_shard_files(data_dirpath, num_shards=None, shard_list_file=None, shard_list_filters=None):
+def list_shard_files(data_dirpath, num_shards=None, shard_list_file=None, shard_list_filters=None, file_range=None):
     assert bool(shard_list_file) ^ bool(data_dirpath), "Either shard_list_file or data_dirpath must be provided, but not both."
     
     def get_files_in_directory(data_dirpath):
@@ -131,6 +131,9 @@ def list_shard_files(data_dirpath, num_shards=None, shard_list_file=None, shard_
 
     if shard_list_filters is not None:
         shard_files = [s for s in shard_files if any(f in s for f in shard_list_filters)]
+
+    if file_range is not None:
+        shard_files = shard_files[file_range[0]: file_range[1]]
 
     return shard_files
 
@@ -212,6 +215,7 @@ def mark_task_item_finished(shard_dir: str):
     else:
         print(f"Worker {get_worker_key()} could not acquire the lock within timeout.")
 
+
 def process_all(mode='task'):
     with_init = True 
     while mode == 'task':
@@ -230,10 +234,12 @@ def process_task_item(task_item: TaskItem|None, with_init=True):
     # json_path 文件用于检测该 input 是否曾经跑完
     # TODO 由于 worker 任务是随机认领的，这个 json 文件最好放在 oss 上
     json_path = f"exp_data/datasets/untokenized/{args.readable_name}.json"
+    file_range = None
     if task_item is not None:
         shard_dir = task_item.get_shard_dir()
         shard_name = shard_dir.split('/')[-2]
         task_input_dirpath = shard_dir
+        file_range = task_item.get_file_range()
         json_path = f"exp_data/datasets/untokenized/{args.readable_name}_{shard_name}.json"
         print(f"task shard dir: {shard_dir}")    
     if not args.overwrite:
@@ -315,7 +321,7 @@ def process_task_item(task_item: TaskItem|None, with_init=True):
         step_name = LOCAL_CHUNK if c == LOCAL_CHUNK else c["func"]
         resumed_chunk = False
         # xufeisofly
-        shard_files = list_shard_files(working_dir, args.num_shards, args.shard_list_file)
+        shard_files = list_shard_files(working_dir, args.num_shards, args.shard_list_file, file_range=file_range)
         shard_extension = os.path.splitext(shard_files[0])[-1][1:]
 
         # If chunk has already been processed according to global stats, then skip it

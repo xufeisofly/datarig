@@ -35,6 +35,9 @@ class TaskItem:
     def get_shard_dir(self):
         return self._shard_dir
 
+    def get_file_range(self):
+        return self._file_range
+
     def to_dict(self) -> dict:
         return {
             "shard_dir": self._shard_dir,
@@ -42,23 +45,35 @@ class TaskItem:
             "worker": self._worker,
         }
 
-def create_task_items(shard_dirs: List[str], mode: str) -> List[dict]:
+def create_task_items(shard_dirs: List[str], mode: str, chunk_size: int) -> List[dict]:
     tasks = []
     for shard_dir in shard_dirs:
         if mode == 'dedup':
             # 对于 dedup 任务，CC-MAIN 目录下还有一层 processed_data
             shard_dir = [os.path.join(shard_dir, 'processed_data')]
-        tasks.append(TaskItem(shard_dir, [0, -1]).to_dict())
+
+        bucket_name, path = oss.split_file_path(shard_dir) 
+        bucket = oss.Bucket(bucket_name)
+        file_paths = [x for x in bucket.list_objects_v2(prefix=path).object_list if not x.key.endswith('/')]
+
+        if chunk_size == -1:
+            tasks.append(TaskItem(shard_dir, [0, -1]).to_dict())
+        else:
+            start = 0
+            while start >= len(file_paths):
+                file_range = [start, start+chunk_size]
+                start += chunk_size
+                tasks.append(TaskItem(shard_dir, file_range).to_dict())
     return tasks
 
     
-def asign_task(parent_dir: str, tasks_file_path: str, mode: str='process'):
+def asign_task(parent_dir: str, tasks_file_path: str, mode: str='process', chunk_size=-1):
     bucket_name, path = oss.split_file_path(parent_dir) 
     bucket = oss.Bucket(bucket_name)
     rets = bucket.list_objects_v2(prefix=path, delimiter='/').prefix_list
     shard_dirs = [os.path.join("oss://" + bucket_name, ret) for ret in rets if ret.endswith('/') and 'CC-MAIN' in ret]
 
-    task_items = create_task_items(shard_dirs, mode)
+    task_items = create_task_items(shard_dirs, mode, chunk_size)
     data = {
         "tasks": task_items,
     }
@@ -83,6 +98,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--parent_dir", help="", type=str, default=DEFAULT_PARENT_DIR)
     parser.add_argument("--tasks_file_path", help="", type=str, default=DEFAULT_TASKS_FILE_PATH)
+    parser.add_argument("--chunk_size", help="", type=int, default=-1)
     parser.add_argument("--mode", help="process/dedup", type=str, default='process')
     args = parser.parse_args()    
-    asign_task(args.parent_dir, args.tasks_file_path, args.mode)
+    asign_task(args.parent_dir, args.tasks_file_path, args.mode, args.chunk_size)
