@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: dclm-sci-deployment
+  name: dclm-sci-deployment-2
 spec:
   replicas: 10
   selector:
