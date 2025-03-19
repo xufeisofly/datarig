@@ -7,7 +7,7 @@ import io
 from typing import BinaryIO, List
 
 from cloudpathlib import S3Path
-from baselines.oss.oss import OSSPath
+from baselines.oss.oss import OSSPath, Bucket
 import os
 import boto3
 from pathlib import Path as LocalPath
@@ -127,3 +127,15 @@ def list_dir(dirname) -> List[str]:
         return [str(f) for f in s3_directory.iterdir() if not f.name.startswith(".")]  # exclude hidden files
     else:
         return [os.path.abspath(os.path.join(dirname, f)) for f in os.listdir(dirname) if not f.startswith(".")]
+
+
+def get_file_size(file_path):
+    """
+    unit: Byte
+    """
+    if not is_oss(file_path):
+        return os.path.getsize(file_path)
+    bucket, path = file_path.replace("oss://", "").split("/", 1)
+    obj = Bucket(bucket).get_object(path)
+    file_size = obj.headers.get('content-length')
+    return int(file_size)    

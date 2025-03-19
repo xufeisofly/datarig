@@ -9,8 +9,9 @@ from typing import Any, Dict, Tuple
 from yaml import safe_load
 
 from baselines.core.factories import get_mapper, get_aggregator, get_transform
-from baselines.core.file_utils import read_jsonl, write_jsonl, makedirs_if_missing, delete_file, is_exists
+from baselines.core.file_utils import is_oss, read_jsonl, write_jsonl, makedirs_if_missing, delete_file, is_exists, get_file_size
 from baselines.core.constants import PROCESS_SETUP_KEY_NAME, PROCESS_END_KEY_NAME, COMMIT_KEY_NAME, GLOBAL_FUNCTIONS
+from baselines.oss.oss import OSSPath
 
 logger = logging.getLogger(__name__)
 
@@ -68,6 +69,134 @@ def _is_step_stats(line):
     True iff this is a step stats line (and not a general info one)
     """
     return line['name'] not in {PROCESS_SETUP_KEY_NAME, PROCESS_END_KEY_NAME, COMMIT_KEY_NAME}
+
+def _split_large_file(input_path: str, max_size_mb: int = 100) -> List[str]:
+    """
+    将大文件切分成多个小文件，每个不超过指定大小。
+    
+    :param input_path: 输入文件路径
+    :param max_size_mb: 最大文件大小（MB）
+    :return: 切分后的临时文件路径列表
+    """
+    if is_oss(input_path):
+        return _split_large_file_oss(input_path, max_size_mb)
+    max_size_bytes = max_size_mb * 1024 * 1024
+    file_size = get_file_size(input_path)
+    
+    if file_size <= max_size_bytes:
+        return [input_path]  # 文件不需要切分
+    
+    logger.info(f"文件大小({file_size/1024/1024:.2f}MB)超过{max_size_mb}MB，进行切分处理")
+    
+    # 创建临时目录存放切分文件
+    temp_dir = os.path.join(os.path.dirname(input_path), "temp_split_files")
+    makedirs_if_missing(temp_dir)
+
+    base_filename = os.path.basename(input_path)
+    file_name, file_ext = os.path.splitext(base_filename)
+    
+    # # 估计文件行数和每个文件应包含的行数
+    # with open(input_path, 'r', encoding='utf-8') as f:
+    #     # 读取前10行估算平均行大小
+    #     lines = []
+    #     for _ in range(10):
+    #         line = f.readline()
+    #         if not line:
+    #             break
+    #         lines.append(line)
+    
+    # if not lines:
+    #     return [input_path]  # 空文件直接返回
+    
+    # avg_line_size = sum(len(line.encode('utf-8')) for line in lines) / len(lines)
+    # total_lines = math.ceil(file_size / avg_line_size)
+    # lines_per_file = math.floor(max_size_bytes / avg_line_size)
+    
+    # 预估分片数量
+    # num_chunks = math.ceil(total_lines / lines_per_file)
+    # logger.info(f"预计分成{num_chunks}个文件进行处理")
+    temp_files = []
+    chunk_idx = 0
+    line_buffer = []
+    current_size = 0
+
+    # 使用 read_jsonl 读取文件，无论是本地、S3 还是 OSS 都能正确读取
+    for line in read_jsonl(input_path):
+        # 计算当前行的字节大小（以 UTF-8 编码）
+        line_size = len(line.encode('utf-8'))
+    
+        # 如果当前累计大小加上当前行超过了最大限制，并且缓冲区已有内容
+        if current_size + line_size > max_size_bytes and line_buffer:
+            chunk_path = os.path.join(temp_dir, f"{file_name}_chunk{chunk_idx}{file_ext}")
+            with open(chunk_path, 'w', encoding='utf-8') as outfile:
+                outfile.writelines(line_buffer)
+                temp_files.append(chunk_path)
+            
+            chunk_idx += 1
+            line_buffer = [line]
+            current_size = line_size
+        else:
+            line_buffer.append(line)
+            current_size += line_size
+
+    # 写入最后剩余的内容
+    if line_buffer:
+        chunk_path = os.path.join(temp_dir, f"{file_name}_chunk{chunk_idx}{file_ext}")
+        with open(chunk_path, 'w', encoding='utf-8') as outfile:
+            outfile.writelines(line_buffer)
+            temp_files.append(chunk_path)
+
+    logger.info(f"文件已切分为{len(temp_files)}个子文件")
+    return temp_files
+
+
+def _split_large_file_oss(input_path: str, max_size_mb: int = 100) -> List[str]:
+    max_size_bytes = max_size_mb * 1024 * 1024
+    file_size = get_file_size(input_path)
+    
+    if file_size <= max_size_bytes:
+        return [input_path]  # 文件不需要切分
+    
+    logger.info(f"文件大小({file_size/1024/1024:.2f}MB)超过{max_size_mb}MB，进行切分处理")
+    
+    # 创建临时目录存放切分文件
+    temp_dir = os.path.join(os.path.dirname(input_path), "temp_split_files")
+    makedirs_if_missing(temp_dir)
+
+    _, path_within_bucket = input_path.replace("oss://", "").split("/", 1)
+    base_filename = os.path.basename(path_within_bucket)
+    file_name, file_ext = os.path.splitext(base_filename)
+    
+    temp_files = []
+    chunk_idx = 0
+    line_buffer = []
+    current_size = 0
+
+    for line in read_jsonl(input_path):
+        line_size = len(line.encode('utf-8'))
+    
+        if current_size + line_size > max_size_bytes and line_buffer:
+            chunk_path = os.path.join(temp_dir, f"{file_name}_chunk{chunk_idx}{file_ext}")
+            with open(chunk_path, 'w', encoding='utf-8') as outfile:
+                outfile.writelines(line_buffer)
+                temp_files.append(chunk_path)
+            
+            chunk_idx += 1
+            line_buffer = [line]
+            current_size = line_size
+        else:
+            line_buffer.append(line)
+            current_size += line_size
+
+    # 写入最后剩余的内容
+    if line_buffer:
+        chunk_path = os.path.join(temp_dir, f"{file_name}_chunk{chunk_idx}{file_ext}")
+        with open(chunk_path, 'w', encoding='utf-8') as outfile:
+            outfile.writelines(line_buffer)
+            temp_files.append(chunk_path)
+
+    logger.info(f"文件已切分为{len(temp_files)}个子文件")
+    return temp_files
 
 
 def process_single_file(config_data: Dict[str, Any], raw_data_dirpath: str, jsonl_relpath: str, source_name: str, 

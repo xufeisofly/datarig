@@ -41,7 +41,7 @@ spec:
           - "--output_dir"
           - "oss://si002558te8h/dclm/output"
           - "--config_path"
-          - "baselines/baselines_configs/sci.yaml"
+          - "baselines/baselines_configs/sciv2.yaml"
           - "--source_name"
           - "cc"
           - "--overwrite"
