@@ -7,7 +7,7 @@ from yaml import safe_load
 import glob
 import subprocess
 import json
-
+from typing import Any, Dict, Tuple, List
 from baselines.core import process_single_file
 from baselines.core.file_utils import read_jsonl, write_jsonl, delete_file, is_exists, is_s3, is_oss
 from baselines.oss import oss
@@ -51,12 +51,10 @@ def parse_args():
     parser.add_argument(
         "--shard_list_filters", type=str, nargs='+', help="List of substrings to filter the input shard list by."
     )
-
     parser.add_argument("--output_dir", required=True, help="Path to the output dir of the processed file.")
     parser.add_argument(
         "--readable_name", required=True, type=str, help="name given to tokenized dataset and reference json file name"
     )
-
     parser.add_argument(
         "--config_path",
         default="baselines/baselines_configs/c4.yaml",
@@ -79,6 +77,7 @@ def parse_args():
     )
     parser.add_argument("--ray_use_working_dir", action='store_true', help="Working directory for ray.")
     parser.add_argument("--ray_num_cpus", type=int, default=1, help="Number of CPUs to use for each ray task.")
+    parser.add_argument("--chunk_size", type=int, default=1, help="Number of temp files per task when splitting large files.")
 
     return parser.parse_args()
 
@@ -89,7 +88,7 @@ def process_local_chunk(
     config_data, raw_data_dirpath, jsonl_relpath, source_name, base_output_path, workers, overwrite
 ):
     try:
-        _, _, pages_in, pages_out = process_single_file(
+        _, _, pages_in, pages_out, _ = process_single_file(
             config_data=config_data,
             raw_data_dirpath=raw_data_dirpath,
             jsonl_relpath=jsonl_relpath,
@@ -248,13 +247,73 @@ def process_all():
         time.sleep(0.1)
     process_task_item(args, None, with_init)
 
+def add_task_to_queue(tasks: List[dict]) -> bool:
+    """
+    将新任务批量添加到任务队列的最前面
+    
+    :param tasks: 要添加的任务字典列表，例如 [{"shard_dir": "oss://...", "file_range": [0, 1], "worker": None, "is_temp": False}]
+    :return: bool, 添加是否成功
+    """
+    DEFAULT_TASKS_FILE_PATH = "oss://si002558te8h/dclm/process_tasks.jsonl"
+    lock = SimpleOSSLock(DEFAULT_LOCK_FILE)
+    
+    # 获取分布式锁，超时时间 1 小时
+    if not lock.acquire_or_block(timeout=3600):
+        print(f"Worker {get_worker_key()} 无法在超时时间内获取锁。")
+        return False
+    
+    try:
+        # 读取现有任务列表
+        tasks_data = {"tasks": []}  # 默认初始化
+        with oss.OSSPath(DEFAULT_TASKS_FILE_PATH).open("rb") as f:
+            data = f.read()
+            tasks_data = json.loads(data)
+            print(f"读取到 {len(tasks_data.get('tasks', []))} 个任务")
+        
+        # 确保 tasks 字段存在
+        if 'tasks' not in tasks_data:
+            tasks_data['tasks'] = []
+        
+        # 将新任务插入到任务列表开头
+        tasks_before = len(tasks_data['tasks'])
+        tasks_data['tasks'] = tasks + tasks_data['tasks']
+        print(f"添加 {len(tasks)} 个新任务后，任务数量: {len(tasks_data['tasks'])}")
+        
+        # 写回任务文件
+        with oss.OSSPath(DEFAULT_TASKS_FILE_PATH).open("w") as f:
+            f.write(json.dumps(tasks_data, indent=4))
+            print(f"已将 {len(tasks)} 个任务添加到队列开头")
+        
+        # 验证写入是否成功
+        with oss.OSSPath(DEFAULT_TASKS_FILE_PATH).open("rb") as f:
+            updated_data = json.loads(f.read())
+            tasks_after = len(updated_data.get('tasks', []))
+            if tasks_after != tasks_before + len(tasks):
+                raise RuntimeError(f"任务写入失败：预期任务数 {tasks_before + len(tasks)}，实际任务数 {tasks_after}")
+            print(f"验证成功，当前任务总数: {tasks_after}")
+        
+        lock.release()
+        return True
+    
+    except json.JSONDecodeError as e:
+        print(f"JSON 解析错误: {e}")
+        lock.release()
+        return False
+    except IOError as e:
+        print(f"文件读写错误: {e}")
+        lock.release()
+        return False
+    except Exception as e:
+        print(f"添加任务到队列时发生未知错误: {e}")
+        lock.release()
+        return False
+
 def process_task_item(args, task_item: TaskItem|None, with_init=True):
     os.environ["RAY_LOG_TO_STDERR"] = "1"
     
     task_input_dirpath, shard_name = '', ''
     origin_dataset_name = ''
     # json_path 文件用于检测该 input 是否曾经跑完
-    # TODO 由于 worker 任务是随机认领的，这个 json 文件最好放在 oss 上
     json_path = f"exp_data/datasets/untokenized/{args.readable_name}.json"
     file_range = None
     if task_item is not None:
@@ -262,7 +321,8 @@ def process_task_item(args, task_item: TaskItem|None, with_init=True):
         shard_name = shard_dir.split('/')[-2]
         origin_dataset_name = shard_dir.split('/')[-3]
         task_input_dirpath = shard_dir
-        file_range = task_item.get_file_range()
+        file_range = task_item._file_range
+        is_temp = task_item.is_temp
         json_path = f"exp_data/datasets/untokenized/{args.readable_name}_{shard_name}.json"
         print(f"task shard dir: {shard_dir}")    
     if not args.overwrite:
@@ -280,6 +340,9 @@ def process_task_item(args, task_item: TaskItem|None, with_init=True):
         source_ref = get_source_ref_by_key(args.raw_data_dirpath, "dataset_url")
         source_refs = [source_ref] if source_ref else []
 
+    # 设置OSS临时目录
+    oss_temp_dir = "oss://si002558te8h/dclm/temp_files"
+    
     if with_init:
         if args.ray_use_working_dir:
             ray.init(address=args.ray_address, runtime_env={"working_dir": "./", "excludes": ["tests/"]})
@@ -301,8 +364,6 @@ def process_task_item(args, task_item: TaskItem|None, with_init=True):
     source_name = args.source_name
     
     # base output path 去掉 config_name，使用自定义的 readable name 去区分不同的 pipeline
-    # config_name = os.path.basename(config_path).split(".")[0]
-    # base_output_path = os.path.join(output_dir, config_name)
     base_output_path = output_dir
 
     # Collect the global stats file, which is used to record / resume a data processing pipeline
@@ -346,18 +407,23 @@ def process_task_item(args, task_item: TaskItem|None, with_init=True):
         chunk_start = time.time()
         step_name = LOCAL_CHUNK if c == LOCAL_CHUNK else c["func"]
         resumed_chunk = False
-        # xufeisofly
-        shard_files = list_shard_files(working_dir, args.num_shards, args.shard_list_file, file_range=file_range)
+        
+        # 获取当前目录下的所有文件
+        shard_files = list_shard_files(working_dir, args.num_shards, args.shard_list_file, args.shard_list_filters, file_range=file_range)
+        
+        if not shard_files:
+            print(f"No files found in {working_dir}")
+            break
+            
         shard_extension = os.path.splitext(shard_files[0])[-1][1:]
 
         # If chunk has already been processed according to global stats, then skip it
         if i < len(global_stats) and step_name == global_stats[i]["name"]:
-            # TODO: Right now, only local chunks will output a num_failures
             num_failures = global_stats[i].get("num_failures", 0)
             if num_failures == 0 or args.ignore_failures:
                 if num_failures > 0:
                     warnings.warn(
-                        f"{num_failure} failures are being ignored, which may significantly and unpredictably impact final results."
+                        f"{num_failures} failures are being ignored, which may significantly and unpredictably impact final results."
                     )
                 print(f"Skipping chunk {i} with name {step_name}")
                 working_dir = global_stats[i]["working_dir"]
@@ -366,8 +432,6 @@ def process_task_item(args, task_item: TaskItem|None, with_init=True):
                 resumed_chunk = True
                 working_dir = global_stats[i - 1]["working_dir"] if i > 0 else working_dir
 
-        # Retrieve the list of files before processing a chunk (in case of deletions)
-
         print(f"Starting chunk {i} with name {step_name}, # of input jsonls = {len(shard_files)}")
 
         if resumed_chunk:
@@ -375,6 +439,53 @@ def process_task_item(args, task_item: TaskItem|None, with_init=True):
 
         # Process the chunk according to whether it is local or global
         if c == LOCAL_CHUNK:
+            # 处理每个文件，检查是否需要拆分大文件
+            tasks_to_add = []  # 存储需要添加的新任务
+            
+            for idx, jsonl_relpath in enumerate(shard_files):
+                full_path = os.path.join(working_dir, jsonl_relpath)
+                
+                # 使用修改后的 process_single_file 处理文件，可能返回临时文件列表
+                try:
+                    output_path, stats_path, pages_in, pages_out, temp_files = process_single_file(
+                        config_data, working_dir, jsonl_relpath, source_name, base_output_path, 
+                        args.workers, overwrite, max_file_size_mb=1024, temp_dir=oss_temp_dir,is_temp_file = is_temp
+                    )
+                    
+                    # 如果返回了临时文件列表，说明原文件过大已被拆分
+                    if temp_files:
+                        print(f"文件 {jsonl_relpath} 已拆分为 {len(temp_files)} 个临时文件")
+                        
+                        # 根据 chunk_size 分组创建新任务
+                        chunk_size = args.chunk_size if hasattr(args, 'chunk_size') else 1
+                        total_temp_files = len(temp_files)
+                        temp_dir = os.path.dirname(temp_files[0])
+                        for start in range(0, total_temp_files, chunk_size):
+                            end = min(start + chunk_size, total_temp_files)
+                            tasks_to_add.append({
+                                "shard_dir": temp_dir,
+                                "file_range": [start, end],
+                                "worker": None,
+                                "is_temp": True  # 标记为临时目录
+                            })
+                        
+                        # 如果当前任务是非临时的，将其标记为 finished
+                        if task_item is not None and not hasattr(task_item, 'is_temp'):
+                            mark_task_item_finished(task_item.get_shard_dir(), task_item.get_file_range())
+                            print(f"原始任务 {task_item.get_shard_dir()} 已标记为 finished，因为文件已拆分")
+                        
+                        # 不对这个大文件进行后续处理，跳过它
+                        continue
+                except Exception as e:
+                    print(f"处理文件 {jsonl_relpath} 时出错: {e}")
+                    continue
+            
+            # 如果有需要添加到任务队列的临时目录，批量添加它们
+            if tasks_to_add:
+                add_task_to_queue(tasks_to_add)
+                print(f"已添加 {len(tasks_to_add)} 个临时目录任务到队列开头")
+            
+            # 继续常规的Ray处理流程
             ret = []
             for idx, jsonl_relpath in enumerate(shard_files):
                 ret.append(
@@ -382,55 +493,55 @@ def process_task_item(args, task_item: TaskItem|None, with_init=True):
                         config_data, working_dir, jsonl_relpath, source_name, base_output_path, args.workers, overwrite
                     )
                 )
-            for x in tqdm(to_iterator(ret), total=len(ret)):
-                pass
+            
+            if ret:
+                for x in tqdm(to_iterator(ret), total=len(ret)):
+                    pass
 
-            ret = ray.get(ret)
-            successes = sum(r[0] for r in ret)
-            failures = len(ret) - successes
-            pages_in = sum(r[1] for r in ret)
-            pages_out = sum(r[2] for r in ret)
-            failed_shards = [s for i, s in enumerate(shard_files) if ret[i][0] == RAY_CHUNK_FAILURE]
+                ret = ray.get(ret)
+                successes = sum(r[0] for r in ret)
+                failures = len(ret) - successes
+                pages_in = sum(r[1] for r in ret)
+                pages_out = sum(r[2] for r in ret)
+                failed_shards = [s for i, s in enumerate(shard_files) if i < len(ret) and ret[i][0] == RAY_CHUNK_FAILURE]
 
-            # Make sure the working_dir has processed_data/ at the end
-            working_dir = os.path.join(base_output_path, "processed_data/")
+                # Make sure the working_dir has processed_data/ at the end
+                working_dir = os.path.join(base_output_path, "processed_data/")
 
-            # If resuming a chunk that partially errored, update the global stats instead of appending a new row
-            if resumed_chunk:
-                # Erase the record of the subsequent steps, since they will now be affected
-                global_stats = global_stats[: i + 1]
-                global_stats[i]["resumptions"] += 1
-                global_stats[i]["secs"] += time.time() - chunk_start
-                global_stats[i]["pages_in"] += sum(r[1] for i, r in enumerate(ret))
-                global_stats[i]["pages_out"] += sum(r[2] for i, r in enumerate(ret))
-                global_stats[i].update(
-                    {"num_successes": successes, "num_failures": failures, "failed_shards": failed_shards}
-                )
-            else:
-                global_stats.append(
-                    {
-                        "name": LOCAL_CHUNK,
-                        "secs": time.time() - chunk_start,
-                        "num_successes": successes,
-                        "num_failures": failures,
-                        "pages_in": pages_in,
-                        "pages_out": pages_out,
-                        "working_dir": working_dir,
-                        "resumptions": 0,
-                        "failed_shards": failed_shards,
-                    }
-                )
+                # If resuming a chunk that partially errored, update the global stats instead of appending a new row
+                if resumed_chunk:
+                    global_stats = global_stats[: i + 1]
+                    global_stats[i]["resumptions"] += 1
+                    global_stats[i]["secs"] += time.time() - chunk_start
+                    global_stats[i]["pages_in"] += sum(r[1] for i, r in enumerate(ret) if i < len(ret))
+                    global_stats[i]["pages_out"] += sum(r[2] for i, r in enumerate(ret) if i < len(ret))
+                    global_stats[i].update(
+                        {"num_successes": successes, "num_failures": failures, "failed_shards": failed_shards}
+                    )
+                else:
+                    global_stats.append(
+                        {
+                            "name": LOCAL_CHUNK,
+                            "secs": time.time() - chunk_start,
+                            "num_successes": successes,
+                            "num_failures": failures,
+                            "pages_in": pages_in,
+                            "pages_out": pages_out,
+                            "working_dir": working_dir,
+                            "resumptions": 0,
+                            "failed_shards": failed_shards,
+                        }
+                    )
 
-            overwrite = False
-            write_jsonl(global_stats, global_stats_path, "w")
+                overwrite = False
+                write_jsonl(global_stats, global_stats_path, "w")
 
-            if failures > 0:
-                warnings.warn(
-                    f"Local chunk failed on {failures} shards out of {len(ret)}. This may significantly and unpredictably affect final results. Re-running this local chunk by using the same yaml config and turning off the --ignore_failures flag."
-                )
-                if not args.ignore_failures:
-
-                    raise Exception(f"Exiting due to local failures. ")
+                if failures > 0:
+                    warnings.warn(
+                        f"Local chunk failed on {failures} shards out of {len(ret)}. This may significantly and unpredictably affect final results. Re-running this local chunk by using the same yaml config and turning off the --ignore_failures flag."
+                    )
+                    if not args.ignore_failures:
+                        raise Exception(f"Exiting due to local failures. ")
         else:
             step = c
             kwargs = {k: v for k, v in step.items() if k not in ["func"]}
@@ -458,6 +569,22 @@ def process_task_item(args, task_item: TaskItem|None, with_init=True):
         mark_task_item_finished(shard_dir, file_range,
                                 task_file_path=args.task_file_path,
                                 lock_file=args.oss_lock_file)
+        # 如果是临时目录任务，处理完成后删除临时目录
+        if hasattr(task_item, 'is_temp') and task_item.is_temp:
+            print(f"准备删除临时目录: {shard_dir}")
+            try:
+                if is_oss(shard_dir):
+                    bucket_name, path_within_bucket = shard_dir.replace("oss://", "").split("/", 1)
+                    bucket = oss.Bucket(bucket_name)
+                    for obj in bucket.list_objects(prefix=path_within_bucket).object_list:
+                        bucket.delete_object(obj.key)
+                    print(f"已删除临时目录中的所有文件: {shard_dir}")
+                else:
+                    import shutil
+                    shutil.rmtree(shard_dir)
+                    print(f"已删除临时目录: {shard_dir}")
+            except Exception as e:
+                print(f"删除临时目录 {shard_dir} 时出错: {e}")
 
 
 if __name__ == "__main__":
