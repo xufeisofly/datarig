@@ -32,7 +32,7 @@ spec:
             cpu: "4"
             memory: "16Gi"
           limits:
-            cpu: "4"
+            cpu: "8"
             memory: "16Gi"				
         command: ["/app/dclm-sci/start.sh"]
         args:
