@@ -12,8 +12,9 @@ def upload_file_to_oss(file_path, to_dir, bucket):
     """
     file_name = os.path.basename(file_path)
     oss_file_path = os.path.join(to_dir, file_name)
+    _, oss_file_path = oss.split_file_path(oss_file_path)
     with open(file_path, "rb") as local_file:
-        bucket.put_object(oss_file_path, local_file.read())
+        bucket.put_object(oss_file_path, local_file.read(), headers={"x-oss-forbid-overwrite": "true"})
 
 
 def upload_files_to_oss(from_dir, files, to_dir):
@@ -35,7 +36,10 @@ def upload_all(from_dir, to_dir):
     """
     # 上传当前目录下的文件
     files = [f for f in os.listdir(from_dir) if os.path.isfile(os.path.join(from_dir, f))]
-    upload_files_to_oss(from_dir, files, to_dir)
+    try:
+        upload_files_to_oss(from_dir, files, to_dir)
+    except BaseException as e:
+        print(e)
     
     # 获取当前目录下的所有子文件夹，递归上传
     dirs = [d for d in os.listdir(from_dir) if os.path.isdir(os.path.join(from_dir, d))]
