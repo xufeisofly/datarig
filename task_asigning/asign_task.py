@@ -70,12 +70,19 @@ def create_task_items(shard_dirs: List[str], mode: str, chunk_size: int) -> List
                 tasks.append(TaskItem(shard_dir, file_range).to_dict())
     return tasks
 
+
+def directory_name_matches(dir_name, pattern):
+    import re
+    if pattern is None:
+        return True
+    return re.fullmatch(pattern, dir_name) is not None
+
     
-def asign_task(parent_dir: str, tasks_file_path: str, mode: str='process', chunk_size=-1):
+def asign_task(parent_dir: str, tasks_file_path: str, mode: str='process', pattern=None, chunk_size=-1):
     bucket_name, path = oss.split_file_path(parent_dir) 
     bucket = oss.Bucket(bucket_name)
     rets = bucket.list_objects_v2(prefix=path, delimiter='/').prefix_list
-    shard_dirs = [os.path.join("oss://" + bucket_name, ret) for ret in rets if ret.endswith('/') and 'DCLM_sub_by_keywords' in ret]
+    shard_dirs = [os.path.join("oss://" + bucket_name, ret) for ret in rets if ret.endswith('/') and directory_name_matches(ret, pattern)]
 
     task_items = create_task_items(shard_dirs, mode, chunk_size)
     data = {
@@ -102,7 +109,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--parent_dir", help="", type=str, default=DEFAULT_PARENT_DIR)
     parser.add_argument("--tasks_file_path", help="", type=str, default=DEFAULT_TASKS_FILE_PATH)
+    parser.add_argument("--shard_dir_pattern", help="", type=str, default=None)
     parser.add_argument("--chunk_size", help="", type=int, default=-1)
     parser.add_argument("--mode", help="process/dedup", type=str, default='process')
     args = parser.parse_args()    
-    asign_task(args.parent_dir, args.tasks_file_path, args.mode, args.chunk_size)
+    asign_task(args.parent_dir, args.tasks_file_path, args.mode, args.shard_dir_pattern, args.chunk_size)
