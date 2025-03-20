@@ -36,7 +36,7 @@ def split_file_path(file_path):
 def get_files_and_folders_of_folder(folder_path):
     bucket_name, dir_path = split_file_path(folder_path)
     bucket = Bucket(bucket_name)
-    rets = bucket.list_objects(prefix=dir_path)
+    rets = bucket.list_objects(prefix=dir_path).object_list
     files = [os.path.join("oss://" + bucket_name, ret) for ret in rets if not ret.endswith('/')]
     folders = [os.path.join("oss://" + bucket_name, ret) for ret in rets if ret.endswith('/')]
     return files, folders
