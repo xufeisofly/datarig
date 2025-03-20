@@ -27,19 +27,48 @@ def Bucket(name) -> oss2.Bucket:
 # file_name = 'cc-warc2024/dclm_pool/1b-1x/CC_shard_00000000.jsonl.zst'
 # ZJ_Bucket.object_exists(file_name)
 
+def get_all_objects_iter(bucket, prefix):
+    start_after = ''
+    while True:
+        result = bucket.list_objects_v2(prefix=prefix, start_after=start_after)
+        objects = result.object_list
+        if not objects:
+            break
+        start_after = objects[-1].key
+        for o in objects:
+            yield o
+
+
+def get_all_prefixes_iter(bucket, prefix, delimiter='/'):
+    start_after = ''
+    while True:
+        result = bucket.list_objects_v2(prefix=prefix, start_after=start_after, delimiter=delimiter)
+        prefixes = result.prefix_list
+        if not prefixes:
+            break
+        start_after = prefixes[-1]
+        for p in prefixes:
+            yield p
+
 
 def split_file_path(file_path):
     bucket_name, path = file_path.replace("oss://", "").split("/", 1)
     return bucket_name, path
 
 
-def get_files_and_folders_of_folder(folder_path):
+def get_sub_folders(folder_path):
     bucket_name, dir_path = split_file_path(folder_path)
     bucket = Bucket(bucket_name)
-    rets = bucket.list_objects(prefix=dir_path).object_list
-    files = [os.path.join("oss://" + bucket_name, ret) for ret in rets if not ret.endswith('/')]
-    folders = [os.path.join("oss://" + bucket_name, ret) for ret in rets if ret.endswith('/')]
-    return files, folders
+    rets = list(get_all_prefixes_iter(bucket, dir_path))
+    folders = [os.path.join("oss://" + bucket_name, ret.key) for ret in rets]
+    return folders
+
+def get_sub_files(folder_path):
+    bucket_name, dir_path = split_file_path(folder_path)
+    bucket = Bucket(bucket_name)
+    rets = list(get_all_objects_iter(bucket, dir_path))    
+    files = [os.path.join("oss://" + bucket_name, ret.key) for ret in rets if not ret.key.endswith('/')]
+    return files
     
         
 class OSSPath:

@@ -65,7 +65,7 @@ def get_oss_dir_size(dataset_path):
         return 0
     bucket, prefix = dataset_path.replace("oss://", "").split("/", 1)
     total_size = 0
-    for obj in oss.Bucket(bucket).list_objects(prefix=prefix).object_list:
+    for obj in oss.get_all_objects_iter(bucket, prefix):
         total_size += obj.size
     return total_size
 

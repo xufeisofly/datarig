@@ -122,7 +122,7 @@ def list_shard_files(data_dirpath, num_shards=None, shard_list_file=None, shard_
         path_within_bucket = path_within_bucket if path_within_bucket.endswith("/") else f'{path_within_bucket}/'
         bucket = oss.Bucket(bucket_name)
         shard_files = [x.key.replace(path_within_bucket, "")
-                       for x in bucket.list_objects(prefix=path_within_bucket).object_list
+                       for x in oss.get_all_objects_iter(bucket, path_within_bucket)
                        if all(s not in x.key for s in ['/stats/', 'global_stats.jsonl']) and not x.key.endswith('/')]
     else:
         shard_files = get_files_in_directory(data_dirpath=data_dirpath)
