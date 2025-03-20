@@ -60,15 +60,30 @@ def get_sub_folders(folder_path):
     bucket_name, dir_path = split_file_path(folder_path)
     bucket = Bucket(bucket_name)
     rets = list(get_all_prefixes_iter(bucket, dir_path))
-    folders = [os.path.join("oss://" + bucket_name, ret.key) for ret in rets]
+    folders = [os.path.join("oss://" + bucket_name, ret) for ret in rets]
     return folders
 
 def get_sub_files(folder_path):
     bucket_name, dir_path = split_file_path(folder_path)
     bucket = Bucket(bucket_name)
-    rets = list(get_all_objects_iter(bucket, dir_path))    
+    rets = list(get_all_objects_iter(bucket, dir_path))
+
+    subfolders = get_sub_folders(folder_path)
     files = [os.path.join("oss://" + bucket_name, ret.key) for ret in rets if not ret.key.endswith('/')]
-    return files
+
+    all_files = []
+
+    def belong_to_folders(f, dirs):
+        for folder in dirs:
+            if folder in f:
+                return True
+        return False
+    
+    for f in files:
+        if belong_to_folders(f, subfolders):
+            continue
+        all_files.append(f)
+    return all_files
     
         
 class OSSPath:
