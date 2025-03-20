@@ -63,9 +63,10 @@ def get_s3_dir_size(dataset_path):
 def get_oss_dir_size(dataset_path):
     if not is_oss(dataset_path):
         return 0
-    bucket, prefix = dataset_path.replace("oss://", "").split("/", 1)
+    bucket_name, prefix = oss.split_file_path(dataset_path)
+    bucket = oss.Bucket(bucket_name)
     total_size = 0
-    for obj in oss.Bucket(bucket).list_objects(prefix=prefix).object_list:
+    for obj in oss.get_all_objects_iter(bucket, prefix):
         total_size += obj.size
     return total_size
 

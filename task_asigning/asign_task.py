@@ -45,17 +45,16 @@ class TaskItem:
             "worker": self._worker,
         }
 
-def create_task_items(shard_dirs: List[str], mode: str, chunk_size: int) -> List[dict]:
+def create_task_items(shard_dir: str, mode: str, chunk_size: int) -> List[dict]:
     tasks = []
-    for shard_dir in shard_dirs:
-        if mode == 'dedup':
-            # 对于 dedup 任务，CC-MAIN 目录下还有一层 processed_data
-            shard_dir = [os.path.join(shard_dir, 'processed_data')]
+    # if mode == 'dedup':
+    #     shard_dir = [os.path.join(shard_dir, 'processed_data')]
 
-        bucket_name, path = oss.split_file_path(shard_dir) 
-        bucket = oss.Bucket(bucket_name)
-        file_paths = [x for x in bucket.list_objects_v2(prefix=path).object_list if not x.key.endswith('/')]
-
+    bucket_name, path = oss.split_file_path(shard_dir) 
+    bucket = oss.Bucket(bucket_name)
+    
+    file_paths = oss.get_sub_files(bucket, path)
+    if len(file_paths) > 0:
         if chunk_size == -1:
             tasks.append(TaskItem(shard_dir, [0, -1]).to_dict())
         else:
@@ -68,28 +67,33 @@ def create_task_items(shard_dirs: List[str], mode: str, chunk_size: int) -> List
                 file_range = [start, end]
                 start += chunk_size
                 tasks.append(TaskItem(shard_dir, file_range).to_dict())
+
+
+    sub_dirs = oss.get_sub_folders(bucket, path)
+    if len(sub_dirs) == 0:
+        return tasks
+
+    for sub_dir in sub_dirs:
+        sub_dir = os.path.join("oss://" + bucket_name, sub_dir)
+        tasks += create_task_items(sub_dir, mode, chunk_size)
     return tasks
 
     
 def asign_task(parent_dir: str, tasks_file_path: str, mode: str='process', chunk_size=-1):
-    bucket_name, path = oss.split_file_path(parent_dir) 
-    bucket = oss.Bucket(bucket_name)
-    rets = bucket.list_objects_v2(prefix=path, delimiter='/').prefix_list
-    shard_dirs = [os.path.join("oss://" + bucket_name, ret) for ret in rets if ret.endswith('/') and 'DCLM_sub_by_keywords' in ret and not 'DCLM_sub_by_keywords_deduped' in ret]
-
-    task_items = create_task_items(shard_dirs, mode, chunk_size)
+    all_task_items = create_task_items(parent_dir, mode, chunk_size)
+        
     data = {
-        "tasks": task_items,
+        "tasks": all_task_items,
     }
-    
+        
     with oss.OSSPath(tasks_file_path).open("w") as f:
         f.write(json.dumps(data, indent=4))
-    
+        
     task_bucket_name, task_file = oss.split_file_path(tasks_file_path)
     existed = oss.Bucket(task_bucket_name).object_exists(task_file)
 
     if existed:
-        print(f"Success: {len(task_items)} tasks generated")
+        print(f"Success: {len(all_task_items)} tasks generated")
     else:
         print(f"Failed")
 

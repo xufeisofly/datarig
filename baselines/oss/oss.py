@@ -3,6 +3,7 @@ from typing import Union
 import oss2
 
 import logging
+import os
 from io import BytesIO
 
 # 配置日志
@@ -26,11 +27,62 @@ def Bucket(name) -> oss2.Bucket:
 # file_name = 'cc-warc2024/dclm_pool/1b-1x/CC_shard_00000000.jsonl.zst'
 # ZJ_Bucket.object_exists(file_name)
 
+def get_all_objects_iter(bucket, prefix):
+    start_after = ''
+    while True:
+        result = bucket.list_objects_v2(prefix=prefix, start_after=start_after)
+        objects = result.object_list
+        if not objects:
+            break
+        start_after = objects[-1].key
+        for o in objects:
+            yield o
+
+
+def get_all_prefixes_iter(bucket, prefix, delimiter='/'):
+    start_after = ''
+    while True:
+        result = bucket.list_objects_v2(prefix=prefix, start_after=start_after, delimiter=delimiter)
+        prefixes = result.prefix_list
+        if not prefixes:
+            break
+        start_after = prefixes[-1]
+        for p in prefixes:
+            yield p
+
 
 def split_file_path(file_path):
     bucket_name, path = file_path.replace("oss://", "").split("/", 1)
     return bucket_name, path
 
+
+def get_sub_folders(bucket, dir_path):
+    if not dir_path.endswith('/'):
+        dir_path += '/'    
+    rets = list(get_all_prefixes_iter(bucket, dir_path))
+    return rets
+
+def get_sub_files(bucket, dir_path):
+    if not dir_path.endswith('/'):
+        dir_path += '/'
+    rets = list(get_all_objects_iter(bucket, dir_path))
+    subfolders = get_sub_folders(bucket, dir_path)
+    files = [ret.key for ret in rets if not ret.key.endswith('/')]
+
+    all_files = []
+
+    def belong_to_folders(f, dirs):
+        for folder in dirs:
+            if folder in f:
+                return True
+        return False
+    
+    for f in files:
+        if belong_to_folders(f, subfolders):
+            continue
+        all_files.append(f)
+    return all_files
+    
         
 class OSSPath:
     def __init__(self, file_path):
