@@ -1,7 +1,7 @@
 apiVersion: apps/v1
-kind: Deployment
+kind: Job
 metadata:
-  name: dclm-sci-deployment
+  name: dclm-sci-job
 spec:
   replicas: 10
   selector:
@@ -26,7 +26,7 @@ spec:
         - name: cr-docker-registry
       containers:
       - name: dclm-sci
-        image: cr.registry.res.cloud.zhejianglab.com/dataprocess/datarig:v1.0
+        image: cr.registry.	res.cloud.zhejianglab.com/dataprocess/datarig:v1.0
         resources:
           requests:
             cpu: "4"
@@ -46,12 +46,4 @@ spec:
           - "cc"
           - "--overwrite"
         imagePullPolicy: IfNotPresent
-		volumeMounts:
-          - name: dshm
-            mountPath: /dev/shm
       restartPolicy: Always
-      volumes:
-        - name: dshm
-          emptyDir:
-            medium: Memory
-            sizeLimit: 5Gi	  

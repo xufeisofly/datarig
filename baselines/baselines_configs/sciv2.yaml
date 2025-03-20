@@ -1,0 +1,13 @@
+# Pipeline for RW filters used in DCLM-Baseline. The only difference is we remove the "high-quality" url filter (e.g. for wikipedia, github, etc.)
+- source: cc
+  steps:
+    - func: page_length_filter
+      length_type: word
+      min_length: 50
+      max_length: 100000
+      ignore_punctuation: True
+    - func: word_length_filter
+      min_length: 3
+      max_length: 10
+    - func: symbol_ratio_filter
+      max_symbol_to_word_ratio: 0.1

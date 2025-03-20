@@ -1,0 +1,4 @@
+# Pipeline for RW filters used in DCLM-Baseline. The only difference is we remove the "high-quality" url filter (e.g. for wikipedia, github, etc.)
+- source: cc
+  steps:
+    - func: massive_web_repetition_filters

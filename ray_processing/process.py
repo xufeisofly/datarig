@@ -57,6 +57,7 @@ def parse_args():
         "--workers", type=int, default=1, help="If > 1, will use a process pool with that many workers."
     )
     parser.add_argument("--overwrite", action="store_true", help="If set to true, will overwrite results.")
+    parser.add_argument("--use_task", action="store_true", help="使用 task json 文件分配任务，否则直接使用 raw_data_dirpath.")
     parser.add_argument("--ray_address", type=str, default="localhost:6379")
     parser.add_argument("--num_shards", type=int, default=None, help="Run on the first number of shards (for debugging)")
     parser.add_argument(
@@ -96,7 +97,7 @@ def to_iterator(obj_ids, batch_size=100):
             yield ray.get(d)
 
 
-def list_shard_files(data_dirpath, num_shards=None, shard_list_file=None, shard_list_filters=None):
+def list_shard_files(data_dirpath, num_shards=None, shard_list_file=None, shard_list_filters=None, file_range=None):
     assert bool(shard_list_file) ^ bool(data_dirpath), "Either shard_list_file or data_dirpath must be provided, but not both."
     
     def get_files_in_directory(data_dirpath):
@@ -132,6 +133,9 @@ def list_shard_files(data_dirpath, num_shards=None, shard_list_file=None, shard_
     if shard_list_filters is not None:
         shard_files = [s for s in shard_files if any(f in s for f in shard_list_filters)]
 
+    if file_range is not None:
+        shard_files = shard_files[file_range[0]: file_range[1]]
+
     return shard_files
 
 
@@ -142,60 +146,101 @@ def get_task_item():
     if lock.acquire_or_block(timeout=3600):
         # 改写 tasks.json 文件，领取任务
         ret = ""
-        with oss.OSSPath(DEFAULT_TASKS_FILE_PATH).open("rb") as f:
-            data = f.read()
-            ret = json.loads(data)
-        task_items = ret['tasks']
+        try:
+            with oss.OSSPath(DEFAULT_TASKS_FILE_PATH).open("rb") as f:
+                data = f.read()
+                ret = json.loads(data)
+            task_items = ret['tasks']
 
-        for i, task_item in enumerate(task_items):
-            if task_item['worker'] is not None:
-                continue
-            asigned_task = task_item
-            task_items[i]['worker'] = {
-                'key': get_worker_key(),
-                'status': 'processing'
+            for i, task_item in enumerate(task_items):
+                if task_item['worker'] is not None:
+                    continue
+                asigned_task = task_item
+                task_items[i]['worker'] = {
+                    'key': get_worker_key(),
+                    'status': 'processing'
+                }
+                break
+
+            if asigned_task is None:
+                lock.release()
+                return None
+
+            new_data = {
+                'tasks': task_items,
             }
-            break
+            with oss.OSSPath(DEFAULT_TASKS_FILE_PATH).open("w") as f:
+                f.write(json.dumps(new_data, indent=4))
 
-        if asigned_task is None:
+            lock.release()
+            return TaskItem(asigned_task['shard_dir'], asigned_task['file_range'])
+        except BaseException as e:
+            print(f"get task item failed: {e}")
             lock.release()
             return None
-
-        new_data = {
-            'tasks': task_items,
-        }
-        with oss.OSSPath(DEFAULT_TASKS_FILE_PATH).open("w") as f:
-            f.write(json.dumps(new_data, indent=4))
-
-        lock.release()
-            
-        return TaskItem(asigned_task['shard_dir'], asigned_task['file_range'])
     else:
         print(f"Worker {get_worker_key()} could not acquire the lock within timeout.")
         return None
 
-def process_all(mode='task'):
+def mark_task_item_finished(shard_dir: str, file_range):
+    lock = SimpleOSSLock(DEFAULT_LOCK_FILE)
+    # 分布式锁允许 1 hour 超时时间
+    if lock.acquire_or_block(timeout=3600):
+        # 改写 tasks.json 文件，领取任务
+        ret = ""
+        try:
+            with oss.OSSPath(DEFAULT_TASKS_FILE_PATH).open("rb") as f:
+                data = f.read()
+                ret = json.loads(data)
+            task_items = ret['tasks']
+
+            for i, task_item in enumerate(task_items):
+                if task_item['shard_dir'] != shard_dir or task_item['file_range'] != file_range:
+                    continue
+                task_items[i]['worker'] = {
+                    'key': task_items[i]['worker']['key'],
+                    'status': 'finished',
+                }
+                break
+
+            new_data = {
+                'tasks': task_items,
+            }
+            with oss.OSSPath(DEFAULT_TASKS_FILE_PATH).open("w") as f:
+                f.write(json.dumps(new_data, indent=4))
+
+            lock.release()
+        except BaseException as e:
+            print(f"get task item failed: {e}")
+            lock.release()
+    else:
+        print(f"Worker {get_worker_key()} could not acquire the lock within timeout.")
+
+
+def process_all():
+    args = parse_args()
     with_init = True 
-    while mode == 'task':
+    while args.use_task:
         task_item = get_task_item()
         if task_item is None:
             return
-        process_task_item(task_item, with_init)
+        process_task_item(args, task_item, with_init)
         with_init = False
-    process_task_item(None, with_init)
+    process_task_item(args, None, with_init)
 
-def process_task_item(task_item: TaskItem|None, with_init=True):
+def process_task_item(args, task_item: TaskItem|None, with_init=True):
     os.environ["RAY_LOG_TO_STDERR"] = "1"
-    args = parse_args()
-
+    
     task_input_dirpath, shard_name = '', ''
     # json_path 文件用于检测该 input 是否曾经跑完
     # TODO 由于 worker 任务是随机认领的，这个 json 文件最好放在 oss 上
     json_path = f"exp_data/datasets/untokenized/{args.readable_name}.json"
+    file_range = None
     if task_item is not None:
         shard_dir = task_item.get_shard_dir()
         shard_name = shard_dir.split('/')[-2]
         task_input_dirpath = shard_dir
+        file_range = task_item.get_file_range()
         json_path = f"exp_data/datasets/untokenized/{args.readable_name}_{shard_name}.json"
         print(f"task shard dir: {shard_dir}")    
     if not args.overwrite:
@@ -223,14 +268,17 @@ def process_task_item(task_item: TaskItem|None, with_init=True):
     
     def get_output_dir(output, shard_name):
         if shard_name == '':
-            return output
+            return os.path.join(output, args.readable_name)
         # output dir: oss://si002558te8h/dclm/output/sci_test/CC-MAIN-2014-11/
-        return os.path.join(args.output_dir, args.readable_name, shard_name)    
+        return os.path.join(output, args.readable_name, shard_name)    
     
     output_dir = get_output_dir(args.output_dir, shard_name)
     source_name = args.source_name
-    config_name = os.path.basename(config_path).split(".")[0]
-    base_output_path = os.path.join(output_dir, config_name)
+    
+    # base output path 去掉 config_name，使用自定义的 readable name 去区分不同的 pipeline
+    # config_name = os.path.basename(config_path).split(".")[0]
+    # base_output_path = os.path.join(output_dir, config_name)
+    base_output_path = output_dir
 
     # Collect the global stats file, which is used to record / resume a data processing pipeline
     global_stats_path = os.path.join(base_output_path, "global_stats.jsonl")
@@ -274,7 +322,7 @@ def process_task_item(task_item: TaskItem|None, with_init=True):
         step_name = LOCAL_CHUNK if c == LOCAL_CHUNK else c["func"]
         resumed_chunk = False
         # xufeisofly
-        shard_files = list_shard_files(working_dir, args.num_shards, args.shard_list_file)
+        shard_files = list_shard_files(working_dir, args.num_shards, args.shard_list_file, file_range=file_range)
         shard_extension = os.path.splitext(shard_files[0])[-1][1:]
 
         # If chunk has already been processed according to global stats, then skip it
@@ -381,7 +429,10 @@ def process_task_item(task_item: TaskItem|None, with_init=True):
     dataset_json = generate_untokenized_dataset_json(args, source_refs, base_output_path, data_key=shard_extension)
     with open(json_path, "w") as ref_file:
         json.dump(dataset_json, ref_file, indent=4)
+    if task_item is not None:    
+        mark_task_item_finished(shard_dir, file_range)
 
 
 if __name__ == "__main__":
-    process_all(mode='task')
+    process_all()
+    exit(1)
