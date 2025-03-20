@@ -45,7 +45,7 @@ spec:
           - "--source_name"
           - "cc"
           - "--overwrite"
-		  - "--use_task"
+          - "--use_task"
         imagePullPolicy: IfNotPresent
 		volumeMounts:
           - name: dshm
