@@ -58,6 +58,7 @@ def parse_args():
     )
     parser.add_argument("--overwrite", action="store_true", help="If set to true, will overwrite results.")
     parser.add_argument("--use_task", action="store_true", help="使用 task json 文件分配任务，否则直接使用 raw_data_dirpath.")
+    parser.add_argument("--output_has_dataset_name", action="store_true", help="output 目录中携带 dataset 名称")
     parser.add_argument("--ray_address", type=str, default="localhost:6379")
     parser.add_argument("--num_shards", type=int, default=None, help="Run on the first number of shards (for debugging)")
     parser.add_argument(
@@ -233,6 +234,7 @@ def process_task_item(args, task_item: TaskItem|None, with_init=True):
     os.environ["RAY_LOG_TO_STDERR"] = "1"
     
     task_input_dirpath, shard_name = '', ''
+    origin_dataset_name = ''
     # json_path 文件用于检测该 input 是否曾经跑完
     # TODO 由于 worker 任务是随机认领的，这个 json 文件最好放在 oss 上
     json_path = f"exp_data/datasets/untokenized/{args.readable_name}.json"
@@ -240,6 +242,7 @@ def process_task_item(args, task_item: TaskItem|None, with_init=True):
     if task_item is not None:
         shard_dir = task_item.get_shard_dir()
         shard_name = shard_dir.split('/')[-2]
+        origin_dataset_name = shard_dir.split('/')[-3]
         task_input_dirpath = shard_dir
         file_range = task_item.get_file_range()
         json_path = f"exp_data/datasets/untokenized/{args.readable_name}_{shard_name}.json"
@@ -267,13 +270,16 @@ def process_task_item(args, task_item: TaskItem|None, with_init=True):
 
     config_path = args.config_path
     
-    def get_output_dir(output, shard_name):
+    def get_output_dir(output, shard_name, with_dataset_name=False):
         if shard_name == '':
             return os.path.join(output, args.readable_name)
-        # output dir: oss://si002558te8h/dclm/output/sci_test/CC-MAIN-2014-11/
-        return os.path.join(output, args.readable_name, shard_name)    
+        if origin_dataset_name == '' or not with_dataset_name:
+            # output dir: oss://si002558te8h/dclm/output/sci_test/CC-MAIN-2014-11/
+            return os.path.join(output, args.readable_name, shard_name)
+        # output dir: oss://si002558te8h/dclm/output/sci_test/Math/CC-MAIN-2014-11/
+        return os.path.join(output, args.readable_name, origin_dataset_name, shard_name)    
     
-    output_dir = get_output_dir(args.output_dir, shard_name)
+    output_dir = get_output_dir(args.output_dir, shard_name, args.output_has_dataset_name)
     source_name = args.source_name
     
     # base output path 去掉 config_name，使用自定义的 readable name 去区分不同的 pipeline
