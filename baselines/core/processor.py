@@ -4,7 +4,7 @@ import os
 import os.path
 import time
 from datetime import datetime
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, Tuple, List
 
 from yaml import safe_load
 
@@ -200,7 +200,7 @@ def _split_large_file_oss(input_path: str, max_size_mb: int = 100) -> List[str]:
 
 
 def process_single_file(config_data: Dict[str, Any], raw_data_dirpath: str, jsonl_relpath: str, source_name: str, 
-                        base_output_path: str, workers: int = 1, overwrite: bool = False) -> Tuple[str, str]:
+                        base_output_path: str, workers: int = 1, overwrite: bool = False, max_file_size_mb: int = 100) -> Tuple[str, str]:
     """
     :param config_data: A processed config (from yaml) that specifies the steps to be taken
     :param raw_data_dirpath: The path to the top data directory in the data hierarchy (from which to mirror
@@ -224,6 +224,47 @@ def process_single_file(config_data: Dict[str, Any], raw_data_dirpath: str, json
     # Assumption #2 - we keep the entire input lines in memory
     t1 = time.time()
     input_path = os.path.join(raw_data_dirpath, jsonl_relpath)
+    # 检查文件大小并决定是否需要切分
+    file_size_mb = os.path.getsize(input_path) / (1024 * 1024)
+    
+    if file_size_mb > max_file_size_mb:
+        logger.info(f"文件大小为 {file_size_mb:.2f}MB，超过 {max_file_size_mb}MB，将进行文件切分处理")
+        # 切分文件并分别处理
+        split_files = _split_large_file(input_path, max_file_size_mb)
+        total_pages_in = 0
+        total_pages_out = 0
+        final_output_path = ""
+        final_stats_path = ""
+        
+        # 依次处理每个切分后的文件
+        for i, split_file in enumerate(split_files):
+            logger.info(f"处理切分文件 {i+1}/{len(split_files)}: {os.path.basename(split_file)}")
+            
+            # 为切分文件创建相对路径
+            split_relpath = os.path.relpath(split_file, raw_data_dirpath)
+            
+            # 递归调用自身处理单个文件，但不再进行切分
+            output_path, stats_path, pages_in, pages_out = process_single_file(
+                config_data, raw_data_dirpath, split_relpath, source_name, 
+                base_output_path, workers, overwrite, float('inf'))  # 设为无限大防止再次切分
+            
+            # 累计处理的页面数
+            total_pages_in += pages_in
+            total_pages_out += pages_out
+            
+            # 保存最后一个文件的路径作为返回值
+            if i == len(split_files) - 1:
+                final_output_path = output_path
+                final_stats_path = stats_path
+        
+        # 如果是临时目录中的文件，可以选择在此清理
+        if os.path.dirname(split_files[0]) != os.path.dirname(input_path):
+            for file in split_files:
+                os.remove(file)
+            # 删除临时目录
+            # os.rmdir(os.path.dirname(split_files[0]))
+            
+        return final_output_path, final_stats_path, total_pages_in, total_pages_out
 
     logger.info(f"=============1 {input_path}")
     
