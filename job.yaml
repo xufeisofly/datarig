@@ -45,5 +45,6 @@ spec:
           - "--source_name"
           - "cc"
           - "--overwrite"
+		  - "--use_task"
         imagePullPolicy: IfNotPresent
       restartPolicy: Always
