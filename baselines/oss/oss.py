@@ -3,6 +3,7 @@ from typing import Union
 import oss2
 
 import logging
+import os
 from io import BytesIO
 
 # 配置日志
@@ -31,6 +32,15 @@ def split_file_path(file_path):
     bucket_name, path = file_path.replace("oss://", "").split("/", 1)
     return bucket_name, path
 
+
+def get_files_and_folders_of_folder(folder_path):
+    bucket_name, dir_path = split_file_path(folder_path)
+    bucket = Bucket(bucket_name)
+    rets = bucket.list_objects(prefix=dir_path)
+    files = [os.path.join("oss://" + bucket_name, ret) for ret in rets if not ret.endswith('/')]
+    folders = [os.path.join("oss://" + bucket_name, ret) for ret in rets if ret.endswith('/')]
+    return files, folders
+    
         
 class OSSPath:
     def __init__(self, file_path):
