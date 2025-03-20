@@ -47,7 +47,7 @@ spec:
           - "--overwrite"
           - "--use_task"
         imagePullPolicy: IfNotPresent
-		volumeMounts:
+        volumeMounts:
           - name: dshm
             mountPath: /dev/shm		
       restartPolicy: OnFailure
