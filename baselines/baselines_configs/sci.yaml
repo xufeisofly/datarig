@@ -21,7 +21,7 @@
       count_unique: False                   
       min_stop_word: 2
     - func: massive_web_repetition_filters
-	  tokenizer: "fasttext"
+      tokenizer: "fasttext"
     - func: word_counter_enricher
       key: previous_word_count
     - func: uppercase_ratio_line_modifier
