@@ -16,6 +16,8 @@ def upload_file_to_oss(file_path, to_dir, bucket):
     with open(file_path, "rb") as local_file:
         bucket.put_object(oss_file_path, local_file.read(), headers={"x-oss-forbid-overwrite": "true"})
 
+    print("==== finish upload file: {}".format(oss_file_path))
+
 
 def upload_files_to_oss(from_dir, files, to_dir):
     """
