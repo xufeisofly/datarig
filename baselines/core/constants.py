@@ -13,12 +13,3 @@ GLOBAL_FUNCTIONS = {
 }
 
 
-split_word_model = 'uniseg'
-
-def set_word_model(m: str):
-    global split_word_model
-    split_word_model = m
-
-def get_word_model():
-    global split_word_model
-    return split_word_model

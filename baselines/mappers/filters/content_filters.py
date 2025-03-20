@@ -3,7 +3,6 @@ from typing import List, Dict, Union, Optional
 import re
 
 from baselines.mappers.core_utils import split_paragraphs, split_sentences, split_words
-from baselines.core.constants import get_word_model
 from core.factory_utils import factory_function
 from core.constants import CONTENT
 
@@ -130,7 +129,7 @@ def alphabetic_characters_to_tokens_filter(tokenizer_name: str = "EleutherAI/pyt
         
     return filter_fn
 
-def massive_web_repetition_filters(page: Dict, skip_paragraph=False) -> List[Dict]:
+def massive_web_repetition_filters(page: Dict, skip_paragraph=False, tokenizer='uniseg') -> List[Dict]:
     """
     Applies the repetition filters from Gopher (Rae et al., 2021)
     Calls repetition_filter across many different granularities
@@ -148,38 +147,38 @@ def massive_web_repetition_filters(page: Dict, skip_paragraph=False) -> List[Dic
     """
 
     cache = {}
-    if len(repetition_filter(page, "line", 0.3, count_characters=False, cache=cache)) == 0:
+    if len(repetition_filter(page, "line", 0.3, count_characters=False, cache=cache, tokenizer=tokenizer)) == 0:
         return []
-    elif not skip_paragraph and len(repetition_filter(page, "paragraph", 0.3, count_characters=False, cache=cache)) == 0:
+    elif not skip_paragraph and len(repetition_filter(page, "paragraph", 0.3, count_characters=False, cache=cache, tokenizer=tokenizer)) == 0:
         return []
-    elif len(repetition_filter(page, "line", 0.2, cache=cache)) == 0:
+    elif len(repetition_filter(page, "line", 0.2, cache=cache, tokenizer=tokenizer)) == 0:
         return []
-    elif not skip_paragraph and len(repetition_filter(page, "paragraph", 0.2, cache=cache)) == 0:
+    elif not skip_paragraph and len(repetition_filter(page, "paragraph", 0.2, cache=cache, tokenizer=tokenizer)) == 0:
         return []
-    elif len(repetition_filter(page, 2, 0.2, cache=cache)) == 0:
+    elif len(repetition_filter(page, 2, 0.2, cache=cache, tokenizer=tokenizer)) == 0:
         return []
-    elif len(repetition_filter(page, 3, 0.18, cache=cache)) == 0:
+    elif len(repetition_filter(page, 3, 0.18, cache=cache, tokenizer=tokenizer)) == 0:
         return []
-    elif len(repetition_filter(page, 4, 0.16, cache=cache)) == 0:
+    elif len(repetition_filter(page, 4, 0.16, cache=cache, tokenizer=tokenizer)) == 0:
         return []
-    elif len(repetition_filter(page, 5, 0.15, cache=cache)) == 0:
+    elif len(repetition_filter(page, 5, 0.15, cache=cache, tokenizer=tokenizer)) == 0:
         return []
-    elif len(repetition_filter(page, 6, 0.14, cache=cache)) == 0:
+    elif len(repetition_filter(page, 6, 0.14, cache=cache, tokenizer=tokenizer)) == 0:
         return []
-    elif len(repetition_filter(page, 7, 0.13, cache=cache)) == 0:
+    elif len(repetition_filter(page, 7, 0.13, cache=cache, tokenizer=tokenizer)) == 0:
         return []
-    elif len(repetition_filter(page, 8, 0.12, cache=cache)) == 0:
+    elif len(repetition_filter(page, 8, 0.12, cache=cache, tokenizer=tokenizer)) == 0:
         return []
-    elif len(repetition_filter(page, 9, 0.11, cache=cache)) == 0:
+    elif len(repetition_filter(page, 9, 0.11, cache=cache, tokenizer=tokenizer)) == 0:
         return []
-    elif len(repetition_filter(page, 10, 0.10, cache=cache)) == 0:
+    elif len(repetition_filter(page, 10, 0.10, cache=cache, tokenizer=tokenizer)) == 0:
         return []
     else:
         return [page]
 
 
 def repetition_filter(page: Dict, granularity: Union[str, int], max_fraction: float, 
-                      count_characters: bool=True, ngram_char_ratio: str=None, ignore_case: bool=False, cache: Dict=None) -> List[Dict]:
+                      count_characters: bool=True, ngram_char_ratio: str=None, ignore_case: bool=False, cache: Dict=None, tokenizer='uniseg') -> List[Dict]:
     """
     Filters the input JSON object based on the ratio of repetition at {line, paragraph, n-gram} granularity of the CONTENT field.
 
@@ -246,7 +245,8 @@ def repetition_filter(page: Dict, granularity: Union[str, int], max_fraction: fl
 
     elif isinstance(granularity, int):
         if 'words' not in cache:
-            cache['words'] = words = split_words(text, ignore_punctuation=True, model=get_word_model())
+            print(f"======== tokenizer: {tokenizer}")
+            cache['words'] = words = split_words(text, ignore_punctuation=True, model=tokenizer)
             cache['words/chars'] = total_chars = sum(len(w) for w in words) # Do not count whitespace/punctuation as characters for words
         else:
             words = cache['words']
