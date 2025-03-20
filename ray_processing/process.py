@@ -57,6 +57,7 @@ def parse_args():
         "--workers", type=int, default=1, help="If > 1, will use a process pool with that many workers."
     )
     parser.add_argument("--overwrite", action="store_true", help="If set to true, will overwrite results.")
+    parser.add_argument("--use_task", action="store_true", help="使用 task json 文件分配任务，否则直接使用 raw_data_dirpath.")
     parser.add_argument("--ray_address", type=str, default="localhost:6379")
     parser.add_argument("--num_shards", type=int, default=None, help="Run on the first number of shards (for debugging)")
     parser.add_argument(
@@ -216,20 +217,20 @@ def mark_task_item_finished(shard_dir: str, file_range):
         print(f"Worker {get_worker_key()} could not acquire the lock within timeout.")
 
 
-def process_all(mode='task'):
+def process_all():
+    args = parse_args()
     with_init = True 
-    while mode == 'task':
+    while args.use_task:
         task_item = get_task_item()
         if task_item is None:
             return
-        process_task_item(task_item, with_init)
+        process_task_item(args, task_item, with_init)
         with_init = False
-    process_task_item(None, with_init)
+    process_task_item(args, None, with_init)
 
-def process_task_item(task_item: TaskItem|None, with_init=True):
+def process_task_item(args, task_item: TaskItem|None, with_init=True):
     os.environ["RAY_LOG_TO_STDERR"] = "1"
-    args = parse_args()
-
+    
     task_input_dirpath, shard_name = '', ''
     # json_path 文件用于检测该 input 是否曾经跑完
     # TODO 由于 worker 任务是随机认领的，这个 json 文件最好放在 oss 上
@@ -433,5 +434,5 @@ def process_task_item(task_item: TaskItem|None, with_init=True):
 
 
 if __name__ == "__main__":
-    process_all(mode='task')
+    process_all()
     exit(1)
