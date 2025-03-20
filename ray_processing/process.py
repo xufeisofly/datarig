@@ -10,6 +10,7 @@ import json
 
 from baselines.core import process_single_file
 from baselines.core.file_utils import read_jsonl, write_jsonl, delete_file, is_exists, is_s3, is_oss
+from baselines.core.constants import set_word_model
 from baselines.oss import oss
 from baselines.oss.lock import SimpleOSSLock, DEFAULT_LOCK_FILE, get_worker_key
 from ray_processing import GLOBAL_FUNCTIONS
@@ -39,6 +40,9 @@ def parse_args():
     parser.add_argument(
         "--shard_list_filters", type=str, nargs='+', help="List of substrings to filter the input shard list by."
     )
+
+    parser.add_argument(
+        "--split_word_model", type=str, default='uniseg', help="")
 
     parser.add_argument("--output_dir", required=True, help="Path to the output dir of the processed file.")
     parser.add_argument(
@@ -216,9 +220,11 @@ def mark_task_item_finished(shard_dir: str, file_range):
     else:
         print(f"Worker {get_worker_key()} could not acquire the lock within timeout.")
 
-
+        
 def process_all():
     args = parse_args()
+    set_word_model(args.split_word_model)
+    
     with_init = True 
     while args.use_task:
         task_item = get_task_item()
