@@ -1381,21 +1381,22 @@ fn process_line_oldboth(
             serde_json::to_value(total_contained_ngrams).unwrap();
     }
 
-    if annotate {
-        // Allowed fields
-        let allowed_fields = [
-            "bff_duplicate_spans",
-            "bff_contained_ngram_count",
-            "id",
-            "source",
-            "text",
-        ];
+    // 过滤输出字段
+    // if annotate {
+    //     // Allowed fields
+    //     let allowed_fields = [
+    //         "bff_duplicate_spans",
+    //         "bff_contained_ngram_count",
+    //         "id",
+    //         "source",
+    //         "text",
+    //     ];
 
-        // Iterate through the keys of the JSON object and remove any field that is not in the allowed_fields list
-        if let Value::Object(ref mut map) = data {
-            map.retain(|key, _| allowed_fields.contains(&key.as_str()));
-        }
-    }
+    //     // Iterate through the keys of the JSON object and remove any field that is not in the allowed_fields list
+    //     if let Value::Object(ref mut map) = data {
+    //         map.retain(|key, _| allowed_fields.contains(&key.as_str()));
+    //     }
+    // }
     (data, removed_items, total_items)
 }
 

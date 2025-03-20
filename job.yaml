@@ -1,4 +1,4 @@
-apiVersion: apps/v1
+apiVersion: batch/v1
 kind: Job
 metadata:
   name: dclm-sci-job
@@ -26,7 +26,7 @@ spec:
         - name: cr-docker-registry
       containers:
       - name: dclm-sci
-        image: cr.registry.	res.cloud.zhejianglab.com/dataprocess/datarig:v1.0
+        image: cr.registry.res.cloud.zhejianglab.com/dataprocess/datarig:v1.1
         resources:
           requests:
             cpu: "4"
@@ -37,7 +37,7 @@ spec:
         command: ["/app/dclm-sci/start.sh"]
         args:
           - "--readable_name"
-          - "tianwei_0319"
+          - "tianwei_0320"
           - "--output_dir"
           - "oss://si002558te8h/dclm/output"
           - "--config_path"
@@ -45,5 +45,14 @@ spec:
           - "--source_name"
           - "cc"
           - "--overwrite"
+          - "--use_task"
         imagePullPolicy: IfNotPresent
-      restartPolicy: Always
+        volumeMounts:
+          - name: dshm
+            mountPath: /dev/shm		
+      restartPolicy: OnFailure
+      volumes:
+        - name: dshm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 5Gi	  

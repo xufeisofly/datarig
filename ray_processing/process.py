@@ -216,9 +216,10 @@ def mark_task_item_finished(shard_dir: str, file_range):
     else:
         print(f"Worker {get_worker_key()} could not acquire the lock within timeout.")
 
-
+        
 def process_all():
     args = parse_args()
+    
     with_init = True 
     while args.use_task:
         task_item = get_task_item()
@@ -435,4 +436,4 @@ def process_task_item(args, task_item: TaskItem|None, with_init=True):
 
 if __name__ == "__main__":
     process_all()
-    exit(1)
+    exit(0)

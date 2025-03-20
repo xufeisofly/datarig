@@ -10,4 +10,6 @@ COMMIT_KEY_NAME = 'commit'
 
 GLOBAL_FUNCTIONS = {
 	'exact_dedup': None,
-} 
+}
+
+
