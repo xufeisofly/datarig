@@ -57,6 +57,8 @@ def split_file_path(file_path):
 
 
 def get_sub_folders(folder_path):
+    if not folder_path.endswith('/'):
+        folder_path += '/'    
     bucket_name, dir_path = split_file_path(folder_path)
     bucket = Bucket(bucket_name)
     rets = list(get_all_prefixes_iter(bucket, dir_path))
@@ -64,6 +66,8 @@ def get_sub_folders(folder_path):
     return folders
 
 def get_sub_files(folder_path):
+    if not folder_path.endswith('/'):
+        folder_path += '/'
     bucket_name, dir_path = split_file_path(folder_path)
     bucket = Bucket(bucket_name)
     rets = list(get_all_objects_iter(bucket, dir_path))
