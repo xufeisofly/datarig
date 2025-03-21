@@ -233,7 +233,7 @@ def get_task_item(retry_tasks=False, task_file_path=DEFAULT_TASKS_FILE_PATH, loc
 
             lock.release()
             return TaskItem(asigned_task['shard_dir'],
-                            asigned_task['file_range']
+                            asigned_task['file_range'],
                             is_temp=asigned_task['is_temp'],
                             files=asigned_task['files'],
                             original_shard_dir=asigned_task['original_shard_dir'])
