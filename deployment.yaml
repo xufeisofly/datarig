@@ -37,7 +37,7 @@ spec:
         command: ["/app/dclm-sci/start.sh"]
         args:
           - "--readable_name"
-          - "tianwei_0319"
+          - "tianwei_0321"
           - "--output_dir"
           - "oss://si002558te8h/dclm/output"
           - "--config_path"
