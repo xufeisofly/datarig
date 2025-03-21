@@ -523,7 +523,7 @@ def process_task_item(args, task_item: TaskItem|None, with_init=True):
                 failures = len(ret) - successes
                 pages_in = sum(r[1] for r in ret)
                 pages_out = sum(r[2] for r in ret)
-                temp_files = ret[3]
+                temp_files = [r[3] for r in ret]
 
                 if temp_files:
                     print(f"文件 {jsonl_relpath} 已拆分为 {len(temp_files)} 个临时文件")
