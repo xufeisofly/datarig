@@ -3,7 +3,7 @@ kind: Job
 metadata:
   name: datarig-job
 spec:
-  parallelism: 3
+  parallelism: 3 # 1246x2C 1246x4G
   completions: 3
   backoffLimit: 0  # 如果任务失败后不希望重试，则设置为 0；否则设置为需要的重试次数
   template:
@@ -28,11 +28,11 @@ spec:
         image: cr.registry.res.cloud.zhejianglab.com/dataprocess/datarig:v1.2
         resources:
           requests:
-            cpu: "4"
-            memory: "7Gi"
+            cpu: "2"
+            memory: "4Gi"
           limits:
-            cpu: "5"
-            memory: "8Gi"
+            cpu: "2"
+            memory: "4Gi"
         command: ["/app/dclm-sci/start.sh"]
         args:
           - "--readable_name"
@@ -44,19 +44,11 @@ spec:
           - "--source_name"
           - "cc"
           - "--max_file_size_mb"
-          - 1024
+          - 512
           - "--chunk_size"
           - 2
           - "--output_has_dataset_name"
           - "--overwrite"
           - "--use_task"
         imagePullPolicy: IfNotPresent
-        volumeMounts:
-          - name: dshm
-            mountPath: /dev/shm
       restartPolicy: Never
-      volumes:
-        - name: dshm
-          emptyDir:
-            medium: Memory
-            sizeLimit: 2Gi
