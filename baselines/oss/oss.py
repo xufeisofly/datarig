@@ -132,7 +132,13 @@ class OSSReadStream:
 
     def readable(self) -> bool:
         """实现 readable 方法，告知 TextIOWrapper 该对象可读"""
-        return True    
+        return True
+
+    def writable(self) -> bool:
+        return False
+
+    def seekable(self) -> bool:
+        return False    
 
     def __iter__(self):
         """
