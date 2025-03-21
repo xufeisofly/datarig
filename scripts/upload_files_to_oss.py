@@ -14,8 +14,7 @@ def upload_file_to_oss(file_path, to_dir, bucket):
     file_name = os.path.basename(file_path)
     oss_file_path = os.path.join(to_dir, file_name)
     _, oss_file_path = oss.split_file_path(oss_file_path)
-    with open(file_path, "rb") as local_file:
-        bucket.put_object(oss_file_path, local_file.read(), headers={"x-oss-forbid-overwrite": "true"})
+    bucket.put_object_from_file(oss_file_path, file_path, headers={"x-oss-forbid-overwrite": "true"})
 
     print("==== finish upload file: {}".format(oss_file_path))
 
