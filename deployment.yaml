@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: dclm-sci-deployment
 spec:
-  replicas: 20
+  replicas: 10
   selector:
     matchLabels:
       app: dclm-sci
@@ -26,13 +26,13 @@ spec:
         - name: cr-docker-registry
       containers:
       - name: dclm-sci
-        image: cr.registry.res.cloud.zhejianglab.com/dataprocess/datarig:v1.1
+        image: cr.registry.res.cloud.zhejianglab.com/dataprocess/datarig:v1.2
         resources:
           requests:
-            cpu: "4"
+            cpu: "8"
             memory: "16Gi"
           limits:
-            cpu: "4"
+            cpu: "8"
             memory: "16Gi"				
         command: ["/app/dclm-sci/start.sh"]
         args:
@@ -56,4 +56,4 @@ spec:
         - name: dshm
           emptyDir:
             medium: Memory
-            sizeLimit: 5Gi	  
+            sizeLimit: 5Gi
