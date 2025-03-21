@@ -248,6 +248,7 @@ def get_task_item(retry_tasks=False, task_file_path=DEFAULT_TASKS_FILE_PATH, loc
 def mark_task_item_finished(shard_dir: str, file_range, task_file_path=DEFAULT_TASKS_FILE_PATH, lock_file=DEFAULT_LOCK_FILE, files=None):
     lock = SimpleOSSLock(lock_file)
     # 分布式锁允许 1 hour 超时时间
+    matched_task = None
     if lock.acquire_or_block(timeout=7200):
         # 改写 tasks.json 文件，领取任务
         ret = ""
@@ -264,12 +265,14 @@ def mark_task_item_finished(shard_dir: str, file_range, task_file_path=DEFAULT_T
                         'key': task_items[i]['worker']['key'],
                         'status': 'finished',
                     }
+                    matched_task = task_item  # 保存匹配的任务
                     break
                 elif task_item['shard_dir'] == shard_dir and task_item['file_range'] == file_range:
                     task_items[i]['worker'] = {
                         'key': task_items[i]['worker']['key'],
                         'status': 'finished',
                     }
+                    matched_task = task_item  # 保存匹配的任务
                     break
 
             new_data = {
@@ -279,11 +282,13 @@ def mark_task_item_finished(shard_dir: str, file_range, task_file_path=DEFAULT_T
                 f.write(json.dumps(new_data, indent=4))
 
             lock.release()
+            return matched_task  # 返回匹配的任务信息
         except BaseException as e:
             print(f"标记任务完成失败: {e}")
             lock.release()
     else:
         print(f"Worker {get_worker_key()} could not acquire the lock within timeout.")
+    return None
 
         
 def process_all():
@@ -586,15 +591,24 @@ def process_task_item(args, task_item: TaskItem|None, with_init=True):
     # with open(json_path, "w") as ref_file:
     #     json.dump(dataset_json, ref_file, indent=4)
     
-    if task_item is not None:    
-        mark_task_item_finished(shard_dir, file_range,
+if task_item is not None:    
+    # 更新：接收返回的任务信息
+    updated_task = mark_task_item_finished(shard_dir, file_range,
                                 task_file_path=args.task_file_path,
-                                lock_file=args.oss_lock_file)
-        # 如果是临时文件任务，只删除指定的临时文件，不删除整个目录
-        if is_temp and files:
-            print(f"准备删除临时文件: {files}")
+                                lock_file=args.oss_lock_file,
+                                files=files)
+    
+    # 使用更新后的任务信息 - 如果有返回值的话
+    if updated_task:
+        # 从任务信息中获取最新的 is_temp 和 files 信息
+        is_temp = updated_task.get("is_temp", False)
+        task_files = updated_task.get("files", [])
+        
+        # 如果是临时文件任务，删除指定的临时文件
+        if is_temp and task_files:
+            print(f"准备删除临时文件: {task_files}")
             try:
-                for file_path in files:
+                for file_path in task_files:
                     if is_oss(file_path):
                         # 直接删除OSS文件
                         delete_file(file_path)
