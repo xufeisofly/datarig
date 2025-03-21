@@ -5,7 +5,6 @@ import oss2
 import logging
 import os
 from io import BytesIO
-from baselines.core.file_utils import is_exists
 
 # 配置日志
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
