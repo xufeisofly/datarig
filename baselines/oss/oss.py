@@ -130,6 +130,10 @@ class OSSReadStream:
             amt = self.chunk_size
         return self.resp.read(amt)
 
+    def readable(self) -> bool:
+        """实现 readable 方法，告知 TextIOWrapper 该对象可读"""
+        return True    
+
     def __iter__(self):
         """
         实现迭代器，每次返回一块数据
