@@ -75,7 +75,7 @@ def process_local_chunk(
     config_data, raw_data_dirpath, jsonl_relpath, source_name, base_output_path, workers, overwrite
 ):
     try:
-        _, _, pages_in, pages_out = process_single_file(
+        _, _, pages_in, pages_out, _ = process_single_file(
             config_data=config_data,
             raw_data_dirpath=raw_data_dirpath,
             jsonl_relpath=jsonl_relpath,
