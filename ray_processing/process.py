@@ -500,9 +500,6 @@ def process_task_item(args, task_item: TaskItem|None, with_init=True):
             #         continue
             
             # 如果有需要添加到任务队列的临时目录，批量添加它们
-            if tasks_to_add:
-                add_task_to_queue(tasks_to_add)
-                print(f"已添加 {len(tasks_to_add)} 个临时目录任务到队列开头")
             
             # 继续常规的Ray处理流程
             ret = []
@@ -525,7 +522,6 @@ def process_task_item(args, task_item: TaskItem|None, with_init=True):
                 pages_out = sum(r[2] for r in ret)
                 temp_files = [f for r in ret for f in r[3]]
 
-                print("999============={}".format(temp_files))
 
                 if temp_files:
                     print(f"文件 {jsonl_relpath} 已拆分为 {len(temp_files)} 个临时文件")
@@ -550,7 +546,10 @@ def process_task_item(args, task_item: TaskItem|None, with_init=True):
                         mark_task_item_finished(task_item.get_shard_dir(), task_item.get_file_range())
                         print(f"原始任务 {task_item.get_shard_dir()} 已标记为 finished，因为文件已拆分")                
 
-                
+                if tasks_to_add:
+                    add_task_to_queue(tasks_to_add)
+                    print(f"已添加 {len(tasks_to_add)} 个临时目录任务到队列开头")
+                    
                 failed_shards = [s for i, s in enumerate(shard_files) if i < len(ret) and ret[i][0] == RAY_CHUNK_FAILURE]
 
                 # Make sure the working_dir has processed_data/ at the end
