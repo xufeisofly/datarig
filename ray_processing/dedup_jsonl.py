@@ -255,8 +255,6 @@ def dedup_jsonl(
         input_paths = [f"{input_dir_strip.replace('s3://','')}/{b}" for b in shard_files]
 
     input_paths = [p for p in input_paths if all(s not in p for s in ["/stats/", "global_stats.jsonl"])]
-    
-    print("====4 input_paths: ", input_paths)
 
     ctx = DataContext.get_current()
     ctx.execution_options.resource_limits.object_store_memory = float("inf")

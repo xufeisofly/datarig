@@ -27,22 +27,33 @@ for all the ray_process.py to accept.
 """
 
 class TaskItem:
-    def __init__(self, shard_dir, file_range: List[int], worker=None) -> None:
+    def __init__(self, shard_dir, file_range: List[int], worker=None, is_temp=False, files=None, original_shard_dir=None) -> None:
         self._shard_dir = shard_dir
         self._file_range = file_range
         self._worker = worker
+        self.is_temp = is_temp  # 添加 is_temp 属性
+        self._files = files or []  # 添加 files 属性，默认为空列表
+        self._original_shard_dir = original_shard_dir
 
     def get_shard_dir(self):
         return self._shard_dir
 
+    def get_original_shard_dir(self):
+        return self._original_shard_dir
+
     def get_file_range(self):
         return self._file_range
+        
+    def get_files(self):
+        return self._files
 
     def to_dict(self) -> dict:
         return {
             "shard_dir": self._shard_dir,
             "file_range": self._file_range,
             "worker": self._worker,
+            "is_temp": self.is_temp,  # 在字典中包含 is_temp
+            "files": self._files  # 在字典中包含 files
         }
 
 def create_task_items(shard_dir: str, mode: str, chunk_size: int) -> List[dict]:
@@ -98,7 +109,7 @@ def asign_task(parent_dir: str, tasks_file_path: str, mode: str='process', chunk
         print(f"Failed")
 
         
-DEFAULT_TASKS_FILE_PATH = "oss://si002558te8h/dclm/process_tasks.jsonl"
+DEFAULT_TASKS_FILE_PATH = "oss://si002558te8h/dclm/process_tasks.json"
 DEFAULT_PARENT_DIR = "oss://si002558te8h/dclm/origin/"
 
 

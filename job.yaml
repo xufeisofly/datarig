@@ -43,6 +43,11 @@ spec:
           - "baselines/baselines_configs/sci.yaml"
           - "--source_name"
           - "cc"
+          - "--max_file_size_mb"
+          - 1024
+          - "--chunk_size"
+          - 2
+          - "--output_has_dataset_name"
           - "--overwrite"
           - "--use_task"
         imagePullPolicy: IfNotPresent

@@ -5,20 +5,6 @@ import argparse
 from baselines.oss import oss
 
 
-def upload_file_to_oss(file_path, to_dir, bucket):
-    """
-    上传单个文件到 OSS，file_path 为本地文件的完整路径，
-    to_dir 为 OSS 中目标目录，bucket 为 OSS Bucket 实例。
-    """
-    print("==== start upload file: {}".format(file_path))
-    file_name = os.path.basename(file_path)
-    oss_file_path = os.path.join(to_dir, file_name)
-    _, oss_file_path = oss.split_file_path(oss_file_path)
-    bucket.put_object_from_file(oss_file_path, file_path, headers={"x-oss-forbid-overwrite": "true"})
-
-    print("==== finish upload file: {}".format(oss_file_path))
-
-
 def upload_files_to_oss(from_dir, files, to_dir):
     """
     上传 from_dir 下的文件列表到 OSS 的 to_dir 目录
@@ -27,7 +13,7 @@ def upload_files_to_oss(from_dir, files, to_dir):
     bucket = oss.Bucket(bucket_name)
     for f in files:
         file_path = os.path.join(from_dir, f)
-        upload_file_to_oss(file_path, to_dir, bucket)
+        oss.upload_file_to_oss(file_path, to_dir, bucket)
 
 
 def upload_all(from_dir, to_dir):
