@@ -525,6 +525,8 @@ def process_task_item(args, task_item: TaskItem|None, with_init=True):
                 pages_out = sum(r[2] for r in ret)
                 temp_files = [r[3] for r in ret]
 
+                print("999============={}".format(temp_files))
+
                 if temp_files:
                     print(f"文件 {jsonl_relpath} 已拆分为 {len(temp_files)} 个临时文件")
                         
