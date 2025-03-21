@@ -40,6 +40,12 @@ def parse_args():
         type=str,
         default=DEFAULT_TASKS_FILE_PATH,
         help="task json file path",
+    )
+    parser.add_argument(
+        "--oss_lock_file",
+        type=str,
+        default=DEFAULT_LOCK_FILE,
+        help="oss lock file path",
     )    
     parser.add_argument("--shard_list_file", type=str, default=None, help="Path to a file containing a list of input shards.")
     parser.add_argument(
@@ -147,9 +153,9 @@ def list_shard_files(data_dirpath, num_shards=None, shard_list_file=None, shard_
     return shard_files
 
 
-def get_task_item(retry_tasks=False, task_file_path=DEFAULT_TASKS_FILE_PATH):
+def get_task_item(retry_tasks=False, task_file_path=DEFAULT_TASKS_FILE_PATH, lock_file=DEFAULT_LOCK_FILE):
     asigned_task = None
-    lock = SimpleOSSLock(DEFAULT_LOCK_FILE)
+    lock = SimpleOSSLock(lock_file)
     # 分布式锁允许 1 hour 超时时间
     if lock.acquire_or_block(timeout=7200):
         # 改写 tasks.json 文件，领取任务
@@ -192,8 +198,8 @@ def get_task_item(retry_tasks=False, task_file_path=DEFAULT_TASKS_FILE_PATH):
         print(f"Worker {get_worker_key()} could not acquire the lock within timeout.")
         return None
 
-def mark_task_item_finished(shard_dir: str, file_range, task_file_path=DEFAULT_TASKS_FILE_PATH):
-    lock = SimpleOSSLock(DEFAULT_LOCK_FILE)
+def mark_task_item_finished(shard_dir: str, file_range, task_file_path=DEFAULT_TASKS_FILE_PATH, lock_file=DEFAULT_LOCK_FILE):
+    lock = SimpleOSSLock(lock_file)
     # 分布式锁允许 1 hour 超时时间
     if lock.acquire_or_block(timeout=7200):
         # 改写 tasks.json 文件，领取任务
@@ -232,7 +238,9 @@ def process_all():
     
     with_init = True 
     while args.use_task:
-        task_item = get_task_item(args.retry_tasks, args.task_file_path)
+        task_item = get_task_item(args.retry_tasks,
+                                  task_file_path=args.task_file_path,
+                                  lock_file=args.oss_lock_file)
         if task_item is None:
             return
         process_task_item(args, task_item, with_init)
@@ -447,7 +455,9 @@ def process_task_item(args, task_item: TaskItem|None, with_init=True):
     with open(json_path, "w") as ref_file:
         json.dump(dataset_json, ref_file, indent=4)
     if task_item is not None:    
-        mark_task_item_finished(shard_dir, file_range, args.task_file_path)
+        mark_task_item_finished(shard_dir, file_range,
+                                task_file_path=args.task_file_path,
+                                lock_file=args.oss_lock_file)
 
 
 if __name__ == "__main__":
