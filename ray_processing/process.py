@@ -183,10 +183,6 @@ def list_shard_files(data_dirpath, num_shards=None, shard_list_file=None, shard_
     else:
         shard_files = get_files_in_directory(data_dirpath=data_dirpath)
 
-
-    print("111==========={}".format(shard_files))
-    print("222==========={}".format(shard_list_filters))
-
     if num_shards is not None:
         shard_files = shard_files[:num_shards]
 
@@ -467,7 +463,6 @@ def process_task_item(args, task_item: TaskItem|None, with_init=True):
     true_start = time.time()
     working_dir = task_input_dirpath if task_input_dirpath != '' else args.raw_data_dirpath
 
-    print("===========working_dir:{}".format(working_dir))
     overwrite = args.overwrite
 
     for i, c in enumerate(chunks):
