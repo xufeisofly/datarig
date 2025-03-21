@@ -547,7 +547,7 @@ def process_task_item(args, task_item: TaskItem|None, with_init=True):
                         print(f"原始任务 {task_item.get_shard_dir()} 已标记为 finished，因为文件已拆分")                
 
                 if tasks_to_add:
-                    add_task_to_queue(tasks_to_add, task_file_path=args.task_file_path, lock_file=args.lock_file)
+                    add_task_to_queue(tasks_to_add, task_file_path=args.task_file_path, lock_file=args.oss_lock_file)
                     print(f"已添加 {len(tasks_to_add)} 个临时目录任务到队列开头")
                     
                 failed_shards = [s for i, s in enumerate(shard_files) if i < len(ret) and ret[i][0] == RAY_CHUNK_FAILURE]
