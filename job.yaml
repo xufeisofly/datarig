@@ -1,12 +1,9 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: dclm-sci-job
+  name: datarig-job
 spec:
-  replicas: 10
-  selector:
-    matchLabels:
-      app: dclm-sci
+  backoffLimit: 0  # 如果任务失败后不希望重试，则设置为 0；否则设置为需要的重试次数
   template:
     metadata:
       labels:
@@ -21,23 +18,23 @@ spec:
                     operator: In
                     values:
                       - dclm-sci
-              topologyKey: "kubernetes.io/hostname"	
+              topologyKey: "kubernetes.io/hostname"
       imagePullSecrets:
         - name: cr-docker-registry
       containers:
       - name: dclm-sci
-        image: cr.registry.res.cloud.zhejianglab.com/dataprocess/datarig:v1.1
+        image: cr.registry.res.cloud.zhejianglab.com/dataprocess/datarig:v1.2
         resources:
           requests:
             cpu: "4"
-            memory: "16Gi"
+            memory: "8Gi"
           limits:
             cpu: "4"
-            memory: "16Gi"				
+            memory: "8Gi"
         command: ["/app/dclm-sci/start.sh"]
         args:
           - "--readable_name"
-          - "tianwei_0320"
+          - "tianwei_0323"
           - "--output_dir"
           - "oss://si002558te8h/dclm/output"
           - "--config_path"
@@ -49,10 +46,10 @@ spec:
         imagePullPolicy: IfNotPresent
         volumeMounts:
           - name: dshm
-            mountPath: /dev/shm		
-      restartPolicy: OnFailure
+            mountPath: /dev/shm
+      restartPolicy: Never
       volumes:
         - name: dshm
           emptyDir:
             medium: Memory
-            sizeLimit: 5Gi	  
+            sizeLimit: 5Gi
