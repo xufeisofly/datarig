@@ -98,7 +98,7 @@ def parse_args():
 # Right now, this is just how I get clear space in /tmp which quickly gets filled by s3 reads
 @ray.remote(max_calls=3)
 def process_local_chunk(
-        config_data, raw_data_dirpath, jsonl_relpath, source_name, base_output_path, workers, overwrite, max_file_size_mb=1024, shard_dir=None, oss_temp_dir=None, task_file_path=None, lock_file=None
+        config_data, raw_data_dirpath, jsonl_relpath, source_name, base_output_path, workers, overwrite, max_file_size_mb=1024, shard_dir=None, oss_temp_dir=None, task_file_path=None, lock_file=None, chunk_size=1
 ):
     try: 
         # 先检查是否为大文件需要拆分
@@ -112,7 +112,6 @@ def process_local_chunk(
             print(f"文件已切分为{len(temp_files)}个子文件，临时存储在{oss_temp_dir}")
             
             # 创建新任务添加到队列
-            chunk_size = 1  # 每个任务处理1个文件
             tasks_to_add = []
             
             for i in range(0, len(temp_files), chunk_size):
@@ -524,6 +523,7 @@ def process_task_item(args, task_item: TaskItem|None, with_init=True):
                         config_data, working_dir, jsonl_relpath, source_name, base_output_path, args.workers, overwrite, args.max_file_size_mb, shard_dir=shard_dir, oss_temp_dir=args.oss_temp_dir,
                         task_file_path=args.task_file_path,
                         lock_file=args.oss_lock_file,
+                        chunk_size=args.chunk_size,
                     )
                 )
             
