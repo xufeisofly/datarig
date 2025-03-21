@@ -523,7 +523,7 @@ def process_task_item(args, task_item: TaskItem|None, with_init=True):
                 failures = len(ret) - successes
                 pages_in = sum(r[1] for r in ret)
                 pages_out = sum(r[2] for r in ret)
-                temp_files = [r[3] for r in ret]
+                temp_files = [f for r in ret for f in r[3]]
 
                 print("999============={}".format(temp_files))
 
