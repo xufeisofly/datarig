@@ -42,7 +42,7 @@ spec:
           - "--config_path"
           - "baselines/baselines_configs/sci.yaml"
           - "--oss_temp_dir"
-          - "oss://si002558te8h/dclm/pool/temp_dir/"
+          - "oss://si002558te8h/dclm/temp_dir1/"
           - "--source_name"
           - "cc"
           - "--max_file_size_mb"
