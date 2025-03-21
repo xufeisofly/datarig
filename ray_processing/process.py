@@ -597,36 +597,36 @@ def process_task_item(args, task_item: TaskItem|None, with_init=True):
     # with open(json_path, "w") as ref_file:
     #     json.dump(dataset_json, ref_file, indent=4)
     
-if task_item is not None:    
-    # 更新：接收返回的任务信息
-    updated_task = mark_task_item_finished(shard_dir, file_range,
-                                task_file_path=args.task_file_path,
-                                lock_file=args.oss_lock_file,
-                                files=files)
+    if task_item is not None:    
+        # 更新：接收返回的任务信息
+        updated_task = mark_task_item_finished(shard_dir, file_range,
+                                               task_file_path=args.task_file_path,
+                                               lock_file=args.oss_lock_file,
+                                               files=files)
     
-    # 使用更新后的任务信息 - 如果有返回值的话
-    if updated_task:
-        # 从任务信息中获取最新的 is_temp 和 files 信息
-        is_temp = updated_task.get("is_temp", False)
-        task_files = updated_task.get("files", [])
-        
-        # 如果是临时文件任务，删除指定的临时文件
-        if is_temp and task_files:
-            print(f"准备删除临时文件: {task_files}")
-            try:
-                for file_path in task_files:
-                    if is_oss(file_path):
-                        # 直接删除OSS文件
-                        bucket_name, path = oss.split_file_path(file_path)
-                        bucket = oss.Bucket(bucket_name)
-                        bucket.delete_object(path)
-                    else:
-                        # 删除本地文件
-                        if os.path.exists(file_path):
-                            os.remove(file_path)
-                print(f"已删除所有临时文件")
-            except Exception as e:
-                print(f"删除临时文件时出错: {e}")
+        # 使用更新后的任务信息 - 如果有返回值的话
+        if updated_task:
+            # 从任务信息中获取最新的 is_temp 和 files 信息
+            is_temp = updated_task.get("is_temp", False)
+            task_files = updated_task.get("files", [])
+
+            # 如果是临时文件任务，删除指定的临时文件
+            if is_temp and task_files:
+                print(f"准备删除临时文件: {task_files}")
+                try:
+                    for file_path in task_files:
+                        if is_oss(file_path):
+                            # 直接删除OSS文件
+                            bucket_name, path = oss.split_file_path(file_path)
+                            bucket = oss.Bucket(bucket_name)
+                            bucket.delete_object(path)
+                        else:
+                            # 删除本地文件
+                            if os.path.exists(file_path):
+                                os.remove(file_path)
+                            print(f"已删除所有临时文件")
+                except Exception as e:
+                    print(f"删除临时文件时出错: {e}")
 
 if __name__ == "__main__":
     process_all()
