@@ -611,7 +611,9 @@ if task_item is not None:
                 for file_path in task_files:
                     if is_oss(file_path):
                         # 直接删除OSS文件
-                        delete_file(file_path)
+                        bucket_name, path = oss.split_file_path(file_path)
+                        bucket = oss.Bucket(bucket_name)
+                        bucket.delete_object(path)
                     else:
                         # 删除本地文件
                         if os.path.exists(file_path):
