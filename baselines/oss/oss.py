@@ -138,6 +138,10 @@ class OSSReadStream:
     def seekable(self) -> bool:
         return False
 
+    def flush(self):
+        # 只读流不需要实际 flush 操作，但必须实现该方法以兼容 TextIOWrapper
+        pass    
+
     def close(self):
         if not self._closed:
             self._closed = True
