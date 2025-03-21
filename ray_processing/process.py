@@ -427,7 +427,13 @@ def process_task_item(args, task_item: TaskItem|None, with_init=True):
         resumed_chunk = False
         
         # 获取当前目录下的所有文件
-        shard_list_filters = filter_files if filter_files else args.shard_list_filters 
+        shard_list_filters = []
+        if filter_files:
+            for ff in filter_files:
+                _, f_path = oss.split_file_path(ff)
+                shard_list_filters.append(f_path)
+        if len(shard_list_filters) == 0:
+            shard_list_filters = args.shard_list_filters
         shard_files = list_shard_files(working_dir, args.num_shards, args.shard_list_file, shard_list_filters, file_range=file_range)
         
         if not shard_files:
