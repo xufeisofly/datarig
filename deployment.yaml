@@ -1,9 +1,9 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: dclm-sci-deployment
+  name: datarig-deploy
 spec:
-  replicas: 25
+  replicas: 1
   selector:
     matchLabels:
       app: dclm-sci
@@ -37,7 +37,7 @@ spec:
         command: ["/app/dclm-sci/start.sh"]
         args:
           - "--readable_name"
-          - "tianwei_0322"
+          - "tianwei_0323"
           - "--output_dir"
           - "oss://si002558te8h/dclm/output"
           - "--config_path"
