@@ -442,43 +442,43 @@ def process_task_item(args, task_item: TaskItem|None, with_init=True):
             # 处理每个文件，检查是否需要拆分大文件
             tasks_to_add = []  # 存储需要添加的新任务
             
-            for idx, jsonl_relpath in enumerate(shard_files):
-                full_path = os.path.join(working_dir, jsonl_relpath)
+            # for idx, jsonl_relpath in enumerate(shard_files):
+            #     full_path = os.path.join(working_dir, jsonl_relpath)
                 
-                # 使用修改后的 process_single_file 处理文件，可能返回临时文件列表
-                try:
-                    output_path, stats_path, pages_in, pages_out, temp_files = process_single_file(
-                        config_data, working_dir, jsonl_relpath, source_name, base_output_path, 
-                        args.workers, overwrite, max_file_size_mb=1024, temp_dir=oss_temp_dir,is_temp_file = is_temp
-                    )
+            #     # 使用修改后的 process_single_file 处理文件，可能返回临时文件列表
+            #     try:
+            #         output_path, stats_path, pages_in, pages_out, temp_files = process_single_file(
+            #             config_data, working_dir, jsonl_relpath, source_name, base_output_path, 
+            #             args.workers, overwrite, max_file_size_mb=1024, temp_dir=oss_temp_dir,is_temp_file = is_temp
+            #         )
                     
-                    # 如果返回了临时文件列表，说明原文件过大已被拆分
-                    if temp_files:
-                        print(f"文件 {jsonl_relpath} 已拆分为 {len(temp_files)} 个临时文件")
+            #         # 如果返回了临时文件列表，说明原文件过大已被拆分
+            #         if temp_files:
+            #             print(f"文件 {jsonl_relpath} 已拆分为 {len(temp_files)} 个临时文件")
                         
-                        # 根据 chunk_size 分组创建新任务
-                        chunk_size = args.chunk_size if hasattr(args, 'chunk_size') else 1
-                        total_temp_files = len(temp_files)
-                        temp_dir = os.path.dirname(temp_files[0])
-                        for start in range(0, total_temp_files, chunk_size):
-                            end = min(start + chunk_size, total_temp_files)
-                            tasks_to_add.append({
-                                "shard_dir": temp_dir,
-                                "file_range": [start, end],
-                                "worker": None,
-                                "is_temp": True  # 标记为临时目录
-                            })
+            #             # 根据 chunk_size 分组创建新任务
+            #             chunk_size = args.chunk_size if hasattr(args, 'chunk_size') else 1
+            #             total_temp_files = len(temp_files)
+            #             temp_dir = os.path.dirname(temp_files[0])
+            #             for start in range(0, total_temp_files, chunk_size):
+            #                 end = min(start + chunk_size, total_temp_files)
+            #                 tasks_to_add.append({
+            #                     "shard_dir": temp_dir,
+            #                     "file_range": [start, end],
+            #                     "worker": None,
+            #                     "is_temp": True  # 标记为临时目录
+            #                 })
                         
-                        # 如果当前任务是非临时的，将其标记为 finished
-                        if task_item is not None and not hasattr(task_item, 'is_temp'):
-                            mark_task_item_finished(task_item.get_shard_dir(), task_item.get_file_range())
-                            print(f"原始任务 {task_item.get_shard_dir()} 已标记为 finished，因为文件已拆分")
+            #             # 如果当前任务是非临时的，将其标记为 finished
+            #             if task_item is not None and not hasattr(task_item, 'is_temp'):
+            #                 mark_task_item_finished(task_item.get_shard_dir(), task_item.get_file_range())
+            #                 print(f"原始任务 {task_item.get_shard_dir()} 已标记为 finished，因为文件已拆分")
                         
-                        # 不对这个大文件进行后续处理，跳过它
-                        continue
-                except Exception as e:
-                    print(f"处理文件 {jsonl_relpath} 时出错: {e}")
-                    continue
+            #             # 不对这个大文件进行后续处理，跳过它
+            #             continue
+            #     except Exception as e:
+            #         print(f"处理文件 {jsonl_relpath} 时出错: {e}")
+            #         continue
             
             # 如果有需要添加到任务队列的临时目录，批量添加它们
             if tasks_to_add:
@@ -503,6 +503,32 @@ def process_task_item(args, task_item: TaskItem|None, with_init=True):
                 failures = len(ret) - successes
                 pages_in = sum(r[1] for r in ret)
                 pages_out = sum(r[2] for r in ret)
+                temp_files = ret[3]
+
+                if temp_files:
+                    print(f"文件 {jsonl_relpath} 已拆分为 {len(temp_files)} 个临时文件")
+                        
+                    # 根据 chunk_size 分组创建新任务
+                    chunk_size = args.chunk_size if hasattr(args, 'chunk_size') else 1
+                    total_temp_files = len(temp_files)
+                    temp_dir = os.path.dirname(temp_files[0])
+                    for start in range(0, total_temp_files, chunk_size):
+                        end = min(start + chunk_size, total_temp_files)
+                        files = temp_files[start:end]
+                        tasks_to_add.append({
+                            "shard_dir": temp_dir,
+                            "file_range": [0, -1],
+                            "files": files,
+                            "worker": None,
+                            "is_temp": True  # 标记为临时目录
+                        })
+                            
+                    # 如果当前任务是非临时的，将其标记为 finished
+                    if task_item is not None and not hasattr(task_item, 'is_temp'):
+                        mark_task_item_finished(task_item.get_shard_dir(), task_item.get_file_range())
+                        print(f"原始任务 {task_item.get_shard_dir()} 已标记为 finished，因为文件已拆分")                
+
+                
                 failed_shards = [s for i, s in enumerate(shard_files) if i < len(ret) and ret[i][0] == RAY_CHUNK_FAILURE]
 
                 # Make sure the working_dir has processed_data/ at the end
@@ -570,21 +596,21 @@ def process_task_item(args, task_item: TaskItem|None, with_init=True):
                                 task_file_path=args.task_file_path,
                                 lock_file=args.oss_lock_file)
         # 如果是临时目录任务，处理完成后删除临时目录
-        if hasattr(task_item, 'is_temp') and task_item.is_temp:
-            print(f"准备删除临时目录: {shard_dir}")
-            try:
-                if is_oss(shard_dir):
-                    bucket_name, path_within_bucket = shard_dir.replace("oss://", "").split("/", 1)
-                    bucket = oss.Bucket(bucket_name)
-                    for obj in oss.get_all_objects_iter(bucket, path_within_bucket):
-                        bucket.delete_object(obj.key)
-                    print(f"已删除临时目录中的所有文件: {shard_dir}")
-                else:
-                    import shutil
-                    shutil.rmtree(shard_dir)
-                    print(f"已删除临时目录: {shard_dir}")
-            except Exception as e:
-                print(f"删除临时目录 {shard_dir} 时出错: {e}")
+        # if hasattr(task_item, 'is_temp') and task_item.is_temp:
+        #     print(f"准备删除临时目录: {shard_dir}")
+        #     try:
+        #         if is_oss(shard_dir):
+        #             bucket_name, path_within_bucket = shard_dir.replace("oss://", "").split("/", 1)
+        #             bucket = oss.Bucket(bucket_name)
+        #             for obj in oss.get_all_objects_iter(bucket, path_within_bucket):
+        #                 bucket.delete_object(obj.key)
+        #             print(f"已删除临时目录中的所有文件: {shard_dir}")
+        #         else:
+        #             import shutil
+        #             shutil.rmtree(shard_dir)
+        #             print(f"已删除临时目录: {shard_dir}")
+        #     except Exception as e:
+        #         print(f"删除临时目录 {shard_dir} 时出错: {e}")
 
 
 if __name__ == "__main__":

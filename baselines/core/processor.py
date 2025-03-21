@@ -89,12 +89,12 @@ def _split_large_file(input_path: str, max_size_mb: int = 1024, temp_dir: str = 
     
     print(f"文件大小({file_size/1024/1024:.2f}MB)超过{max_size_mb}MB，进行切分处理")
     
-    # 确保临时目录存在
-    if is_oss(temp_dir):
-        temp_dir = f"{temp_dir.rstrip('/')}/{datetime.now().strftime('%Y%m%d%H%M%S')}"
-    else:
-        temp_dir = os.path.join(temp_dir, f"{datetime.now().strftime('%Y%m%d%H%M%S')}")
-        makedirs_if_missing(temp_dir)
+    # # 确保临时目录存在
+    # if is_oss(temp_dir):
+    #     temp_dir = f"{temp_dir.rstrip('/')}/{datetime.now().strftime('%Y%m%d%H%M%S')}"
+    # else:
+    #     temp_dir = os.path.join(temp_dir, f"{datetime.now().strftime('%Y%m%d%H%M%S')}")
+    #     makedirs_if_missing(temp_dir)
 
     print(f"使用临时目录: {temp_dir}")
     

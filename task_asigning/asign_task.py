@@ -17,8 +17,12 @@ for all the ray_process.py to accept.
       "file_range": [0, -1],
       "worker": {
         "key": "192.168.0.2_828282",
-        "status": "processing" // processing/success/fail
-      } // or null
+        "status": "processing" // finished
+      }, // or null
+      "files": [
+        "oss://xxxx.jsonl",
+        "oss://xxxx.jsonl"
+      ]
     }, {
       // ...
     }
@@ -27,14 +31,18 @@ for all the ray_process.py to accept.
 """
 
 class TaskItem:
-    def __init__(self, shard_dir, file_range: List[int], worker=None, is_temp=False) -> None:
+    def __init__(self, shard_dir, file_range: List[int], worker=None, is_temp=False, files=[]) -> None:
         self._shard_dir = shard_dir
         self._file_range = file_range
+        self._files = files
         self._worker = worker
         self.is_temp = is_temp  # 添加 is_temp 属性
 
     def get_shard_dir(self):
         return self._shard_dir
+
+    def get_files(self):
+        return self._files
 
     def get_file_range(self):
         return self._file_range
