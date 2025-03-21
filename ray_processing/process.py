@@ -101,7 +101,7 @@ def process_local_chunk(
         max_file_size_mb, temp_dir, is_temp_file, 
 ):
     try:
-        _, _, pages_in, pages_out, _ = process_single_file(
+        _, _, pages_in, pages_out, temp_files = process_single_file(
             config_data=config_data,
             raw_data_dirpath=raw_data_dirpath,
             jsonl_relpath=jsonl_relpath,
@@ -113,10 +113,10 @@ def process_local_chunk(
             temp_dir=temp_dir,
             is_temp_file=is_temp_file,
         )
-        return RAY_CHUNK_SUCCESS, pages_in, pages_out
+        return RAY_CHUNK_SUCCESS, pages_in, pages_out, temp_files
     except Exception as e:
         traceback.print_exc()
-        return RAY_CHUNK_FAILURE, 0, 0
+        return RAY_CHUNK_FAILURE, 0, 0, []
 
 
 def to_iterator(obj_ids, batch_size=100):

@@ -104,7 +104,6 @@ def _split_large_file(input_path: str, max_size_mb: int = 1024, temp_dir: str = 
     temp_files = []
     chunk_idx = 0
     line_buffer = []
-    current_size = 0
     buffer_size_bytes = 0
 
     # 使用 read_jsonl 读取文件，无论是本地、S3 还是 OSS 都能正确读取
@@ -116,7 +115,7 @@ def _split_large_file(input_path: str, max_size_mb: int = 1024, temp_dir: str = 
         
         # 当缓冲区大小接近最大限制，写入临时文件
         if buffer_size_bytes >= max_size_bytes - (1024*1024*100):
-            chunk_path = f"{temp_dir}/{file_name}_chunk{chunk_idx}{file_ext}"
+            chunk_path = os.path.join(temp_dir, f"{file_name}_chunk{chunk_idx}{file_ext}")
             print(f"写入切分文件 {chunk_idx+1}: {chunk_path}")
             
             # 修改：先将内容写入本地临时文件，然后一次性上传
