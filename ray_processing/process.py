@@ -53,6 +53,12 @@ def parse_args():
         default="oss://si002558te8h/dclm/temp_files",
         help="oss temp file path",
     )
+    parser.add_argument(
+        "--max_file_size_mb",
+        type=int,
+        default=1024,
+        help="max file size mb to split",
+    )    
     parser.add_argument("--shard_list_file", type=str, default=None, help="Path to a file containing a list of input shards.")
     parser.add_argument(
         "--shard_list_filters", type=str, nargs='+', help="List of substrings to filter the input shard list by."
@@ -504,7 +510,7 @@ def process_task_item(args, task_item: TaskItem|None, with_init=True):
                 ret.append(
                     process_local_chunk.options(num_cpus=args.ray_num_cpus).remote(
                         config_data, working_dir, jsonl_relpath, source_name, base_output_path, args.workers, overwrite,
-                        max_file_size_mb=1024, temp_dir=oss_temp_dir, is_temp_file=is_temp,
+                        max_file_size_mb=args.max_file_size_mb, temp_dir=oss_temp_dir, is_temp_file=is_temp,
                     )
                 )
             
