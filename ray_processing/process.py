@@ -58,6 +58,7 @@ def parse_args():
     )
     parser.add_argument("--overwrite", action="store_true", help="If set to true, will overwrite results.")
     parser.add_argument("--use_task", action="store_true", help="使用 task json 文件分配任务，否则直接使用 raw_data_dirpath.")
+    parser.add_argument("--retry_tasks", action="store_true", help="是否重新运行之前运行过的 tasks json")
     parser.add_argument("--output_has_dataset_name", action="store_true", help="output 目录中携带 dataset 名称")
     parser.add_argument("--ray_address", type=str, default="localhost:6379")
     parser.add_argument("--num_shards", type=int, default=None, help="Run on the first number of shards (for debugging)")
@@ -140,11 +141,11 @@ def list_shard_files(data_dirpath, num_shards=None, shard_list_file=None, shard_
     return shard_files
 
 
-def get_task_item():
+def get_task_item(retry_tasks=False):
     asigned_task = None
     lock = SimpleOSSLock(DEFAULT_LOCK_FILE)
     # 分布式锁允许 1 hour 超时时间
-    if lock.acquire_or_block(timeout=3600):
+    if lock.acquire_or_block(timeout=7200):
         # 改写 tasks.json 文件，领取任务
         ret = ""
         try:
@@ -154,7 +155,9 @@ def get_task_item():
             task_items = ret['tasks']
 
             for i, task_item in enumerate(task_items):
-                if task_item['worker'] is not None:
+                if not retry_tasks and task_item['worker'] is not None:
+                    continue
+                elif retry_tasks and task_item['worker']['status'] == 'finished':
                     continue
                 asigned_task = task_item
                 task_items[i]['worker'] = {
@@ -186,7 +189,7 @@ def get_task_item():
 def mark_task_item_finished(shard_dir: str, file_range):
     lock = SimpleOSSLock(DEFAULT_LOCK_FILE)
     # 分布式锁允许 1 hour 超时时间
-    if lock.acquire_or_block(timeout=3600):
+    if lock.acquire_or_block(timeout=7200):
         # 改写 tasks.json 文件，领取任务
         ret = ""
         try:
@@ -223,11 +226,12 @@ def process_all():
     
     with_init = True 
     while args.use_task:
-        task_item = get_task_item()
+        task_item = get_task_item(args.retry_tasks)
         if task_item is None:
-            return
+            continue
         process_task_item(args, task_item, with_init)
         with_init = False
+        time.sleep(0.1)
     process_task_item(args, None, with_init)
 
 def process_task_item(args, task_item: TaskItem|None, with_init=True):

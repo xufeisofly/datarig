@@ -1,9 +1,9 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: dclm-sci-deployment
+  name: datarig-deploy
 spec:
-  replicas: 20
+  replicas: 1
   selector:
     matchLabels:
       app: dclm-sci
@@ -26,18 +26,18 @@ spec:
         - name: cr-docker-registry
       containers:
       - name: dclm-sci
-        image: cr.registry.res.cloud.zhejianglab.com/dataprocess/datarig:v1.1
+        image: cr.registry.res.cloud.zhejianglab.com/dataprocess/datarig:v1.2
         resources:
           requests:
             cpu: "4"
-            memory: "16Gi"
+            memory: "8Gi"
           limits:
             cpu: "4"
-            memory: "16Gi"				
+            memory: "8Gi"				
         command: ["/app/dclm-sci/start.sh"]
         args:
           - "--readable_name"
-          - "tianwei_0319"
+          - "tianwei_0323"
           - "--output_dir"
           - "oss://si002558te8h/dclm/output"
           - "--config_path"
@@ -46,14 +46,13 @@ spec:
           - "cc"
           - "--overwrite"
           - "--use_task"
-          - "--output_has_dataset_name"
         imagePullPolicy: IfNotPresent
         volumeMounts:
           - name: dshm
             mountPath: /dev/shm
-      restartPolicy: Always
+      restartPolicy: Never
       volumes:
         - name: dshm
           emptyDir:
             medium: Memory
-            sizeLimit: 5Gi	  
+            sizeLimit: 5Gi
