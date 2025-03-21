@@ -92,7 +92,7 @@ def parse_args():
 # Right now, this is just how I get clear space in /tmp which quickly gets filled by s3 reads
 @ray.remote(max_calls=3)
 def process_local_chunk(
-        config_data, raw_data_dirpath, jsonl_relpath, source_name, base_output_path, workers, overwrite, max_file_size_mb=1024
+        config_data, raw_data_dirpath, jsonl_relpath, source_name, base_output_path, workers, overwrite, max_file_size_mb=1024, shard_dir=None,
 ):
     try:
         # 设置OSS临时目录
@@ -119,7 +119,8 @@ def process_local_chunk(
                     "file_range": [0,-1], 
                     "files": batch_files,
                     "worker": None, 
-                    "is_temp": True
+                    "is_temp": True,
+                    "original_shard_dir": shard_dir, 
                 })
             
             add_task_to_queue(tasks_to_add)
@@ -364,9 +365,11 @@ def process_task_item(args, task_item: TaskItem|None, with_init=True):
     file_range = None
     files = None
     is_temp = False
+    shard_dir = None
     
     if task_item is not None:
-        shard_dir = task_item.get_shard_dir()
+        origin_shard_dir = task_item.get_original_shard_dir()
+        shard_dir = task_item.get_shard_dir() if not origin_shard_dir else origin_shard_dir
         shard_name = shard_dir.split('/')[-2] if '/' in shard_dir else shard_dir
         origin_dataset_name = shard_dir.split('/')[-3]
         task_input_dirpath = shard_dir
@@ -502,7 +505,7 @@ def process_task_item(args, task_item: TaskItem|None, with_init=True):
             for idx, jsonl_relpath in enumerate(shard_files):
                 ret.append(
                     process_local_chunk.options(num_cpus=args.ray_num_cpus).remote(
-                        config_data, working_dir, jsonl_relpath, source_name, base_output_path, args.workers, overwrite, args.max_file_size_mb
+                        config_data, working_dir, jsonl_relpath, source_name, base_output_path, args.workers, overwrite, args.max_file_size_mb, shard_dir=shard_dir,
                     )
                 )
             

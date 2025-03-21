@@ -27,15 +27,19 @@ for all the ray_process.py to accept.
 """
 
 class TaskItem:
-    def __init__(self, shard_dir, file_range: List[int], worker=None, is_temp=False, files=None) -> None:
+    def __init__(self, shard_dir, file_range: List[int], worker=None, is_temp=False, files=None, original_shard_dir=None) -> None:
         self._shard_dir = shard_dir
         self._file_range = file_range
         self._worker = worker
         self.is_temp = is_temp  # 添加 is_temp 属性
         self._files = files or []  # 添加 files 属性，默认为空列表
+        self._original_shard_dir = original_shard_dir
 
     def get_shard_dir(self):
         return self._shard_dir
+
+    def get_original_shard_dir(self):
+        return self._original_shard_dir
 
     def get_file_range(self):
         return self._file_range
