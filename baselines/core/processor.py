@@ -186,10 +186,11 @@ def split_large_file(input_path: str, max_size_mb: int = 1024, temp_dir: str = "
                         json_str = json.dumps(l) if isinstance(l, dict) else str(l)
                         local_file.write(json_str + "\n")                
 
-                for l in line_buffer:
-                    json_str = json.dumps(l) if isinstance(l, dict) else str(l)
-                    local_file.write(json_str + "\n")
-                local_file.close()                
+                # for l in line_buffer:
+                #     json_str = json.dumps(l) if isinstance(l, dict) else str(l)
+                #     local_file.write(json_str + "\n")
+                # local_file.close()
+                
                 
                 # 修复：正确使用OSSPath上传文件
                 print(f"开始上传最后一个切分文件到OSS: {chunk_path}")
