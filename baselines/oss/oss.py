@@ -108,7 +108,6 @@ class OSSPath:
 #         super().__init__(obj.read())
 
 
-
 class OSSReadStream:
     def __init__(self, bucket: oss2.Bucket, path: str, chunk_size: int = 64 * 1024):
         """
@@ -119,31 +118,36 @@ class OSSReadStream:
         self.bucket = bucket
         self.path = path
         self.chunk_size = chunk_size
-        # 直接获取对象，返回的是一个流对象
+        # 获取 OSS 对象的响应流，不一次性读取所有数据
         self.resp = self.bucket.get_object(self.path)
+        self._closed = False
 
-    def read(self, amt: int|None):
-        """
-        读取指定字节数的数据。如果没有指定 amt，则读取 chunk_size 大小的数据。
-        """
+    def read(self, amt: int = None) -> bytes:
+        if self.closed:
+            raise ValueError("I/O operation on closed file.")
         if amt is None:
             amt = self.chunk_size
         return self.resp.read(amt)
 
     def readable(self) -> bool:
-        """实现 readable 方法，告知 TextIOWrapper 该对象可读"""
         return True
 
     def writable(self) -> bool:
         return False
 
     def seekable(self) -> bool:
-        return False    
+        return False
+
+    @property
+    def closed(self) -> bool:
+        return self._closed
+
+    def close(self):
+        if not self._closed:
+            self.resp.response.close()
+            self._closed = True
 
     def __iter__(self):
-        """
-        实现迭代器，每次返回一块数据
-        """
         while True:
             data = self.read(self.chunk_size)
             if not data:
@@ -154,7 +158,7 @@ class OSSReadStream:
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        return
+        self.close()    
         
     
 class OSSWriteStream():
