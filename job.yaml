@@ -46,7 +46,7 @@ spec:
           - "--max_file_size_mb"
           - "400"
           - "--chunk_size"
-          - "2"
+          - "4"
           - "--output_has_dataset_name"
           - "--overwrite"
           - "--use_task"
