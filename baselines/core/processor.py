@@ -154,7 +154,7 @@ def _split_large_file(input_path: str, max_size_mb: int = 1024, temp_dir: str = 
 
     # 写入最后剩余的内容
     if line_buffer:
-        chunk_path = f"{temp_dir}/{file_name}_chunk{chunk_idx}{file_ext}"
+        chunk_path = os.path.join(temp_dir, f"{file_name}_chunk{chunk_idx}{file_ext}")
         print(f"写入最后一个切分文件: {chunk_path}")
         
         # 修改：对最后一个文件也使用相同的方法一次性上传
