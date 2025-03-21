@@ -486,7 +486,8 @@ def process_task_item(args, task_item: TaskItem|None, with_init=True):
             # 否则，从目录中获取文件列表
             shard_list_filters = args.shard_list_filters
             shard_files = list_shard_files(working_dir, args.num_shards, args.shard_list_file, shard_list_filters, file_range=file_range)
-        
+
+        print("===========shard_files:{}".format(shard_files))
         if not shard_files:
             print(f"No files found in {working_dir}")
             break
