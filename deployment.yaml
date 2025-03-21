@@ -50,7 +50,7 @@ spec:
         volumeMounts:
           - name: dshm
             mountPath: /dev/shm
-      restartPolicy: Always
+      restartPolicy: Never
       volumes:
         - name: dshm
           emptyDir:
