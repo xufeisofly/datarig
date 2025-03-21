@@ -576,7 +576,7 @@ def process_task_item(args, task_item: TaskItem|None, with_init=True):
                 if is_oss(shard_dir):
                     bucket_name, path_within_bucket = shard_dir.replace("oss://", "").split("/", 1)
                     bucket = oss.Bucket(bucket_name)
-                    for obj in bucket.list_objects(prefix=path_within_bucket).object_list:
+                    for obj in oss.get_all_objects_iter(bucket, path_within_bucket):
                         bucket.delete_object(obj.key)
                     print(f"已删除临时目录中的所有文件: {shard_dir}")
                 else:
