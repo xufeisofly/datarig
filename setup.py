@@ -86,12 +86,12 @@ class DownloadAssetsCommand(install):
             self._download_quality_models()
 
         # Download the RefinedWeb banlists
-        if not self.skip_banlist_downloads:
-            print("\n\nReached banlist downloads\n\n")
-            if self.rw_banlist_type == 'curated':
-                self._download_curated_refinedweb_banlists()
-            elif self.rw_banlist_type == 'uncurated':
-                self._create_refinedweb_banlists()
+        # if not self.skip_banlist_downloads:
+        #     print("\n\nReached banlist downloads\n\n")
+        #     if self.rw_banlist_type == 'curated':
+        #         self._download_curated_refinedweb_banlists()
+        #     elif self.rw_banlist_type == 'uncurated':
+        #         self._create_refinedweb_banlists()
 
     def _download_fasttext_model(self):
         url = "https://dl.fbaipublicfiles.com/fasttext/supervised-models/lid.176.bin"
@@ -114,7 +114,7 @@ class DownloadAssetsCommand(install):
         # Models and their URLs
         models = {
             #"model.bin": "https://wmtis.s3.eu-west-1.amazonaws.com/quality_prediction_model/model.bin",
-            "fasttext_oh_eli5.bin": "https://huggingface.co/mlfoundations/fasttext-oh-eli5/resolve/main/openhermes_reddit_eli5_vs_rw_v2_bigram_200k_train.bin",
+            # "fasttext_oh_eli5.bin": "https://huggingface.co/mlfoundations/fasttext-oh-eli5/resolve/main/openhermes_reddit_eli5_vs_rw_v2_bigram_200k_train.bin",
             "en.arpa.bin": "https://huggingface.co/edugp/kenlm/resolve/main/wikipedia/en.arpa.bin",
             "en.sp.model": "https://huggingface.co/edugp/kenlm/resolve/main/wikipedia/en.sp.model",
         }

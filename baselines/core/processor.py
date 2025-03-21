@@ -39,7 +39,7 @@ SPLIT_INDEX = 2
 
 
 def commit(pages, stats, output_path, stats_output_path):
-    logger.info(f"committing pages to {output_path} (and stats to {stats_output_path})")
+    print(f"committing pages to {output_path} (and stats to {stats_output_path})")
     t = time.time()
     write_jsonl(pages, output_path)
 
@@ -47,7 +47,7 @@ def commit(pages, stats, output_path, stats_output_path):
     write_jsonl(stats, stats_output_path, 'a')
 
     stats.clear()
-    logger.info(f"commit took {time.time() - t} seconds")
+    print(f"commit took {time.time() - t} seconds")
 
 
 def _get_output_paths(base_output_path, jsonl_relpath):
@@ -87,7 +87,7 @@ def _split_large_file(input_path: str, max_size_mb: int = 1024, temp_dir: str = 
     if file_size <= max_size_bytes:
         return [input_path]  # 文件不需要切分
     
-    logger.info(f"文件大小({file_size/1024/1024:.2f}MB)超过{max_size_mb}MB，进行切分处理")
+    print(f"文件大小({file_size/1024/1024:.2f}MB)超过{max_size_mb}MB，进行切分处理")
     
     # 确保临时目录存在
     if is_oss(temp_dir):
@@ -96,7 +96,7 @@ def _split_large_file(input_path: str, max_size_mb: int = 1024, temp_dir: str = 
         temp_dir = os.path.join(temp_dir, f"{datetime.now().strftime('%Y%m%d%H%M%S')}")
         makedirs_if_missing(temp_dir)
 
-    logger.info(f"使用临时目录: {temp_dir}")
+    print(f"使用临时目录: {temp_dir}")
     
     base_filename = os.path.basename(input_path)
     file_name, file_ext = os.path.splitext(base_filename)
@@ -115,9 +115,9 @@ def _split_large_file(input_path: str, max_size_mb: int = 1024, temp_dir: str = 
         buffer_size_bytes += len(json.dumps(line).encode('utf-8')) if isinstance(line, dict) else 1024
         
         # 当缓冲区大小接近最大限制，写入临时文件
-        if buffer_size_bytes >= max_size_bytes:
+        if buffer_size_bytes >= max_size_bytes - (1024*1024*100):
             chunk_path = f"{temp_dir}/{file_name}_chunk{chunk_idx}{file_ext}"
-            logger.info(f"写入切分文件 {chunk_idx+1}: {chunk_path}")
+            print(f"写入切分文件 {chunk_idx+1}: {chunk_path}")
             
             # 修改：先将内容写入本地临时文件，然后一次性上传
             if is_oss(temp_dir):
@@ -137,7 +137,7 @@ def _split_large_file(input_path: str, max_size_mb: int = 1024, temp_dir: str = 
                         with OSSPath(chunk_path).open('wb') as oss_file:
                             oss_file.write(content)
                     
-                    logger.info(f"成功上传切分文件到OSS: {chunk_path}")
+                    print(f"成功上传切分文件到OSS: {chunk_path}")
                 finally:
                     # 删除本地临时文件
                     if os.path.exists(local_temp_file.name):
@@ -156,7 +156,7 @@ def _split_large_file(input_path: str, max_size_mb: int = 1024, temp_dir: str = 
     # 写入最后剩余的内容
     if line_buffer:
         chunk_path = f"{temp_dir}/{file_name}_chunk{chunk_idx}{file_ext}"
-        logger.info(f"写入最后一个切分文件: {chunk_path}")
+        print(f"写入最后一个切分文件: {chunk_path}")
         
         # 修改：对最后一个文件也使用相同的方法一次性上传
         if is_oss(temp_dir):
@@ -176,7 +176,7 @@ def _split_large_file(input_path: str, max_size_mb: int = 1024, temp_dir: str = 
                     with OSSPath(chunk_path).open('wb') as oss_file:
                         oss_file.write(content)
                 
-                logger.info(f"成功上传最后一个切分文件到OSS: {chunk_path}")
+                print(f"成功上传最后一个切分文件到OSS: {chunk_path}")
             finally:
                 # 删除本地临时文件
                 if os.path.exists(local_temp_file.name):
@@ -189,7 +189,7 @@ def _split_large_file(input_path: str, max_size_mb: int = 1024, temp_dir: str = 
                     
         temp_files.append(chunk_path)
 
-    logger.info(f"文件已切分为{len(temp_files)}个子文件")
+    print(f"文件已切分为{len(temp_files)}个子文件")
     return temp_files
 
 
@@ -232,17 +232,17 @@ def process_single_file(config_data: Dict[str, Any], raw_data_dirpath: str, json
     
     temp_files = []
     if file_size_mb > max_file_size_mb and not is_temp_file:
-        logger.info(f"文件大小为 {file_size_mb:.2f}MB，超过 {max_file_size_mb}MB，将进行文件切分处理")
+        print(f"文件大小为 {file_size_mb:.2f}MB，超过 {max_file_size_mb}MB，将进行文件切分处理")
         # 切分文件并保存到OSS临时目录
         temp_files = _split_large_file(input_path, max_file_size_mb, temp_dir)
-        logger.info(f"文件已切分为{len(temp_files)}个子文件，临时存储在{temp_dir}")
+        print(f"文件已切分为{len(temp_files)}个子文件，临时存储在{temp_dir}")
         
         # 返回空结果和临时文件列表，让上层函数处理这些拆分的文件
         return "", "", 0, 0, temp_files
     
-    logger.info(f"处理文件: {input_path}")
+    print(f"处理文件: {input_path}")
     pages = list(read_jsonl(input_path))
-    logger.info(f"读取完成，共 {len(pages)} 条记录")
+    print(f"读取完成，共 {len(pages)} 条记录")
     jsonl_load_secs = time.time() - t1
 
     # Assumption #3 - for each input shard, there is a specific stats file that accompanies it
@@ -251,11 +251,11 @@ def process_single_file(config_data: Dict[str, Any], raw_data_dirpath: str, json
     # If a jsonl is empty (e.g., due to another chunk), the page will be skipped  
     num_pages_in = len(pages)
     if num_pages_in == 0:
-        logger.info(f"Input data file at {input_path} is empty.")
+        print(f"Input data file at {input_path} is empty.")
         # 如果是临时文件，处理完成后删除
         if is_temp_file and is_exists(input_path):
             delete_file(input_path)
-            logger.info(f"临时文件 {input_path} 已删除")
+            print(f"临时文件 {input_path} 已删除")
         return output_path, stats_output_path, 0, 0, []
 
     # load stats file
@@ -265,10 +265,10 @@ def process_single_file(config_data: Dict[str, Any], raw_data_dirpath: str, json
 
     if is_exists(stats_output_path):
         if overwrite:
-            logger.info(f"Stats file {stats_output_path} already exists, but overwrite is set to true, so deleting.")
+            print(f"Stats file {stats_output_path} already exists, but overwrite is set to true, so deleting.")
             delete_file(stats_output_path)
         else:
-            logger.info(f"Stats file {stats_output_path} already exists, loading.")
+            print(f"Stats file {stats_output_path} already exists, loading.")
             old_stats = list(read_jsonl(stats_output_path))
 
     stats_load_secs = time.time() - t2
@@ -297,7 +297,7 @@ def process_single_file(config_data: Dict[str, Any], raw_data_dirpath: str, json
     for step in config_data['steps']:
         if step == COMMIT_COMMAND:
             if not updated:
-                logger.info("No steps were executed, skipping commit.")
+                print("No steps were executed, skipping commit.")
                 continue
             commit_steps += 1
             commit(pages, stats, output_path, stats_output_path)
@@ -308,7 +308,7 @@ def process_single_file(config_data: Dict[str, Any], raw_data_dirpath: str, json
         if i < len(old_stats):
             assert old_stats[i]['name'] == step[
                 'func'], f"Step {step} does not match step {old_stats[i]['name']} in stats file."
-            logger.info(f"Skipping step {step} since it was already done.")
+            print(f"Skipping step {step} since it was already done.")
             i += 1
             skipped_steps += 1
             continue
@@ -347,13 +347,13 @@ def process_single_file(config_data: Dict[str, Any], raw_data_dirpath: str, json
         step_stats['total_secs'] = t5 - t4
         step_stats['workers'] = workers
 
-        logger.info(f"Step {step['func']} removed {counters[REMOVED_INDEX]} pages, split {counters[SPLIT_INDEX]} "
+        print(f"Step {step['func']} removed {counters[REMOVED_INDEX]} pages, split {counters[SPLIT_INDEX]} "
                     f"pages, and kept {counters[KEPT_INDEX]} pages. {counters[ERRORS_INDEX]} errors were detected. "
                     f"In total, {n_pages_before} pages before and {n_pages_after} pages after.")
         pages = new_pages
 
         if len(pages) == 0:
-            logger.info("No pages left, stopping.")
+            print("No pages left, stopping.")
             updated = True
             break
 
@@ -371,7 +371,7 @@ def process_single_file(config_data: Dict[str, Any], raw_data_dirpath: str, json
                     transform = get_transform(transform_name, **transform_args)
                     vals = [transform(v) for v in vals]
                 agg_res = agg(vals)
-                logger.info(f'Aggregation result for {agg_key} is {agg_res}')
+                print(f'Aggregation result for {agg_key} is {agg_res}')
                 agg_res['_secs'] = time.time() - t_agg
                 step_stats[agg_key] = agg_res
         stats.append(step_stats)
@@ -386,14 +386,14 @@ def process_single_file(config_data: Dict[str, Any], raw_data_dirpath: str, json
                   'finished_processing': not early_exit,
                   'execution_end_time': datetime.now().strftime("%d/%m/%Y %H:%M:%S")})
 
-    logger.info('Finished processing all steps, committing.')
+    print('Finished processing all steps, committing.')
     if updated:
         commit(pages, stats, output_path, stats_output_path)
 
     # 如果是临时文件，处理完成后删除
     if is_temp_file and is_exists(input_path):
         delete_file(input_path)
-        logger.info(f"临时文件 {input_path} 已删除")
+        print(f"临时文件 {input_path} 已删除")
 
     return output_path, stats_output_path, num_pages_in, len(pages), []
 
@@ -414,7 +414,7 @@ def apply_partial_func_sequential(counters, execution_times, new_pages, pages, p
 
 
 def _worker(worker_num, step, pages, input_queue, output_list):
-    logger.info(f"Worker {worker_num} has started processing jobs.")
+    print(f"Worker {worker_num} has started processing jobs.")
     # Create the partial function for each item in the YAML
     # Assumption - if the function has some intiialization to do, it was done as part of a cluster creation and the overhead will be amortized across pages
     partial_func = get_mapper(**step, _profile=True, _safe=True)
@@ -432,9 +432,9 @@ def _worker(worker_num, step, pages, input_queue, output_list):
             # Put the result in the output queue.
             output_list.append(result)
         except Exception as e:
-            logger.exception(f"Error occurred in MP apply of func: {e}")
+            print(f"Error occurred in MP apply of func: {e}")
 
-    logger.info(f"Worker {worker_num} has finished processing jobs.")
+    print(f"Worker {worker_num} has finished processing jobs.")
 
 
 def apply_partial_func_parallel(counters, execution_times, new_pages, pages, step, n_workers):
