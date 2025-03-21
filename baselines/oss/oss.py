@@ -5,6 +5,7 @@ import oss2
 import logging
 import os
 from io import BytesIO
+from baselines.core.file_utils import is_exists
 
 # 配置日志
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -204,6 +205,8 @@ class OSSWriteStream():
         return False        
 
 
+def is_object_exist(bucket, path):
+    return bucket.object_exists(path)
 
 
 def upload_file_to_oss(file_path, to_dir, bucket):
@@ -215,6 +218,8 @@ def upload_file_to_oss(file_path, to_dir, bucket):
     file_name = os.path.basename(file_path)
     oss_file_path = os.path.join(to_dir, file_name)
     _, oss_file_path = split_file_path(oss_file_path)
+    if is_object_exist(bucket, oss_file_path):
+        print("==== upload file already exists: {}".format(oss_file_path))
+        return
     bucket.put_object_from_file(oss_file_path, file_path)
-
     print("==== finish upload file: {}".format(oss_file_path))    

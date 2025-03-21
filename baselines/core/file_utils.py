@@ -7,7 +7,7 @@ import io
 from typing import BinaryIO, List
 
 from cloudpathlib import S3Path
-from baselines.oss.oss import OSSPath, Bucket
+from baselines.oss.oss import OSSPath, Bucket, split_file_path, is_object_exist
 import os
 import boto3
 from pathlib import Path as LocalPath
@@ -40,6 +40,10 @@ def is_exists(file_path: str):
     if is_s3(file_path):
         s3_path = S3Path(file_path)
         return s3_path.exists() and s3_path.is_file()
+    elif is_oss(file_path):
+        bucket_name, path = split_file_path(file_path)
+        bucket = Bucket(bucket_name)
+        return is_object_exist(bucket, path)
     else:
         return os.path.isfile(file_path)
 
