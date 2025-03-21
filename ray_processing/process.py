@@ -228,9 +228,10 @@ def process_all():
     while args.use_task:
         task_item = get_task_item(args.retry_tasks)
         if task_item is None:
-            return
+            continue
         process_task_item(args, task_item, with_init)
         with_init = False
+        time.sleep(0.1)
     process_task_item(args, None, with_init)
 
 def process_task_item(args, task_item: TaskItem|None, with_init=True):
