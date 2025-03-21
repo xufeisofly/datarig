@@ -98,7 +98,7 @@ def parse_args():
 # Right now, this is just how I get clear space in /tmp which quickly gets filled by s3 reads
 @ray.remote(max_calls=3)
 def process_local_chunk(
-        config_data, raw_data_dirpath, jsonl_relpath, source_name, base_output_path, workers, overwrite, max_file_size_mb=1024, shard_dir=None, oss_temp_dir=None
+        config_data, raw_data_dirpath, jsonl_relpath, source_name, base_output_path, workers, overwrite, max_file_size_mb=1024, shard_dir=None, oss_temp_dir=None, task_file_path=None, lock_file=None
 ):
     try: 
         # 先检查是否为大文件需要拆分
@@ -126,7 +126,7 @@ def process_local_chunk(
                     "original_shard_dir": shard_dir, 
                 })
             
-            add_task_to_queue(tasks_to_add)
+            add_task_to_queue(tasks_to_add, task_file_path=task_file_path, lock_file=lock_file)
             print(f"已添加 {len(tasks_to_add)} 个临时文件任务到队列")
             return RAY_CHUNK_SUCCESS, 0, 0
         
@@ -297,15 +297,14 @@ def process_all():
         time.sleep(0.1)
     process_task_item(args, None, with_init)
 
-def add_task_to_queue(tasks: List[dict]) -> bool:
+def add_task_to_queue(tasks: List[dict], task_file_path=DEFAULT_TASKS_FILE_PATH, lock_file=DEFAULT_LOCK_FILE) -> bool:
     """
     将新任务批量添加到任务队列的最前面
     
     :param tasks: 要添加的任务字典列表，例如 [{"shard_dir": "oss://...", "files": ["file1.json", "file2.json"], "worker": None, "is_temp": True}]
     :return: bool, 添加是否成功
     """
-    DEFAULT_TASKS_FILE_PATH = "oss://si002558te8h/dclm/process_tasks.jsonl"
-    lock = SimpleOSSLock(DEFAULT_LOCK_FILE)
+    lock = SimpleOSSLock(lock_file)
     
     # 获取分布式锁，超时时间 1 小时
     if not lock.acquire_or_block(timeout=3600):
@@ -315,7 +314,7 @@ def add_task_to_queue(tasks: List[dict]) -> bool:
     try:
         # 读取现有任务列表
         tasks_data = {"tasks": []}  # 默认初始化
-        with oss.OSSPath(DEFAULT_TASKS_FILE_PATH).open("rb") as f:
+        with oss.OSSPath(task_file_path).open("rb") as f:
             data = f.read()
             tasks_data = json.loads(data)
             print(f"读取到 {len(tasks_data.get('tasks', []))} 个任务")
@@ -330,12 +329,12 @@ def add_task_to_queue(tasks: List[dict]) -> bool:
         print(f"添加 {len(tasks)} 个新任务后，任务数量: {len(tasks_data['tasks'])}")
         
         # 写回任务文件
-        with oss.OSSPath(DEFAULT_TASKS_FILE_PATH).open("w") as f:
+        with oss.OSSPath(task_file_path).open("w") as f:
             f.write(json.dumps(tasks_data, indent=4))
             print(f"已将 {len(tasks)} 个任务添加到队列开头")
         
         # 验证写入是否成功
-        with oss.OSSPath(DEFAULT_TASKS_FILE_PATH).open("rb") as f:
+        with oss.OSSPath(task_file_path).open("rb") as f:
             updated_data = json.loads(f.read())
             tasks_after = len(updated_data.get('tasks', []))
             if tasks_after != tasks_before + len(tasks):
@@ -506,6 +505,8 @@ def process_task_item(args, task_item: TaskItem|None, with_init=True):
                 ret.append(
                     process_local_chunk.options(num_cpus=args.ray_num_cpus).remote(
                         config_data, working_dir, jsonl_relpath, source_name, base_output_path, args.workers, overwrite, args.max_file_size_mb, shard_dir=shard_dir, oss_temp_dir=args.oss_temp_dir,
+                        task_file_path=args.task_file_path,
+                        lock_file=args.oss_lock_file,
                     )
                 )
             
