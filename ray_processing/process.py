@@ -96,7 +96,7 @@ def process_local_chunk(
 ):
     try:
         # 设置OSS临时目录
-        oss_temp_dir = "oss://si002558te8h/dclm/temp_files"
+        oss_temp_dir = "oss://si002558te8h/dclm/temp_files/"
         
         # 先检查是否为大文件需要拆分
         input_path = os.path.join(raw_data_dirpath, jsonl_relpath)
