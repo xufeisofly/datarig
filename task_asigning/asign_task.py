@@ -109,7 +109,7 @@ def asign_task(parent_dir: str, tasks_file_path: str, mode: str='process', chunk
         print(f"Failed")
 
         
-DEFAULT_TASKS_FILE_PATH = "oss://si002558te8h/dclm/process_tasks.jsonl"
+DEFAULT_TASKS_FILE_PATH = "oss://si002558te8h/dclm/process_tasks.json"
 DEFAULT_PARENT_DIR = "oss://si002558te8h/dclm/origin/"
 
 
