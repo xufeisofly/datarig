@@ -11,7 +11,7 @@ from yaml import safe_load
 from baselines.core.factories import get_mapper, get_aggregator, get_transform
 from baselines.core.file_utils import is_oss, read_jsonl, write_jsonl, makedirs_if_missing, delete_file, is_exists, get_file_size
 from baselines.core.constants import PROCESS_SETUP_KEY_NAME, PROCESS_END_KEY_NAME, COMMIT_KEY_NAME, GLOBAL_FUNCTIONS
-from baselines.oss.oss import OSSPath
+from baselines.oss.oss import OSSPath, upload_file_to_oss, split_file_path, Bucket
 
 logger = logging.getLogger(__name__)
 
@@ -116,7 +116,7 @@ def split_large_file(input_path: str, max_size_mb: int = 1024, temp_dir: str = "
         
         # 当缓冲区大小接近最大限制，写入临时文件
         if buffer_size_bytes >= max_size_bytes - (1024*1024*max_size_mb*0.01):
-            chunk_path = os.path.join(temp_dir, f"{file_name}_chunk{chunk_idx}{file_ext}")
+            chunk_path = os.path.join(temp_dir, f"chunk{chunk_idx}_{file_name}{file_ext}")
             print(f"写入切分文件 {chunk_idx+1}: {chunk_path}")
             
             # 修改：先将内容写入本地临时文件，然后一次性上传
@@ -134,8 +134,9 @@ def split_large_file(input_path: str, max_size_mb: int = 1024, temp_dir: str = "
                     # 修复：正确使用OSSPath上传文件
                     with open(local_temp_file.name, 'rb') as f:
                         content = f.read()
-                        with OSSPath(chunk_path).open('wb') as oss_file:
-                            oss_file.write(content)
+                        write_jsonl(content, chunk_path)
+                        # with OSSPath(chunk_path).open('wb') as oss_file:
+                        #     oss_file.write(content)
                     
                     print(f"成功上传切分文件到OSS: {chunk_path}")
                 finally:
@@ -155,7 +156,7 @@ def split_large_file(input_path: str, max_size_mb: int = 1024, temp_dir: str = "
 
     # 写入最后剩余的内容
     if line_buffer:
-        chunk_path = os.path.join(temp_dir, f"{file_name}_chunk{chunk_idx}{file_ext}")
+        chunk_path = os.path.join(temp_dir, f"chunk{chunk_idx}_{file_name}{file_ext}")
         print(f"写入最后一个切分文件: {chunk_path}")
         
         # 修改：对最后一个文件也使用相同的方法一次性上传
@@ -170,11 +171,12 @@ def split_large_file(input_path: str, max_size_mb: int = 1024, temp_dir: str = "
                     local_temp_file.write(json_str + "\n")
                 local_temp_file.close()
                 
-                # 修复：正确使用OSSPath上传文件
+                # 修复：正确使用OSSPath上传文件                
                 with open(local_temp_file.name, 'rb') as f:
                     content = f.read()
-                    with OSSPath(chunk_path).open('wb') as oss_file:
-                        oss_file.write(content)
+                    write_jsonl(content, chunk_path)
+                    # with OSSPath(chunk_path).open('wb') as oss_file:
+                    #     oss_file.write(content)
                 
                 print(f"成功上传最后一个切分文件到OSS: {chunk_path}")
             finally:
