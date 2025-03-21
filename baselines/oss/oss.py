@@ -100,12 +100,51 @@ class OSSPath:
         raise ValueError(f"invalid mode: {mode}")
 
 
-class OSSReadStream(BytesIO):
-    def __init__(self, bucket: oss2.Bucket, path: str):
+# class OSSReadStream(BytesIO):
+#     def __init__(self, bucket: oss2.Bucket, path: str):
+#         self.bucket = bucket
+#         self.path = path
+#         obj = self.bucket.get_object(self.path)
+#         super().__init__(obj.read())
+
+
+
+class OSSReadStream:
+    def __init__(self, bucket: oss2.Bucket, path: str, chunk_size: int = 64 * 1024):
+        """
+        :param bucket: oss2.Bucket 实例
+        :param path: OSS 上的文件路径
+        :param chunk_size: 每次读取的字节数，默认为 64KB
+        """
         self.bucket = bucket
         self.path = path
-        obj = self.bucket.get_object(self.path)
-        super().__init__(obj.read())
+        self.chunk_size = chunk_size
+        # 直接获取对象，返回的是一个流对象
+        self.resp = self.bucket.get_object(self.path)
+
+    def read(self, amt: int|None):
+        """
+        读取指定字节数的数据。如果没有指定 amt，则读取 chunk_size 大小的数据。
+        """
+        if amt is None:
+            amt = self.chunk_size
+        return self.resp.read(amt)
+
+    def __iter__(self):
+        """
+        实现迭代器，每次返回一块数据
+        """
+        while True:
+            data = self.read(self.chunk_size)
+            if not data:
+                break
+            yield data
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        return
         
     
 class OSSWriteStream():
