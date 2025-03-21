@@ -129,10 +129,11 @@ def split_large_file(input_path: str, max_size_mb: int = 1024, temp_dir: str = "
                 print("=========={}".format(local_filename))
                 try:
                     # 将内容写入本地临时文件 - 修复：将字典转为JSON字符串
-                    with open(local_filename, "w") as local_file:
-                        for l in line_buffer:
-                            json_str = json.dumps(l) if isinstance(l, dict) else str(l)
-                            local_file.write(json_str + "\n")
+                    write_jsonl(line_buffer, local_filename)
+                    # with open(local_filename, "w") as local_file:
+                    #     for l in line_buffer:
+                    #         json_str = json.dumps(l) if isinstance(l, dict) else str(l)
+                    #         local_file.write(json_str + "\n")
                     
                     # 修复：正确使用OSSPath上传文件
                     print(f"开始上传切分文件到OSS: {chunk_path}")
@@ -180,11 +181,12 @@ def split_large_file(input_path: str, max_size_mb: int = 1024, temp_dir: str = "
                 #     json_str = json.dumps(l) if isinstance(l, dict) else str(l)
                 #     local_temp_file.write(json_str + "\n")
                 # local_temp_file.close()
-
-                with open(local_filename, "w") as local_file:
-                    for l in line_buffer:
-                        json_str = json.dumps(l) if isinstance(l, dict) else str(l)
-                        local_file.write(json_str + "\n")                
+                write_jsonl(line_buffer, local_filename)
+                # with open(local_filename, "w") as local_file:
+                #     for l in line_buffer:
+                #         json_str = json.dumps(l) if isinstance(l, dict) else str(l)
+                #         local_file.write(json_str + "\n")
+                        
 
                 # for l in line_buffer:
                 #     json_str = json.dumps(l) if isinstance(l, dict) else str(l)
