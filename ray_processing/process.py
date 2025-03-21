@@ -47,6 +47,12 @@ def parse_args():
         type=str,
         default=DEFAULT_LOCK_FILE,
         help="oss lock file path",
+    )
+    parser.add_argument(
+        "--max_file_size_mb",
+        type=int,
+        default=1024,
+        help="max file size mb",
     )    
     parser.add_argument("--shard_list_file", type=str, default=None, help="Path to a file containing a list of input shards.")
     parser.add_argument(
@@ -86,7 +92,7 @@ def parse_args():
 # Right now, this is just how I get clear space in /tmp which quickly gets filled by s3 reads
 @ray.remote(max_calls=3)
 def process_local_chunk(
-    config_data, raw_data_dirpath, jsonl_relpath, source_name, base_output_path, workers, overwrite
+        config_data, raw_data_dirpath, jsonl_relpath, source_name, base_output_path, workers, overwrite, max_file_size_mb=1024
 ):
     try:
         # 设置OSS临时目录
@@ -95,7 +101,6 @@ def process_local_chunk(
         # 先检查是否为大文件需要拆分
         input_path = os.path.join(raw_data_dirpath, jsonl_relpath)
         file_size_mb = get_file_size(input_path) / (1024 * 1024)
-        max_file_size_mb = 1024  # 1GB
         
         if file_size_mb > max_file_size_mb:
             print(f"文件大小为 {file_size_mb:.2f}MB，超过 {max_file_size_mb}MB，将进行文件切分处理")
@@ -497,7 +502,7 @@ def process_task_item(args, task_item: TaskItem|None, with_init=True):
             for idx, jsonl_relpath in enumerate(shard_files):
                 ret.append(
                     process_local_chunk.options(num_cpus=args.ray_num_cpus).remote(
-                        config_data, working_dir, jsonl_relpath, source_name, base_output_path, args.workers, overwrite
+                        config_data, working_dir, jsonl_relpath, source_name, base_output_path, args.workers, overwrite, args.max_file_size_mb
                     )
                 )
             
