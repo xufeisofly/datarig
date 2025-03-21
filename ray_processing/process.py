@@ -451,9 +451,9 @@ def process_task_item(args, task_item: TaskItem|None, with_init=True):
     print("Total time: " + str(time.time() - true_start))
 
     # Generate the dataset reference json
-    dataset_json = generate_untokenized_dataset_json(args, source_refs, base_output_path, data_key=shard_extension)
-    with open(json_path, "w") as ref_file:
-        json.dump(dataset_json, ref_file, indent=4)
+    # dataset_json = generate_untokenized_dataset_json(args, source_refs, base_output_path, data_key=shard_extension)
+    # with open(json_path, "w") as ref_file:
+    #     json.dump(dataset_json, ref_file, indent=4)
     if task_item is not None:    
         mark_task_item_finished(shard_dir, file_range,
                                 task_file_path=args.task_file_path,
