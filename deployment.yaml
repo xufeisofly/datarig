@@ -46,7 +46,6 @@ spec:
           - "cc"
           - "--overwrite"
           - "--use_task"
-          - "--output_has_dataset_name"
         imagePullPolicy: IfNotPresent
         volumeMounts:
           - name: dshm
