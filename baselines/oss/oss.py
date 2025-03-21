@@ -215,6 +215,6 @@ def upload_file_to_oss(file_path, to_dir, bucket):
     file_name = os.path.basename(file_path)
     oss_file_path = os.path.join(to_dir, file_name)
     _, oss_file_path = split_file_path(oss_file_path)
-    bucket.put_object_from_file(oss_file_path, file_path, headers={"x-oss-forbid-overwrite": "true"})
+    bucket.put_object_from_file(oss_file_path, file_path)
 
     print("==== finish upload file: {}".format(oss_file_path))    
