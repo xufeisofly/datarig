@@ -46,7 +46,13 @@ def parse_args():
         type=str,
         default=DEFAULT_LOCK_FILE,
         help="oss lock file path",
-    )    
+    )
+    parser.add_argument(
+        "--oss_temp_dir",
+        type=str,
+        default="oss://si002558te8h/dclm/temp_files",
+        help="oss temp file path",
+    )
     parser.add_argument("--shard_list_file", type=str, default=None, help="Path to a file containing a list of input shards.")
     parser.add_argument(
         "--shard_list_filters", type=str, nargs='+', help="List of substrings to filter the input shard list by."
@@ -85,7 +91,8 @@ def parse_args():
 # Right now, this is just how I get clear space in /tmp which quickly gets filled by s3 reads
 @ray.remote(max_calls=3)
 def process_local_chunk(
-    config_data, raw_data_dirpath, jsonl_relpath, source_name, base_output_path, workers, overwrite
+        config_data, raw_data_dirpath, jsonl_relpath, source_name, base_output_path, workers, overwrite,
+        max_file_size_mb, temp_dir, is_temp_file, 
 ):
     try:
         _, _, pages_in, pages_out, _ = process_single_file(
@@ -96,6 +103,9 @@ def process_local_chunk(
             base_output_path=base_output_path,
             workers=workers,
             overwrite=overwrite,
+            max_file_size_mb=max_file_size_mb,
+            temp_dir=temp_dir,
+            is_temp_file=is_temp_file,
         )
         return RAY_CHUNK_SUCCESS, pages_in, pages_out
     except Exception as e:
@@ -247,15 +257,14 @@ def process_all():
         time.sleep(0.1)
     process_task_item(args, None, with_init)
 
-def add_task_to_queue(tasks: List[dict]) -> bool:
+def add_task_to_queue(tasks: List[dict], task_file_path=DEFAULT_TASKS_FILE_PATH, lock_file=DEFAULT_LOCK_FILE) -> bool:
     """
     将新任务批量添加到任务队列的最前面
     
     :param tasks: 要添加的任务字典列表，例如 [{"shard_dir": "oss://...", "file_range": [0, 1], "worker": None, "is_temp": False}]
     :return: bool, 添加是否成功
     """
-    DEFAULT_TASKS_FILE_PATH = "oss://si002558te8h/dclm/process_tasks.jsonl"
-    lock = SimpleOSSLock(DEFAULT_LOCK_FILE)
+    lock = SimpleOSSLock(lock_file)
     
     # 获取分布式锁，超时时间 1 小时
     if not lock.acquire_or_block(timeout=3600):
@@ -265,7 +274,7 @@ def add_task_to_queue(tasks: List[dict]) -> bool:
     try:
         # 读取现有任务列表
         tasks_data = {"tasks": []}  # 默认初始化
-        with oss.OSSPath(DEFAULT_TASKS_FILE_PATH).open("rb") as f:
+        with oss.OSSPath(task_file_path).open("rb") as f:
             data = f.read()
             tasks_data = json.loads(data)
             print(f"读取到 {len(tasks_data.get('tasks', []))} 个任务")
@@ -280,12 +289,12 @@ def add_task_to_queue(tasks: List[dict]) -> bool:
         print(f"添加 {len(tasks)} 个新任务后，任务数量: {len(tasks_data['tasks'])}")
         
         # 写回任务文件
-        with oss.OSSPath(DEFAULT_TASKS_FILE_PATH).open("w") as f:
+        with oss.OSSPath(task_file_path).open("w") as f:
             f.write(json.dumps(tasks_data, indent=4))
             print(f"已将 {len(tasks)} 个任务添加到队列开头")
         
         # 验证写入是否成功
-        with oss.OSSPath(DEFAULT_TASKS_FILE_PATH).open("rb") as f:
+        with oss.OSSPath(task_file_path).open("rb") as f:
             updated_data = json.loads(f.read())
             tasks_after = len(updated_data.get('tasks', []))
             if tasks_after != tasks_before + len(tasks):
@@ -313,6 +322,8 @@ def process_task_item(args, task_item: TaskItem|None, with_init=True):
     
     task_input_dirpath, shard_name = '', ''
     origin_dataset_name = ''
+    is_temp = False
+    filter_files = None
     # json_path 文件用于检测该 input 是否曾经跑完
     json_path = f"exp_data/datasets/untokenized/{args.readable_name}.json"
     file_range = None
@@ -321,7 +332,8 @@ def process_task_item(args, task_item: TaskItem|None, with_init=True):
         shard_name = shard_dir.split('/')[-2]
         origin_dataset_name = shard_dir.split('/')[-3]
         task_input_dirpath = shard_dir
-        file_range = task_item._file_range
+        file_range = task_item.get_file_range()
+        filter_files = task_item.get_files()
         is_temp = task_item.is_temp
         json_path = f"exp_data/datasets/untokenized/{args.readable_name}_{shard_name}.json"
         print(f"task shard dir: {shard_dir}")    
@@ -341,7 +353,7 @@ def process_task_item(args, task_item: TaskItem|None, with_init=True):
         source_refs = [source_ref] if source_ref else []
 
     # 设置OSS临时目录
-    oss_temp_dir = "oss://si002558te8h/dclm/temp_files"
+    oss_temp_dir = args.oss_temp_dir
     
     if with_init:
         if args.ray_use_working_dir:
@@ -409,7 +421,8 @@ def process_task_item(args, task_item: TaskItem|None, with_init=True):
         resumed_chunk = False
         
         # 获取当前目录下的所有文件
-        shard_files = list_shard_files(working_dir, args.num_shards, args.shard_list_file, args.shard_list_filters, file_range=file_range)
+        shard_list_filters = filter_files if filter_files else args.shard_list_filters 
+        shard_files = list_shard_files(working_dir, args.num_shards, args.shard_list_file, shard_list_filters, file_range=file_range)
         
         if not shard_files:
             print(f"No files found in {working_dir}")
@@ -490,7 +503,8 @@ def process_task_item(args, task_item: TaskItem|None, with_init=True):
             for idx, jsonl_relpath in enumerate(shard_files):
                 ret.append(
                     process_local_chunk.options(num_cpus=args.ray_num_cpus).remote(
-                        config_data, working_dir, jsonl_relpath, source_name, base_output_path, args.workers, overwrite
+                        config_data, working_dir, jsonl_relpath, source_name, base_output_path, args.workers, overwrite,
+                        max_file_size_mb=1024, temp_dir=oss_temp_dir, is_temp_file=is_temp,
                     )
                 )
             
