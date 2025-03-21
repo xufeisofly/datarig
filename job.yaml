@@ -3,8 +3,8 @@ kind: Job
 metadata:
   name: datarig-job
 spec:
-  parallelism: 6 # 1246x2C 1246x4G
-  completions: 6
+  parallelism: 2 # 1246x2C 1246x4G
+  completions: 2
   backoffLimit: 0  # 如果任务失败后不希望重试，则设置为 0；否则设置为需要的重试次数
   template:
     metadata:
@@ -36,7 +36,7 @@ spec:
         command: ["/app/dclm-sci/start.sh"]
         args:
           - "--readable_name"
-          - "first_round_test2"
+          - "first_round_test3"
           - "--output_dir"
           - "oss://si002558te8h/dclm/output"
           - "--config_path"
@@ -44,7 +44,7 @@ spec:
           - "--source_name"
           - "cc"
           - "--max_file_size_mb"
-          - "400"
+          - "500"
           - "--chunk_size"
           - "4"
           - "--output_has_dataset_name"
