@@ -10,6 +10,7 @@ def upload_file_to_oss(file_path, to_dir, bucket):
     上传单个文件到 OSS，file_path 为本地文件的完整路径，
     to_dir 为 OSS 中目标目录，bucket 为 OSS Bucket 实例。
     """
+    print("==== start upload file: {}".format(file_path))
     file_name = os.path.basename(file_path)
     oss_file_path = os.path.join(to_dir, file_name)
     _, oss_file_path = oss.split_file_path(oss_file_path)
