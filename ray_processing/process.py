@@ -49,6 +49,12 @@ def parse_args():
         help="oss lock file path",
     )
     parser.add_argument(
+        "--oss_temp_dir",
+        type=str,
+        default="oss://si002558te8h/dclm/temp_files/",
+        help="oss temp file dir",
+    )    
+    parser.add_argument(
         "--max_file_size_mb",
         type=int,
         default=1024,
@@ -92,12 +98,9 @@ def parse_args():
 # Right now, this is just how I get clear space in /tmp which quickly gets filled by s3 reads
 @ray.remote(max_calls=3)
 def process_local_chunk(
-        config_data, raw_data_dirpath, jsonl_relpath, source_name, base_output_path, workers, overwrite, max_file_size_mb=1024, shard_dir=None,
+        config_data, raw_data_dirpath, jsonl_relpath, source_name, base_output_path, workers, overwrite, max_file_size_mb=1024, shard_dir=None, oss_temp_dir=None
 ):
-    try:
-        # 设置OSS临时目录
-        oss_temp_dir = "oss://si002558te8h/dclm/temp_files/"
-        
+    try: 
         # 先检查是否为大文件需要拆分
         input_path = os.path.join(raw_data_dirpath, jsonl_relpath)
         file_size_mb = get_file_size(input_path) / (1024 * 1024)
@@ -393,9 +396,6 @@ def process_task_item(args, task_item: TaskItem|None, with_init=True):
     else:
         source_ref = get_source_ref_by_key(args.raw_data_dirpath, "dataset_url")
         source_refs = [source_ref] if source_ref else []
-
-    # 设置OSS临时目录
-    oss_temp_dir = "oss://si002558te8h/dclm/temp_files"
     
     if with_init:
         if args.ray_use_working_dir:
@@ -505,7 +505,7 @@ def process_task_item(args, task_item: TaskItem|None, with_init=True):
             for idx, jsonl_relpath in enumerate(shard_files):
                 ret.append(
                     process_local_chunk.options(num_cpus=args.ray_num_cpus).remote(
-                        config_data, working_dir, jsonl_relpath, source_name, base_output_path, args.workers, overwrite, args.max_file_size_mb, shard_dir=shard_dir,
+                        config_data, working_dir, jsonl_relpath, source_name, base_output_path, args.workers, overwrite, args.max_file_size_mb, shard_dir=shard_dir, oss_temp_dir=args.oss_temp_dir,
                     )
                 )
             
