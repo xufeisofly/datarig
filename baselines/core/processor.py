@@ -70,7 +70,7 @@ def _is_step_stats(line):
     """
     return line['name'] not in {PROCESS_SETUP_KEY_NAME, PROCESS_END_KEY_NAME, COMMIT_KEY_NAME}
 
-def _split_large_file(input_path: str, max_size_mb: int = 1024, temp_dir: str = "oss://si002558te8h/dclm/temp_files") -> List[str]:
+def split_large_file(input_path: str, max_size_mb: int = 1024, temp_dir: str = "oss://si002558te8h/dclm/temp_files") -> List[str]:
     """
     将大文件切分成多个小文件，每个不超过指定大小，并存储到OSS临时目录。
     
@@ -90,10 +90,10 @@ def _split_large_file(input_path: str, max_size_mb: int = 1024, temp_dir: str = 
     print(f"文件大小({file_size/1024/1024:.2f}MB)超过{max_size_mb}MB，进行切分处理")
     
     # 确保临时目录存在
-    if is_oss(temp_dir):
-        temp_dir = f"{temp_dir.rstrip('/')}/{datetime.now().strftime('%Y%m%d%H%M%S')}"
-    else:
-        temp_dir = os.path.join(temp_dir, f"{datetime.now().strftime('%Y%m%d%H%M%S')}")
+    if not is_oss(temp_dir):
+    #     temp_dir = f"{temp_dir.rstrip('/')}/{datetime.now().strftime('%Y%m%d%H%M%S')}"
+    # else:
+    #     temp_dir = os.path.join(temp_dir, f"{datetime.now().strftime('%Y%m%d%H%M%S')}")
         makedirs_if_missing(temp_dir)
 
     print(f"使用临时目录: {temp_dir}")
@@ -234,7 +234,7 @@ def process_single_file(config_data: Dict[str, Any], raw_data_dirpath: str, json
     if file_size_mb > max_file_size_mb and not is_temp_file:
         print(f"文件大小为 {file_size_mb:.2f}MB，超过 {max_file_size_mb}MB，将进行文件切分处理")
         # 切分文件并保存到OSS临时目录
-        temp_files = _split_large_file(input_path, max_file_size_mb, temp_dir)
+        temp_files = split_large_file(input_path, max_file_size_mb, temp_dir)
         print(f"文件已切分为{len(temp_files)}个子文件，临时存储在{temp_dir}")
         
         # 返回空结果和临时文件列表，让上层函数处理这些拆分的文件

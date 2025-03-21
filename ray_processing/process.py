@@ -9,7 +9,8 @@ import subprocess
 import json
 from typing import Any, Dict, Tuple, List
 from baselines.core import process_single_file
-from baselines.core.file_utils import read_jsonl, write_jsonl, delete_file, is_exists, is_s3, is_oss
+from baselines.core.processor import split_large_file
+from baselines.core.file_utils import read_jsonl, write_jsonl, delete_file, is_exists, is_s3, is_oss, get_file_size
 from baselines.oss import oss
 from baselines.oss.lock import SimpleOSSLock, DEFAULT_LOCK_FILE, get_worker_key
 from ray_processing import GLOBAL_FUNCTIONS
@@ -88,6 +89,39 @@ def process_local_chunk(
     config_data, raw_data_dirpath, jsonl_relpath, source_name, base_output_path, workers, overwrite
 ):
     try:
+        # 设置OSS临时目录
+        oss_temp_dir = "oss://si002558te8h/dclm/temp_files"
+        
+        # 先检查是否为大文件需要拆分
+        input_path = os.path.join(raw_data_dirpath, jsonl_relpath)
+        file_size_mb = get_file_size(input_path) / (1024 * 1024)
+        max_file_size_mb = 1024  # 1GB
+        
+        if file_size_mb > max_file_size_mb:
+            print(f"文件大小为 {file_size_mb:.2f}MB，超过 {max_file_size_mb}MB，将进行文件切分处理")
+            # 切分文件并保存到OSS临时目录
+            temp_files = split_large_file(input_path, max_file_size_mb, oss_temp_dir)
+            print(f"文件已切分为{len(temp_files)}个子文件，临时存储在{oss_temp_dir}")
+            
+            # 创建新任务添加到队列
+            chunk_size = 1  # 每个任务处理1个文件
+            tasks_to_add = []
+            
+            for i in range(0, len(temp_files), chunk_size):
+                batch_files = temp_files[i:i+chunk_size]
+                tasks_to_add.append({
+                    "shard_dir": oss_temp_dir, 
+                    "file_range": [0,-1], 
+                    "files": batch_files,
+                    "worker": None, 
+                    "is_temp": True
+                })
+            
+            add_task_to_queue(tasks_to_add)
+            print(f"已添加 {len(tasks_to_add)} 个临时文件任务到队列")
+            return RAY_CHUNK_SUCCESS, 0, 0
+        
+        # 对于正常大小的文件，正常处理
         _, _, pages_in, pages_out, _ = process_single_file(
             config_data=config_data,
             raw_data_dirpath=raw_data_dirpath,
@@ -96,12 +130,13 @@ def process_local_chunk(
             base_output_path=base_output_path,
             workers=workers,
             overwrite=overwrite,
+            max_file_size_mb=max_file_size_mb,  # 传递参数但在process_single_file中不会重复拆分
+            is_temp_file=False  # 由任务中的is_temp决定，而不是在这里传递
         )
         return RAY_CHUNK_SUCCESS, pages_in, pages_out
     except Exception as e:
         traceback.print_exc()
         return RAY_CHUNK_FAILURE, 0, 0
-
 
 def to_iterator(obj_ids, batch_size=100):
     while obj_ids:
@@ -197,7 +232,7 @@ def get_task_item(retry_tasks=False, task_file_path=DEFAULT_TASKS_FILE_PATH, loc
         print(f"Worker {get_worker_key()} could not acquire the lock within timeout.")
         return None
 
-def mark_task_item_finished(shard_dir: str, file_range, task_file_path=DEFAULT_TASKS_FILE_PATH, lock_file=DEFAULT_LOCK_FILE):
+def mark_task_item_finished(shard_dir: str, file_range, task_file_path=DEFAULT_TASKS_FILE_PATH, lock_file=DEFAULT_LOCK_FILE, files=None):
     lock = SimpleOSSLock(lock_file)
     # 分布式锁允许 1 hour 超时时间
     if lock.acquire_or_block(timeout=7200):
@@ -210,13 +245,19 @@ def mark_task_item_finished(shard_dir: str, file_range, task_file_path=DEFAULT_T
             task_items = ret['tasks']
 
             for i, task_item in enumerate(task_items):
-                if task_item['shard_dir'] != shard_dir or task_item['file_range'] != file_range:
-                    continue
-                task_items[i]['worker'] = {
-                    'key': task_items[i]['worker']['key'],
-                    'status': 'finished',
-                }
-                break
+                # 判断匹配方式：如果提供了files，按files匹配；否则按shard_dir和file_range匹配
+                if files and "files" in task_item and set(files) == set(task_item["files"]):
+                    task_items[i]['worker'] = {
+                        'key': task_items[i]['worker']['key'],
+                        'status': 'finished',
+                    }
+                    break
+                elif task_item['shard_dir'] == shard_dir and task_item['file_range'] == file_range:
+                    task_items[i]['worker'] = {
+                        'key': task_items[i]['worker']['key'],
+                        'status': 'finished',
+                    }
+                    break
 
             new_data = {
                 'tasks': task_items,
@@ -226,7 +267,7 @@ def mark_task_item_finished(shard_dir: str, file_range, task_file_path=DEFAULT_T
 
             lock.release()
         except BaseException as e:
-            print(f"get task item failed: {e}")
+            print(f"标记任务完成失败: {e}")
             lock.release()
     else:
         print(f"Worker {get_worker_key()} could not acquire the lock within timeout.")
@@ -251,7 +292,7 @@ def add_task_to_queue(tasks: List[dict]) -> bool:
     """
     将新任务批量添加到任务队列的最前面
     
-    :param tasks: 要添加的任务字典列表，例如 [{"shard_dir": "oss://...", "file_range": [0, 1], "worker": None, "is_temp": False}]
+    :param tasks: 要添加的任务字典列表，例如 [{"shard_dir": "oss://...", "files": ["file1.json", "file2.json"], "worker": None, "is_temp": True}]
     :return: bool, 添加是否成功
     """
     DEFAULT_TASKS_FILE_PATH = "oss://si002558te8h/dclm/process_tasks.jsonl"
@@ -316,15 +357,20 @@ def process_task_item(args, task_item: TaskItem|None, with_init=True):
     # json_path 文件用于检测该 input 是否曾经跑完
     json_path = f"exp_data/datasets/untokenized/{args.readable_name}.json"
     file_range = None
+    files = None
+    is_temp = False
+    
     if task_item is not None:
         shard_dir = task_item.get_shard_dir()
-        shard_name = shard_dir.split('/')[-2]
+        shard_name = shard_dir.split('/')[-2] if '/' in shard_dir else shard_dir
         origin_dataset_name = shard_dir.split('/')[-3]
         task_input_dirpath = shard_dir
-        file_range = task_item._file_range
-        is_temp = task_item.is_temp
+        file_range = task_item.get_file_range()
+        files = task_item.get_files() if hasattr(task_item, 'get_files') else []
+        is_temp = task_item.is_temp if hasattr(task_item, 'is_temp') else False
         json_path = f"exp_data/datasets/untokenized/{args.readable_name}_{shard_name}.json"
         print(f"task shard dir: {shard_dir}")    
+    
     if not args.overwrite:
         assert not os.path.exists(
             json_path
@@ -408,8 +454,15 @@ def process_task_item(args, task_item: TaskItem|None, with_init=True):
         step_name = LOCAL_CHUNK if c == LOCAL_CHUNK else c["func"]
         resumed_chunk = False
         
-        # 获取当前目录下的所有文件
-        shard_files = list_shard_files(working_dir, args.num_shards, args.shard_list_file, args.shard_list_filters, file_range=file_range)
+        # 获取当前目录下的文件
+        if files and is_temp:
+            # 如果任务中指定了文件列表，就使用这些文件
+            shard_files = files
+            shard_list_filters = None
+        else:
+            # 否则，从目录中获取文件列表
+            shard_list_filters = args.shard_list_filters
+            shard_files = list_shard_files(working_dir, args.num_shards, args.shard_list_file, shard_list_filters, file_range=file_range)
         
         if not shard_files:
             print(f"No files found in {working_dir}")
@@ -439,53 +492,7 @@ def process_task_item(args, task_item: TaskItem|None, with_init=True):
 
         # Process the chunk according to whether it is local or global
         if c == LOCAL_CHUNK:
-            # 处理每个文件，检查是否需要拆分大文件
-            tasks_to_add = []  # 存储需要添加的新任务
-            
-            for idx, jsonl_relpath in enumerate(shard_files):
-                full_path = os.path.join(working_dir, jsonl_relpath)
-                
-                # 使用修改后的 process_single_file 处理文件，可能返回临时文件列表
-                try:
-                    output_path, stats_path, pages_in, pages_out, temp_files = process_single_file(
-                        config_data, working_dir, jsonl_relpath, source_name, base_output_path, 
-                        args.workers, overwrite, max_file_size_mb=1024, temp_dir=oss_temp_dir,is_temp_file = is_temp
-                    )
-                    
-                    # 如果返回了临时文件列表，说明原文件过大已被拆分
-                    if temp_files:
-                        print(f"文件 {jsonl_relpath} 已拆分为 {len(temp_files)} 个临时文件")
-                        
-                        # 根据 chunk_size 分组创建新任务
-                        chunk_size = args.chunk_size if hasattr(args, 'chunk_size') else 1
-                        total_temp_files = len(temp_files)
-                        temp_dir = os.path.dirname(temp_files[0])
-                        for start in range(0, total_temp_files, chunk_size):
-                            end = min(start + chunk_size, total_temp_files)
-                            tasks_to_add.append({
-                                "shard_dir": temp_dir,
-                                "file_range": [start, end],
-                                "worker": None,
-                                "is_temp": True  # 标记为临时目录
-                            })
-                        
-                        # 如果当前任务是非临时的，将其标记为 finished
-                        if task_item is not None and not hasattr(task_item, 'is_temp'):
-                            mark_task_item_finished(task_item.get_shard_dir(), task_item.get_file_range())
-                            print(f"原始任务 {task_item.get_shard_dir()} 已标记为 finished，因为文件已拆分")
-                        
-                        # 不对这个大文件进行后续处理，跳过它
-                        continue
-                except Exception as e:
-                    print(f"处理文件 {jsonl_relpath} 时出错: {e}")
-                    continue
-            
-            # 如果有需要添加到任务队列的临时目录，批量添加它们
-            if tasks_to_add:
-                add_task_to_queue(tasks_to_add)
-                print(f"已添加 {len(tasks_to_add)} 个临时目录任务到队列开头")
-            
-            # 继续常规的Ray处理流程
+            # 不在这里检测大文件并拆分，只使用Ray处理文件
             ret = []
             for idx, jsonl_relpath in enumerate(shard_files):
                 ret.append(
@@ -565,27 +572,26 @@ def process_task_item(args, task_item: TaskItem|None, with_init=True):
     # dataset_json = generate_untokenized_dataset_json(args, source_refs, base_output_path, data_key=shard_extension)
     # with open(json_path, "w") as ref_file:
     #     json.dump(dataset_json, ref_file, indent=4)
+    
     if task_item is not None:    
         mark_task_item_finished(shard_dir, file_range,
                                 task_file_path=args.task_file_path,
                                 lock_file=args.oss_lock_file)
-        # 如果是临时目录任务，处理完成后删除临时目录
-        if hasattr(task_item, 'is_temp') and task_item.is_temp:
-            print(f"准备删除临时目录: {shard_dir}")
+        # 如果是临时文件任务，只删除指定的临时文件，不删除整个目录
+        if is_temp and files:
+            print(f"准备删除临时文件: {files}")
             try:
-                if is_oss(shard_dir):
-                    bucket_name, path_within_bucket = shard_dir.replace("oss://", "").split("/", 1)
-                    bucket = oss.Bucket(bucket_name)
-                    for obj in oss.get_all_objects_iter(bucket, path_within_bucket):
-                        bucket.delete_object(obj.key)
-                    print(f"已删除临时目录中的所有文件: {shard_dir}")
-                else:
-                    import shutil
-                    shutil.rmtree(shard_dir)
-                    print(f"已删除临时目录: {shard_dir}")
+                for file_path in files:
+                    if is_oss(file_path):
+                        # 直接删除OSS文件
+                        delete_file(file_path)
+                    else:
+                        # 删除本地文件
+                        if os.path.exists(file_path):
+                            os.remove(file_path)
+                print(f"已删除所有临时文件")
             except Exception as e:
-                print(f"删除临时目录 {shard_dir} 时出错: {e}")
-
+                print(f"删除临时文件时出错: {e}")
 
 if __name__ == "__main__":
     process_all()
