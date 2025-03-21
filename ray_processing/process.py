@@ -236,7 +236,7 @@ def get_task_item(retry_tasks=False, task_file_path=DEFAULT_TASKS_FILE_PATH, loc
                             asigned_task['file_range'],
                             is_temp=asigned_task['is_temp'],
                             files=asigned_task['files'],
-                            original_shard_dir=asigned_task['original_shard_dir'])
+                            original_shard_dir=asigned_task.get('original_shard_dir', None))
         except BaseException as e:
             print(f"get task item failed: {e}")
             lock.release()
