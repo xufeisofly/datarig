@@ -44,9 +44,9 @@ spec:
           - "--source_name"
           - "cc"
           - "--max_file_size_mb"
-          - 512
+          - "512"
           - "--chunk_size"
-          - 2
+          - "2"
           - "--output_has_dataset_name"
           - "--overwrite"
           - "--use_task"
