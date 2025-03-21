@@ -122,7 +122,7 @@ def split_large_file(input_path: str, max_size_mb: int = 1024, temp_dir: str = "
             # 修改：先将内容写入本地临时文件，然后一次性上传
             if is_oss(temp_dir):
                 # 创建本地临时文件
-                local_filename = f"./chunk{chunk_idx}_{base_filename}" 
+                local_filename = f"/tmp/chunk{chunk_idx}_{base_filename}" 
                 # import tempfile
                 # local_temp_file = tempfile.NamedTemporaryFile(delete=False, mode='w', encoding='utf-8', suffix=f'_chunk{chunk_idx}{file_ext}')
 
@@ -171,7 +171,7 @@ def split_large_file(input_path: str, max_size_mb: int = 1024, temp_dir: str = "
         # 修改：对最后一个文件也使用相同的方法一次性上传
         if is_oss(temp_dir):
             # 创建本地临时文件
-            local_filename = f"./chunk{chunk_idx}_{base_filename}" 
+            local_filename = f"/tmp/chunk{chunk_idx}_{base_filename}" 
             # import tempfile
             # local_temp_file = tempfile.NamedTemporaryFile(delete=False, mode='w', encoding='utf-8', suffix=f'_chunk{chunk_idx}{file_ext}')
             try:
@@ -205,8 +205,9 @@ def split_large_file(input_path: str, max_size_mb: int = 1024, temp_dir: str = "
                 print(f"成功上传最后一个切分文件到OSS: {chunk_path}")
             finally:
                 # 删除本地临时文件
-                if os.path.exists(local_temp_file.name):
-                    os.unlink(local_temp_file.name)
+                delete_file(local_filename)
+                # if os.path.exists(local_temp_file.name):
+                #     os.unlink(local_temp_file.name)
         else:
             with open(chunk_path, 'w', encoding='utf-8') as outfile:
                 for l in line_buffer:
