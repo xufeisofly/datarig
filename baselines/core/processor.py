@@ -109,9 +109,9 @@ def split_large_file(input_path: str, max_size_mb: int = 1024, temp_dir: str = "
         line_buffer.append(line)
         # 估算当前缓冲区的大小
         buffer_size_bytes += len(json.dumps(line).encode('utf-8')) if isinstance(line, dict) else 1024
-        
+
         # 当缓冲区大小接近最大限制，写入临时文件
-        if buffer_size_bytes >= max_size_bytes - (1024*1024*max_size_mb*0.01):
+        if buffer_size_bytes >= max_size_bytes - (max_size_bytes*0.01):
             chunk_path = os.path.join(temp_dir, f"chunk{chunk_idx}_{file_name}{file_ext}")
             print(f"写入切分文件 {chunk_idx+1}: {chunk_path}")
             
