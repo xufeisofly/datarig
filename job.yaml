@@ -27,9 +27,9 @@ spec:
         resources:
           requests:
             cpu: "4"
-            memory: "8Gi"
+            memory: "7Gi"
           limits:
-            cpu: "4"
+            cpu: "5"
             memory: "8Gi"
         command: ["/app/dclm-sci/start.sh"]
         args:
