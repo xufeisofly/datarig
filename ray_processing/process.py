@@ -478,9 +478,10 @@ def process_task_item(args, task_item: TaskItem|None, with_init=True):
         
         # 获取当前目录下的文件
         if files and is_temp:
-            # 如果任务中指定了文件列表，就使用这些文件
-            shard_files = files
-            shard_list_filters = None
+            # 如果任务中指定了文件列表，就使用这些文件 
+            shard_files = []
+            for f in files:
+                shard_files.append(os.path.basename(f))
         else:
             # 否则，从目录中获取文件列表
             shard_list_filters = args.shard_list_filters
