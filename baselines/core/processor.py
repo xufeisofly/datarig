@@ -172,7 +172,8 @@ def split_large_file(input_path: str, max_size_mb: int = 1024, temp_dir: str = "
                     local_temp_file.write(json_str + "\n")
                 local_temp_file.close()
                 
-                # 修复：正确使用OSSPath上传文件                
+                # 修复：正确使用OSSPath上传文件
+                print(f"开始上传最后一个切分文件到OSS: {chunk_path}")
                 with open(local_temp_file.name, 'rb') as f:
                     content = f.read()
                     write_jsonl(content, chunk_path)
