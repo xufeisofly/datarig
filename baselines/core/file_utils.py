@@ -31,6 +31,10 @@ def delete_file(file_path: str):
             s3_path.unlink()  # This deletes the file
         else:
             raise FileNotFoundError(f"{file_path} does not exist.")
+    elif is_oss(file_path):
+        bucket_name, path = split_file_path(file_path)
+        bucket = Bucket(bucket_name)
+        bucket.delete_object(path)
     else:
         os.remove(file_path)
 
