@@ -138,14 +138,13 @@ class OSSReadStream:
     def seekable(self) -> bool:
         return False
 
+    def close(self):
+        if not self._closed:
+            self._closed = True
+    
     @property
     def closed(self) -> bool:
         return self._closed
-
-    def close(self):
-        if not self._closed:
-            self.resp.response.close()
-            self._closed = True
 
     def __iter__(self):
         while True:
