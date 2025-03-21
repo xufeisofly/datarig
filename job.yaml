@@ -3,6 +3,8 @@ kind: Job
 metadata:
   name: datarig-job
 spec:
+  parallelism: 3
+  completions: 1
   backoffLimit: 0  # 如果任务失败后不希望重试，则设置为 0；否则设置为需要的重试次数
   template:
     metadata:
@@ -34,7 +36,7 @@ spec:
         command: ["/app/dclm-sci/start.sh"]
         args:
           - "--readable_name"
-          - "tianwei_0323"
+          - "first_round"
           - "--output_dir"
           - "oss://si002558te8h/dclm/output"
           - "--config_path"
@@ -52,4 +54,4 @@ spec:
         - name: dshm
           emptyDir:
             medium: Memory
-            sizeLimit: 5Gi
+            sizeLimit: 2Gi
