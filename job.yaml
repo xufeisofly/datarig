@@ -3,8 +3,8 @@ kind: Job
 metadata:
   name: datarig-job
 spec:
-  parallelism: 10 # 1246x2C 1246x4G
-  completions: 10
+  parallelism: 6 # 1246x2C 1246x4G
+  completions: 6
   backoffLimit: 0  # 如果任务失败后不希望重试，则设置为 0；否则设置为需要的重试次数
   template:
     metadata:
@@ -25,7 +25,7 @@ spec:
         - name: cr-docker-registry
       containers:
       - name: dclm-sci
-        image: cr.registry.res.cloud.zhejianglab.com/dataprocess/datarig:v1.2
+        image: cr.registry.res.cloud.zhejianglab.com/dataprocess/datarig:v1.3
         resources:
           requests:
             cpu: "2"
