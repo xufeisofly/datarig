@@ -253,11 +253,6 @@ def get_task_item(retry_tasks=False, task_file_path=DEFAULT_TASKS_FILE_PATH, loc
         return None, False
 
 
-def finished_task_file(task_file_path):
-    filename = os.path.basename(task_file_path)
-    return task_file_path.replace(filename, "finished_"+filename)
-
-
 def mark_task_item_finished(shard_dir: str, file_range, task_file_path=DEFAULT_TASKS_FILE_PATH, lock_file=DEFAULT_LOCK_FILE, files=None):
     lock = SimpleOSSLock(lock_file)
     # 分布式锁允许 1 hour 超时时间
@@ -302,7 +297,7 @@ def mark_task_item_finished(shard_dir: str, file_range, task_file_path=DEFAULT_T
                 f.write(json.dumps(new_data))
 
             # write to finished_tasks.json
-            fin_task_file = finished_task_file(task_file_path)
+            fin_task_file = oss.finished_task_file(task_file_path)
             if is_exists(fin_task_file):
                 with oss.OSSPath(fin_task_file).open("rb") as f:
                     fin_data = f.read()

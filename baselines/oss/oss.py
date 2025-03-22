@@ -222,3 +222,8 @@ def upload_file_to_oss(file_path, to_dir, bucket):
         return
     bucket.put_object_from_file(oss_file_path, file_path)
     print("==== finish upload file: {}".format(oss_file_path))    
+
+
+def finished_task_file(task_file_path):
+    filename = os.path.basename(task_file_path)
+    return task_file_path.replace(filename, "finished_"+filename)    

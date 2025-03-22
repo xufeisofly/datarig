@@ -108,6 +108,8 @@ def asign_task(parent_dir: str, tasks_file_path: str, mode: str='process', chunk
     else:
         print(f"Failed")
 
+    oss.Bucket(task_bucket_name).delete_object(oss.finished_task_file(tasks_file_path))
+
         
 DEFAULT_TASKS_FILE_PATH = "oss://si002558te8h/dclm/process_tasks.json"
 DEFAULT_PARENT_DIR = "oss://si002558te8h/dclm/origin/"
