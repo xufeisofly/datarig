@@ -118,12 +118,12 @@ def process_local_chunk(
             for i in range(0, len(temp_files), chunk_size):
                 batch_files = temp_files[i:i+chunk_size]
                 tasks_to_add.append({
-                    "shard_dir": oss_temp_dir, 
-                    "file_range": [0,-1], 
-                    "files": batch_files,
-                    "worker": None, 
                     "is_temp": True,
+                    "shard_dir": oss_temp_dir, 
+                    "file_range": [0,-1],
+                    "worker": None,
                     "original_shard_dir": shard_dir, 
+                    "files": batch_files,
                 })
             
             add_task_to_queue(tasks_to_add, task_file_path=task_file_path, lock_file=lock_file)
