@@ -1,7 +1,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: datarig-job-100
+  name: datarig-job-200
 spec:
   parallelism: 100 # 5x(4-5)C=20C-25C 5x(10-12)G=50-60G per node, (20C-25C)x89 = 1780C-2225C 
   completions: 100
@@ -29,7 +29,7 @@ spec:
             value: "0"
         args:
           - "--readable_name"
-          - "first_round_test_100"
+          - "first_round_test_200"
           - "--output_dir"
           - "oss://si002558te8h/dclm/output"
           - "--config_path"
