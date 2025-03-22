@@ -39,7 +39,7 @@ spec:
             value: "1"		
         args:
           - "--readable_name"
-          - "first_round_test3"
+          - "first_round_test4"
           - "--output_dir"
           - "oss://si002558te8h/dclm/output"
           - "--config_path"
