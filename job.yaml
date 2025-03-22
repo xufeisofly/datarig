@@ -35,8 +35,8 @@ spec:
             memory: "12Gi"
         command: ["/app/dclm-sci/start.sh"]
         env:
-          - name: RAY_DISABLE_DUPLICATE_LOGS
-            value: "1"		
+          - name: RAY_DEDUP_LOGS
+            value: "0"
         args:
           - "--readable_name"
           - "first_round_test_100"
