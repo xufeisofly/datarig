@@ -299,7 +299,7 @@ def process_all():
                                   task_file_path=args.task_file_path,
                                   lock_file=args.oss_lock_file)
         if task_item is None:
-            return
+            continue
         process_task_item(args, task_item, with_init)
         with_init = False
         time.sleep(0.1)
