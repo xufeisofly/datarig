@@ -311,7 +311,7 @@ def process_all():
                 return
         process_task_item(args, task_item, with_init)
         with_init = False
-        time.sleep(0.1)
+        time.sleep(1)
     process_task_item(args, None, with_init)
 
 def add_task_to_queue(tasks: List[dict], task_file_path=DEFAULT_TASKS_FILE_PATH, lock_file=DEFAULT_LOCK_FILE) -> bool:
