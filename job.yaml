@@ -1,10 +1,10 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: datarig-job-2
+  name: datarig-job
 spec:
-  parallelism: 2 # 1246x2C 1246x4G
-  completions: 2
+  parallelism: 1 # 1246x2C 1246x4G
+  completions: 1
   backoffLimit: 0  # 如果任务失败后不希望重试，则设置为 0；否则设置为需要的重试次数
   template:
     metadata:
@@ -45,7 +45,7 @@ spec:
           - "--config_path"
           - "baselines/baselines_configs/sci.yaml"
           - "--oss_temp_dir"
-          - "oss://si002558te8h/dclm/temp_dir1/"
+          - "oss://si002558te8h/dclm/temp_dir_400/"
           - "--source_name"
           - "cc"
           - "--max_file_size_mb"
