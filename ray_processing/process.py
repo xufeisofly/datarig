@@ -269,24 +269,24 @@ def mark_task_item_finished(shard_dir: str, file_range, task_file_path=DEFAULT_T
                 # 判断匹配方式：如果提供了files，按files匹配；否则按shard_dir和file_range匹配
                 if files and "files" in task_item and set(files) == set(task_item["files"]):
                     task_items[i]['worker'] = {
-                        'key': task_items[i]['worker']['key'],
+                        'key': task_items[i]['worker'].get('key'),
                         'status': 'finished',
-                        'process_time': task_item[i]['worker']['process_time'],
+                        'process_time': task_items[i]['worker'].get('process_time'),,
                         'finish_time': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                     }
                     matched_task = task_item  # 保存匹配的任务
                     break
                 elif task_item['shard_dir'] == shard_dir and task_item['file_range'] == file_range:
                     task_items[i]['worker'] = {
-                        'key': task_items[i]['worker']['key'],
+                        'key': task_items[i]['worker'].get('key'),
                         'status': 'finished',
-                        'process_time': task_item[i]['worker']['process_time'],
+                        'process_time': task_items[i]['worker'].get('process_time'),
                         'finish_time': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                     }
                     matched_task = task_item  # 保存匹配的任务
                     break
 
-            print("finish task ======== {}".format(matched_task))
+            print("mark finish task ======== {}".format(matched_task))
             new_data = {
                 'tasks': task_items,
             }
