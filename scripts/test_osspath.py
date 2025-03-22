@@ -16,5 +16,6 @@ if __name__ == '__main__':
 
     data = list(read_jsonl(file_path))
     write_jsonl(data, "./process_tasks.jsonl")
-    
-    # list(read_jsonl(file_path))
+
+    if is_exists(fin_file_path):
+        write_jsonl(list(read_jsonl(fin_file_path)), "./finished_process_tasks.jsonl")
