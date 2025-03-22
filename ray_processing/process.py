@@ -271,7 +271,7 @@ def mark_task_item_finished(shard_dir: str, file_range, task_file_path=DEFAULT_T
                     task_items[i]['worker'] = {
                         'key': task_items[i]['worker'].get('key'),
                         'status': 'finished',
-                        'process_time': task_items[i]['worker'].get('process_time'),,
+                        'process_time': task_items[i]['worker'].get('process_time'),
                         'finish_time': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                     }
                     matched_task = task_item  # 保存匹配的任务
