@@ -112,13 +112,13 @@ def split_large_file(input_path: str, max_size_mb: int = 1024, temp_dir: str = "
 
         # 当缓冲区大小接近最大限制，写入临时文件
         if buffer_size_bytes >= max_size_bytes - (max_size_bytes*0.01):
-            chunk_path = os.path.join(temp_dir, f"chunk{chunk_idx}_{file_name}{file_ext}")
+            chunk_path = os.path.join(temp_dir, f"p{chunk_idx}_{file_name}{file_ext}")
             print(f"写入切分文件 {chunk_idx+1}: {chunk_path}")
             
             # 修改：先将内容写入本地临时文件，然后一次性上传
             if is_oss(temp_dir):
                 # 创建本地临时文件
-                local_filename = f"/tmp/chunk{chunk_idx}_{base_filename}" 
+                local_filename = f"/tmp/p{chunk_idx}_{base_filename}" 
                 print("=========={}".format(local_filename))
                 try:
                     write_jsonl(line_buffer, local_filename)
@@ -142,13 +142,13 @@ def split_large_file(input_path: str, max_size_mb: int = 1024, temp_dir: str = "
             buffer_size_bytes = 0
     # 写入最后剩余的内容
     if line_buffer:
-        chunk_path = os.path.join(temp_dir, f"chunk{chunk_idx}_{file_name}{file_ext}")
+        chunk_path = os.path.join(temp_dir, f"p{chunk_idx}_{file_name}{file_ext}")
         print(f"写入最后一个切分文件: {chunk_path}")
         
         # 修改：对最后一个文件也使用相同的方法一次性上传
         if is_oss(temp_dir):
             # 创建本地临时文件
-            local_filename = f"/tmp/chunk{chunk_idx}_{base_filename}" 
+            local_filename = f"/tmp/p{chunk_idx}_{base_filename}" 
             try:
                 write_jsonl(line_buffer, local_filename)
 
