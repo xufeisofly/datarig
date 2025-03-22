@@ -98,7 +98,7 @@ def asign_task(parent_dir: str, tasks_file_path: str, mode: str='process', chunk
     }
         
     with oss.OSSPath(tasks_file_path).open("w") as f:
-        f.write(json.dumps(data, indent=4))
+        f.write(json.dumps(data))
         
     task_bucket_name, task_file = oss.split_file_path(tasks_file_path)
     existed = oss.Bucket(task_bucket_name).object_exists(task_file)
