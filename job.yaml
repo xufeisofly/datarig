@@ -35,7 +35,7 @@ spec:
           - "--config_path"
           - "baselines/baselines_configs/sci.yaml"
           - "--oss_temp_dir"
-          - "oss://si002558te8h/dclm/temp_dir_500_2/"
+          - "oss://si002558te8h/dclm/temp_dir_500/"
           - "--source_name"
           - "cc"
           - "--max_file_size_mb"
