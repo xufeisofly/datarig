@@ -252,6 +252,12 @@ def get_task_item(retry_tasks=False, task_file_path=DEFAULT_TASKS_FILE_PATH, loc
         print(f"Worker {get_worker_key()} could not acquire the lock within timeout.")
         return None, False
 
+
+def finished_task_file(task_file_path):
+    filename = os.path.basename(task_file_path)
+    return task_file_path.replace(filename, "finished_"+filename)
+
+
 def mark_task_item_finished(shard_dir: str, file_range, task_file_path=DEFAULT_TASKS_FILE_PATH, lock_file=DEFAULT_LOCK_FILE, files=None):
     lock = SimpleOSSLock(lock_file)
     # 分布式锁允许 1 hour 超时时间
@@ -275,6 +281,7 @@ def mark_task_item_finished(shard_dir: str, file_range, task_file_path=DEFAULT_T
                         'finish_time': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                     }
                     matched_task = task_item  # 保存匹配的任务
+                    del task_items[i]
                     break
                 elif task_item['shard_dir'] == shard_dir and task_item['file_range'] == file_range:
                     task_items[i]['worker'] = {
@@ -284,6 +291,7 @@ def mark_task_item_finished(shard_dir: str, file_range, task_file_path=DEFAULT_T
                         'finish_time': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                     }
                     matched_task = task_item  # 保存匹配的任务
+                    del task_items[i]
                     break
 
             print("mark finish task ======== {}".format(matched_task))
@@ -291,7 +299,23 @@ def mark_task_item_finished(shard_dir: str, file_range, task_file_path=DEFAULT_T
                 'tasks': task_items,
             }
             with oss.OSSPath(task_file_path).open("w") as f:
-                f.write(json.dumps(new_data, indent=4))
+                f.write(json.dumps(new_data, indent=2))
+
+            # write to finished_tasks.json
+            fin_task_file = finished_task_file(task_file_path)
+            if is_exists(fin_task_file):
+                with oss.OSSPath(fin_task_file).open("rb") as f:
+                    fin_data = f.read()
+                    fin_ret = json.loads(fin_data)
+                fin_task_items = fin_ret['tasks']
+            else:
+                fin_task_items = []
+            fin_task_items.append(matched_task)
+            fin_new_data = {
+                'tasks': fin_task_items,
+            }
+            with oss.OSSPath(fin_task_file).open("w") as f:
+                f.write(json.dumps(fin_new_data))            
 
             lock.release()
             return matched_task  # 返回匹配的任务信息
