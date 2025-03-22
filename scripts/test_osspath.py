@@ -12,7 +12,7 @@ if __name__ == '__main__':
     with open("./process_tasks.json", "w") as localf:
         with oss.OSSPath(file_path).open("r") as f:
             data = json.loads(f.read())
-            json.dump(data, localf, indent=4)
+            json.dump(data, localf)
     
     
     # list(read_jsonl(file_path))
