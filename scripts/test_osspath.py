@@ -4,7 +4,10 @@ import json
 
 from baselines.oss import oss
 from baselines.core.file_utils import read_jsonl
-from ray_processing.process import finished_task_file
+
+def finished_task_file(task_file_path):
+    filename = os.path.basename(task_file_path)
+    return task_file_path.replace(filename, "finished_"+filename)
 
 
 if __name__ == '__main__':
