@@ -3,3 +3,4 @@ rust_processing
 .vscode
 venv
 .git
+baselines.egg-info
