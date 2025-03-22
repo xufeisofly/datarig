@@ -2,6 +2,7 @@
 import os
 import argparse
 import json
+from baselines.core.file_utils import write_jsonl
 from baselines.oss import oss
 from typing import List
 
@@ -93,12 +94,8 @@ def create_task_items(shard_dir: str, mode: str, chunk_size: int) -> List[dict]:
 def asign_task(parent_dir: str, tasks_file_path: str, mode: str='process', chunk_size=-1):
     all_task_items = create_task_items(parent_dir, mode, chunk_size)
         
-    data = {
-        "tasks": all_task_items,
-    }
-        
-    with oss.OSSPath(tasks_file_path).open("w") as f:
-        f.write(json.dumps(data))
+    data = all_task_items
+    write_jsonl(data, tasks_file_path)
         
     task_bucket_name, task_file = oss.split_file_path(tasks_file_path)
     existed = oss.Bucket(task_bucket_name).object_exists(task_file)
@@ -111,7 +108,7 @@ def asign_task(parent_dir: str, tasks_file_path: str, mode: str='process', chunk
     oss.Bucket(task_bucket_name).delete_object(oss.finished_task_file(tasks_file_path))
 
         
-DEFAULT_TASKS_FILE_PATH = "oss://si002558te8h/dclm/process_tasks.json"
+DEFAULT_TASKS_FILE_PATH = "oss://si002558te8h/dclm/process_tasks.jsonl"
 DEFAULT_PARENT_DIR = "oss://si002558te8h/dclm/origin/"
 
 
