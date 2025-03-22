@@ -29,10 +29,10 @@ spec:
         resources:
           requests:
             cpu: "4"
-            memory: "10Gi"
+            memory: "8Gi"
           limits:
             cpu: "4"
-            memory: "10Gi"
+            memory: "8Gi"
         command: ["/app/dclm-sci/start.sh"]
         env:
           - name: RAY_DISABLE_DUPLICATE_LOGS
@@ -49,7 +49,7 @@ spec:
           - "--source_name"
           - "cc"
           - "--max_file_size_mb"
-          - "2000"
+          - "500"
           - "--chunk_size"
           - "2"
           - "--output_has_dataset_name"
