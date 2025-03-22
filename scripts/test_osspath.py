@@ -14,7 +14,7 @@ if __name__ == '__main__':
     file_path = "oss://si002558te8h/dclm/process_tasks.jsonl"
     fin_file_path = finished_task_file(file_path)
 
-    with open("./process_tasks.jsonl", "w") as localf:
+    with open("./process_tasks.jsonl", "wb") as localf:
         for line in read_jsonl(file_path):
             localf.write(line)
     
