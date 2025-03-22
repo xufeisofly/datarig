@@ -3,7 +3,7 @@ kind: Job
 metadata:
   name: datarig-job
 spec:
-  parallelism: 5 # 623x4C 623x8G
+  parallelism: 5 # 5x(4-5)C=20C-25C 5x(10-12)G=50-60G per node, (20C-25C)x89 = 1780C-2225C 
   completions: 5
   backoffLimit: 0  # 如果任务失败后不希望重试，则设置为 0；否则设置为需要的重试次数
   template:
@@ -31,8 +31,8 @@ spec:
             cpu: "4"
             memory: "10Gi"
           limits:
-            cpu: "4"
-            memory: "10Gi"
+            cpu: "5"
+            memory: "12Gi"
         command: ["/app/dclm-sci/start.sh"]
         env:
           - name: RAY_DISABLE_DUPLICATE_LOGS
