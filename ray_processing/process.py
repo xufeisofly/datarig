@@ -80,6 +80,7 @@ def parse_args():
         "--workers", type=int, default=1, help="If > 1, will use a process pool with that many workers."
     )
     parser.add_argument("--overwrite", action="store_true", help="If set to true, will overwrite results.")
+    parser.add_argument("--infinite", action="store_true", help="infinite get tasks when use task is set")
     parser.add_argument("--use_task", action="store_true", help="使用 task json 文件分配任务，否则直接使用 raw_data_dirpath.")
     parser.add_argument("--retry_tasks", action="store_true", help="是否重新运行之前运行过的 tasks json")
     parser.add_argument("--output_has_dataset_name", action="store_true", help="output 目录中携带 dataset 名称")
@@ -299,7 +300,10 @@ def process_all():
                                   task_file_path=args.task_file_path,
                                   lock_file=args.oss_lock_file)
         if task_item is None:
-            continue
+            if args.infinite:
+                continue
+            else:
+                return
         process_task_item(args, task_item, with_init)
         with_init = False
         time.sleep(0.1)
