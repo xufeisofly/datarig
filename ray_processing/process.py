@@ -80,7 +80,6 @@ def parse_args():
         "--workers", type=int, default=1, help="If > 1, will use a process pool with that many workers."
     )
     parser.add_argument("--overwrite", action="store_true", help="If set to true, will overwrite results.")
-    parser.add_argument("--infinite", action="store_true", help="infinite get tasks when use task is set")
     parser.add_argument("--use_task", action="store_true", help="使用 task json 文件分配任务，否则直接使用 raw_data_dirpath.")
     parser.add_argument("--retry_tasks", action="store_true", help="是否重新运行之前运行过的 tasks json")
     parser.add_argument("--output_has_dataset_name", action="store_true", help="output 目录中携带 dataset 名称")
@@ -199,6 +198,7 @@ def list_shard_files(data_dirpath, num_shards=None, shard_list_file=None, shard_
 def get_task_item(retry_tasks=False, task_file_path=DEFAULT_TASKS_FILE_PATH, lock_file=DEFAULT_LOCK_FILE):
     asigned_task = None
     lock = SimpleOSSLock(lock_file)
+    all_finished = True
     # 分布式锁允许 1 hour 超时时间
     if lock.acquire_or_block(timeout=7200):
         # 改写 tasks.json 文件，领取任务
@@ -210,6 +210,11 @@ def get_task_item(retry_tasks=False, task_file_path=DEFAULT_TASKS_FILE_PATH, loc
             task_items = ret['tasks']
 
             for i, task_item in enumerate(task_items):
+                # 若存在没有完成的 task，记录下来
+                if task_item['worker'] is None or \
+                   task_item['worker']['status'] != "finished":
+                    all_finished = False
+                
                 if not retry_tasks and task_item['worker'] is not None:
                     continue
                 elif retry_tasks and task_item['worker']['status'] == 'finished':
@@ -223,7 +228,7 @@ def get_task_item(retry_tasks=False, task_file_path=DEFAULT_TASKS_FILE_PATH, loc
 
             if asigned_task is None:
                 lock.release()
-                return None
+                return None, all_finished
 
             new_data = {
                 'tasks': task_items,
@@ -236,14 +241,14 @@ def get_task_item(retry_tasks=False, task_file_path=DEFAULT_TASKS_FILE_PATH, loc
                             asigned_task['file_range'],
                             is_temp=asigned_task['is_temp'],
                             files=asigned_task['files'],
-                            original_shard_dir=asigned_task.get('original_shard_dir', None))
+                            original_shard_dir=asigned_task.get('original_shard_dir', None)), False
         except BaseException as e:
             print(f"get task item failed: {e}")
             lock.release()
-            return None
+            return None, False
     else:
         print(f"Worker {get_worker_key()} could not acquire the lock within timeout.")
-        return None
+        return None, False
 
 def mark_task_item_finished(shard_dir: str, file_range, task_file_path=DEFAULT_TASKS_FILE_PATH, lock_file=DEFAULT_LOCK_FILE, files=None):
     lock = SimpleOSSLock(lock_file)
@@ -296,11 +301,11 @@ def process_all():
     
     with_init = True 
     while args.use_task:
-        task_item = get_task_item(args.retry_tasks,
-                                  task_file_path=args.task_file_path,
-                                  lock_file=args.oss_lock_file)
+        task_item, all_finished = get_task_item(args.retry_tasks,
+                                                task_file_path=args.task_file_path,
+                                                lock_file=args.oss_lock_file)
         if task_item is None:
-            if args.infinite:
+            if not all_finished:
                 continue
             else:
                 return

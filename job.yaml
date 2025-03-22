@@ -56,6 +56,5 @@ spec:
           - "--overwrite"
           - "--use_task"
           - "--ignore_failures"
-          - "--infinite"
         imagePullPolicy: IfNotPresent
       restartPolicy: Never
