@@ -147,3 +147,8 @@ def get_file_size(file_path):
     obj = Bucket(bucket).get_object(path)
     file_size = obj.headers.get('content-length')
     return int(file_size)    
+
+
+def add_suffix_to_file(filename: str, suffix: str) -> str:
+    p = LocalPath(filename)
+    return f"{p.stem}_{suffix}{''.join(p.suffixes)}"

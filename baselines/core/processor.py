@@ -9,7 +9,7 @@ from typing import Any, Dict, Tuple, List
 from yaml import safe_load
 
 from baselines.core.factories import get_mapper, get_aggregator, get_transform
-from baselines.core.file_utils import is_oss, read_jsonl, write_jsonl, makedirs_if_missing, delete_file, is_exists, get_file_size
+from baselines.core.file_utils import is_oss, read_jsonl, write_jsonl, makedirs_if_missing, delete_file, is_exists, get_file_size, add_suffix_to_file
 from baselines.core.constants import PROCESS_SETUP_KEY_NAME, PROCESS_END_KEY_NAME, COMMIT_KEY_NAME, GLOBAL_FUNCTIONS
 from baselines.oss.oss import OSSPath, upload_file_to_oss, split_file_path, Bucket
 
