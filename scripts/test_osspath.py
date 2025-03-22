@@ -11,7 +11,7 @@ def finished_task_file(task_file_path):
 
 
 if __name__ == '__main__':
-    file_path = "oss://si002558te8h/dclm/process_tasks.json"
+    file_path = "oss://si002558te8h/dclm/process_tasks.jsonl"
     fin_file_path = finished_task_file(file_path)
 
     with open("./process_tasks.jsonl", "w") as localf:
