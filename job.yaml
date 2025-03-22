@@ -3,7 +3,7 @@ kind: Job
 metadata:
   name: datarig-job
 spec:
-  parallelism: 1 # 1246x2C 1246x4G
+  parallelism: 1 # 623x4C 623x8G
   completions: 1
   backoffLimit: 0  # 如果任务失败后不希望重试，则设置为 0；否则设置为需要的重试次数
   template:
