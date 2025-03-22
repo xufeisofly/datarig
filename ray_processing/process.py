@@ -299,7 +299,7 @@ def mark_task_item_finished(shard_dir: str, file_range, task_file_path=DEFAULT_T
                 'tasks': task_items,
             }
             with oss.OSSPath(task_file_path).open("w") as f:
-                f.write(json.dumps(new_data, indent=2))
+                f.write(json.dumps(new_data))
 
             # write to finished_tasks.json
             fin_task_file = finished_task_file(task_file_path)
