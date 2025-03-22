@@ -286,6 +286,7 @@ def mark_task_item_finished(shard_dir: str, file_range, task_file_path=DEFAULT_T
                     matched_task = task_item  # 保存匹配的任务
                     break
 
+            print("finish task ======== {}".format(matched_task))
             new_data = {
                 'tasks': task_items,
             }
