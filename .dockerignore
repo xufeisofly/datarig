@@ -2,3 +2,5 @@ dedup
 rust_processing
 .vscode
 venv
+.git
+*.egg-info

@@ -1,26 +1,16 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: datarig-job
+  name: datarig-job-200
 spec:
-  parallelism: 100 # 5x(4-5)C=20C-25C 5x(10-12)G=50-60G per node, (20C-25C)x89 = 1780C-2225C 
-  completions: 100
+  parallelism: 200 # 5x(4-5)C=20C-25C 5x(10-12)G=50-60G per node, (20C-25C)x89 = 1780C-2225C 
+  completions: 200
   backoffLimit: 0  # 如果任务失败后不希望重试，则设置为 0；否则设置为需要的重试次数
   template:
     metadata:
       labels:
         app: dclm-sci
     spec:
-      affinity:
-        podAntiAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-            - labelSelector:
-                matchExpressions:
-                  - key: app
-                    operator: In
-                    values:
-                      - dclm-sci
-              topologyKey: "kubernetes.io/hostname"
       imagePullSecrets:
         - name: cr-docker-registry
       containers:
@@ -39,13 +29,13 @@ spec:
             value: "0"
         args:
           - "--readable_name"
-          - "first_round_test_100"
+          - "first_round_test_200_2"
           - "--output_dir"
           - "oss://si002558te8h/dclm/output"
           - "--config_path"
           - "baselines/baselines_configs/sci.yaml"
           - "--oss_temp_dir"
-          - "oss://si002558te8h/dclm/temp_dir_500/"
+          - "oss://si002558te8h/dclm/temp_dir_500_2/"
           - "--source_name"
           - "cc"
           - "--max_file_size_mb"
