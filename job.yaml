@@ -34,6 +34,9 @@ spec:
             cpu: "4"
             memory: "10Gi"
         command: ["/app/dclm-sci/start.sh"]
+        env:
+          - name: RAY_DISABLE_DUPLICATE_LOGS
+            value: "1"		
         args:
           - "--readable_name"
           - "first_round_test3"
@@ -46,9 +49,9 @@ spec:
           - "--source_name"
           - "cc"
           - "--max_file_size_mb"
-          - "500"
+          - "400"
           - "--chunk_size"
-          - "2"
+          - "4"
           - "--output_has_dataset_name"
           - "--overwrite"
           - "--use_task"
