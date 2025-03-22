@@ -306,6 +306,7 @@ def process_all():
                                                 lock_file=args.oss_lock_file)
         if task_item is None:
             if not all_finished:
+                time.sleep(5)
                 continue
             else:
                 return

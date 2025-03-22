@@ -5,7 +5,6 @@ import os.path
 import time
 from datetime import datetime
 from typing import Any, Dict, Tuple, List
-import gc
 
 from yaml import safe_load
 
@@ -141,10 +140,6 @@ def split_large_file(input_path: str, max_size_mb: int = 1024, temp_dir: str = "
             chunk_idx += 1
             line_buffer = []
             buffer_size_bytes = 0
-
-            unreachable = gc.collect()
-            print(f"Garbage collection done, unreachable objects: {unreachable}")
-
     # 写入最后剩余的内容
     if line_buffer:
         chunk_path = os.path.join(temp_dir, f"chunk{chunk_idx}_{file_name}{file_ext}")
