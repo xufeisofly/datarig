@@ -8,9 +8,10 @@ RUN apt update && apt install -y \
     cmake \
     build-essential \
     g++ \
-	git \
+    git \
     aria2 \
-    && apt clean && rm -rf /var/lib/apt/lists/*
+ && apt clean \
+ && rm -rf /var/lib/apt/lists/* ~/.cache/pip
 
 COPY . /app/dclm-sci
 
