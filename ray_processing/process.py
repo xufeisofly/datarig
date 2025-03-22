@@ -236,7 +236,7 @@ def get_task_item(retry_tasks=False, task_file_path=DEFAULT_TASKS_FILE_PATH, loc
                 'tasks': task_items,
             }
             with oss.OSSPath(task_file_path).open("w") as f:
-                f.write(json.dumps(new_data, indent=4))
+                f.write(json.dumps(new_data))
 
             lock.release()
             return TaskItem(asigned_task['shard_dir'],
@@ -379,7 +379,7 @@ def add_task_to_queue(tasks: List[dict], task_file_path=DEFAULT_TASKS_FILE_PATH,
         
         # 写回任务文件
         with oss.OSSPath(task_file_path).open("w") as f:
-            f.write(json.dumps(tasks_data, indent=4))
+            f.write(json.dumps(tasks_data))
             print(f"已将 {len(tasks)} 个任务添加到队列开头")
         
         # 验证写入是否成功
