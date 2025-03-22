@@ -57,12 +57,4 @@ spec:
           - "--use_task"
           - "--ignore_failures"
         imagePullPolicy: IfNotPresent
-        volumeMounts:
-          - name: dshm
-            mountPath: /dev/shm
       restartPolicy: Never
-      volumes:
-        - name: dshm
-          emptyDir:
-            medium: Memory
-            sizeLimit: 5Gi
