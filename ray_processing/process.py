@@ -7,6 +7,7 @@ from yaml import safe_load
 import glob
 import subprocess
 import json
+from datetime import datetime
 from typing import Any, Dict, Tuple, List
 from baselines.core import process_single_file
 from baselines.core.processor import split_large_file
@@ -222,7 +223,8 @@ def get_task_item(retry_tasks=False, task_file_path=DEFAULT_TASKS_FILE_PATH, loc
                 asigned_task = task_item
                 task_items[i]['worker'] = {
                     'key': get_worker_key(),
-                    'status': 'processing'
+                    'status': 'processing',
+                    'process_time': datetime.now().strftime("%Y-%m-%d %H:%M:%S"), 
                 }
                 break
 
@@ -276,6 +278,8 @@ def mark_task_item_finished(shard_dir: str, file_range, task_file_path=DEFAULT_T
                     task_items[i]['worker'] = {
                         'key': task_items[i]['worker']['key'],
                         'status': 'finished',
+                        'process_time': task_item[i]['worker'].get('process_time', ''),
+                        'finish_time': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                     }
                     matched_task = task_item  # 保存匹配的任务
                     break
