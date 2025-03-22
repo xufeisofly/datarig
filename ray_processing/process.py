@@ -7,6 +7,7 @@ from yaml import safe_load
 import glob
 import subprocess
 import json
+from datetime import datetime
 from typing import Any, Dict, Tuple, List
 from baselines.core import process_single_file
 from baselines.core.processor import split_large_file
@@ -198,6 +199,7 @@ def list_shard_files(data_dirpath, num_shards=None, shard_list_file=None, shard_
 def get_task_item(retry_tasks=False, task_file_path=DEFAULT_TASKS_FILE_PATH, lock_file=DEFAULT_LOCK_FILE):
     asigned_task = None
     lock = SimpleOSSLock(lock_file)
+    all_finished = True
     # 分布式锁允许 1 hour 超时时间
     if lock.acquire_or_block(timeout=7200):
         # 改写 tasks.json 文件，领取任务
@@ -209,6 +211,11 @@ def get_task_item(retry_tasks=False, task_file_path=DEFAULT_TASKS_FILE_PATH, loc
             task_items = ret['tasks']
 
             for i, task_item in enumerate(task_items):
+                # 若存在没有完成的 task，记录下来
+                if task_item['worker'] is None or \
+                   task_item['worker']['status'] != "finished":
+                    all_finished = False
+                
                 if not retry_tasks and task_item['worker'] is not None:
                     continue
                 elif retry_tasks and task_item['worker']['status'] == 'finished':
@@ -216,13 +223,14 @@ def get_task_item(retry_tasks=False, task_file_path=DEFAULT_TASKS_FILE_PATH, loc
                 asigned_task = task_item
                 task_items[i]['worker'] = {
                     'key': get_worker_key(),
-                    'status': 'processing'
+                    'status': 'processing',
+                    'process_time': datetime.now().strftime("%Y-%m-%d %H:%M:%S"), 
                 }
                 break
 
             if asigned_task is None:
                 lock.release()
-                return None
+                return None, all_finished
 
             new_data = {
                 'tasks': task_items,
@@ -235,14 +243,14 @@ def get_task_item(retry_tasks=False, task_file_path=DEFAULT_TASKS_FILE_PATH, loc
                             asigned_task['file_range'],
                             is_temp=asigned_task['is_temp'],
                             files=asigned_task['files'],
-                            original_shard_dir=asigned_task.get('original_shard_dir', None))
+                            original_shard_dir=asigned_task.get('original_shard_dir', None)), False
         except BaseException as e:
             print(f"get task item failed: {e}")
             lock.release()
-            return None
+            return None, False
     else:
         print(f"Worker {get_worker_key()} could not acquire the lock within timeout.")
-        return None
+        return None, False
 
 def mark_task_item_finished(shard_dir: str, file_range, task_file_path=DEFAULT_TASKS_FILE_PATH, lock_file=DEFAULT_LOCK_FILE, files=None):
     lock = SimpleOSSLock(lock_file)
@@ -261,19 +269,24 @@ def mark_task_item_finished(shard_dir: str, file_range, task_file_path=DEFAULT_T
                 # 判断匹配方式：如果提供了files，按files匹配；否则按shard_dir和file_range匹配
                 if files and "files" in task_item and set(files) == set(task_item["files"]):
                     task_items[i]['worker'] = {
-                        'key': task_items[i]['worker']['key'],
+                        'key': task_items[i]['worker'].get('key'),
                         'status': 'finished',
+                        'process_time': task_items[i]['worker'].get('process_time'),
+                        'finish_time': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                     }
                     matched_task = task_item  # 保存匹配的任务
                     break
                 elif task_item['shard_dir'] == shard_dir and task_item['file_range'] == file_range:
                     task_items[i]['worker'] = {
-                        'key': task_items[i]['worker']['key'],
+                        'key': task_items[i]['worker'].get('key'),
                         'status': 'finished',
+                        'process_time': task_items[i]['worker'].get('process_time'),
+                        'finish_time': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                     }
                     matched_task = task_item  # 保存匹配的任务
                     break
 
+            print("mark finish task ======== {}".format(matched_task))
             new_data = {
                 'tasks': task_items,
             }
@@ -295,14 +308,18 @@ def process_all():
     
     with_init = True 
     while args.use_task:
-        task_item = get_task_item(args.retry_tasks,
-                                  task_file_path=args.task_file_path,
-                                  lock_file=args.oss_lock_file)
+        task_item, all_finished = get_task_item(args.retry_tasks,
+                                                task_file_path=args.task_file_path,
+                                                lock_file=args.oss_lock_file)
         if task_item is None:
-            return
+            if not all_finished:
+                time.sleep(10)
+                continue
+            else:
+                return
         process_task_item(args, task_item, with_init)
         with_init = False
-        time.sleep(0.1)
+        time.sleep(1)
     process_task_item(args, None, with_init)
 
 def add_task_to_queue(tasks: List[dict], task_file_path=DEFAULT_TASKS_FILE_PATH, lock_file=DEFAULT_LOCK_FILE) -> bool:

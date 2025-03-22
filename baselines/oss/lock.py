@@ -43,13 +43,13 @@ class SimpleOSSLock:
             while True:
                 if self.acquire():
                     return True
-                time.sleep(1)
+                time.sleep(2)
         else:
             count = int(timeout / 1)
             while count > 0:
                 if self.acquire():
                     return True
-                time.sleep(1)
+                time.sleep(2)
                 count -= 1
         return False
 

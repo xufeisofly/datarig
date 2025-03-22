@@ -91,9 +91,6 @@ def split_large_file(input_path: str, max_size_mb: int = 1024, temp_dir: str = "
     
     # 确保临时目录存在
     if not is_oss(temp_dir):
-    #     temp_dir = f"{temp_dir.rstrip('/')}/{datetime.now().strftime('%Y%m%d%H%M%S')}"
-    # else:
-    #     temp_dir = os.path.join(temp_dir, f"{datetime.now().strftime('%Y%m%d%H%M%S')}")
         makedirs_if_missing(temp_dir)
 
     print(f"使用临时目录: {temp_dir}")
@@ -104,7 +101,6 @@ def split_large_file(input_path: str, max_size_mb: int = 1024, temp_dir: str = "
     temp_files = []
     chunk_idx = 0
     line_buffer = []
-    current_size = 0
     buffer_size_bytes = 0
 
     # 使用 read_jsonl 读取文件，无论是本地、S3 还是 OSS 都能正确读取
@@ -113,37 +109,27 @@ def split_large_file(input_path: str, max_size_mb: int = 1024, temp_dir: str = "
         line_buffer.append(line)
         # 估算当前缓冲区的大小
         buffer_size_bytes += len(json.dumps(line).encode('utf-8')) if isinstance(line, dict) else 1024
-        
+
         # 当缓冲区大小接近最大限制，写入临时文件
-        if buffer_size_bytes >= max_size_bytes - (1024*1024*max_size_mb*0.01):
+        if buffer_size_bytes >= max_size_bytes - (max_size_bytes*0.01):
             chunk_path = os.path.join(temp_dir, f"chunk{chunk_idx}_{file_name}{file_ext}")
             print(f"写入切分文件 {chunk_idx+1}: {chunk_path}")
             
             # 修改：先将内容写入本地临时文件，然后一次性上传
             if is_oss(temp_dir):
                 # 创建本地临时文件
-                import tempfile
-                local_temp_file = tempfile.NamedTemporaryFile(delete=False, mode='w', encoding='utf-8', suffix=f'_chunk{chunk_idx}{file_ext}')
+                local_filename = f"/tmp/chunk{chunk_idx}_{base_filename}" 
+                print("=========={}".format(local_filename))
                 try:
-                    # 将内容写入本地临时文件 - 修复：将字典转为JSON字符串
-                    for l in line_buffer:
-                        json_str = json.dumps(l) if isinstance(l, dict) else str(l)
-                        local_temp_file.write(json_str + "\n")
-                    local_temp_file.close()
-                    
-                    # 修复：正确使用OSSPath上传文件
+                    write_jsonl(line_buffer, local_filename)
+
                     print(f"开始上传切分文件到OSS: {chunk_path}")
-                    with open(local_temp_file.name, 'rb') as f:
-                        content = f.read()
-                        write_jsonl(content, chunk_path)
-                        # with OSSPath(chunk_path).open('wb') as oss_file:
-                        #     oss_file.write(content)
-                    
+                    bucket_name, _ = split_file_path(temp_dir)
+                    bucket = Bucket(bucket_name)
+                    upload_file_to_oss(local_filename, temp_dir, bucket)
                     print(f"成功上传切分文件到OSS: {chunk_path}")
                 finally:
-                    # 删除本地临时文件
-                    if os.path.exists(local_temp_file.name):
-                        os.unlink(local_temp_file.name)
+                    delete_file(local_filename)
             else:
                 with open(chunk_path, 'w', encoding='utf-8') as outfile:
                     for l in line_buffer:
@@ -154,7 +140,6 @@ def split_large_file(input_path: str, max_size_mb: int = 1024, temp_dir: str = "
             chunk_idx += 1
             line_buffer = []
             buffer_size_bytes = 0
-
     # 写入最后剩余的内容
     if line_buffer:
         chunk_path = os.path.join(temp_dir, f"chunk{chunk_idx}_{file_name}{file_ext}")
@@ -163,28 +148,17 @@ def split_large_file(input_path: str, max_size_mb: int = 1024, temp_dir: str = "
         # 修改：对最后一个文件也使用相同的方法一次性上传
         if is_oss(temp_dir):
             # 创建本地临时文件
-            import tempfile
-            local_temp_file = tempfile.NamedTemporaryFile(delete=False, mode='w', encoding='utf-8', suffix=f'_chunk{chunk_idx}{file_ext}')
+            local_filename = f"/tmp/chunk{chunk_idx}_{base_filename}" 
             try:
-                # 将内容写入本地临时文件 - 修复：将字典转为JSON字符串
-                for l in line_buffer:
-                    json_str = json.dumps(l) if isinstance(l, dict) else str(l)
-                    local_temp_file.write(json_str + "\n")
-                local_temp_file.close()
-                
-                # 修复：正确使用OSSPath上传文件
+                write_jsonl(line_buffer, local_filename)
+
                 print(f"开始上传最后一个切分文件到OSS: {chunk_path}")
-                with open(local_temp_file.name, 'rb') as f:
-                    content = f.read()
-                    write_jsonl(content, chunk_path)
-                    # with OSSPath(chunk_path).open('wb') as oss_file:
-                    #     oss_file.write(content)
-                
+                bucket_name, _ = split_file_path(temp_dir)
+                bucket = Bucket(bucket_name)
+                upload_file_to_oss(local_filename, temp_dir, bucket)                
                 print(f"成功上传最后一个切分文件到OSS: {chunk_path}")
             finally:
-                # 删除本地临时文件
-                if os.path.exists(local_temp_file.name):
-                    os.unlink(local_temp_file.name)
+                delete_file(local_filename)
         else:
             with open(chunk_path, 'w', encoding='utf-8') as outfile:
                 for l in line_buffer:

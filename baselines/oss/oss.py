@@ -100,12 +100,68 @@ class OSSPath:
         raise ValueError(f"invalid mode: {mode}")
 
 
-class OSSReadStream(BytesIO):
-    def __init__(self, bucket: oss2.Bucket, path: str):
+# class OSSReadStream(BytesIO):
+#     def __init__(self, bucket: oss2.Bucket, path: str):
+#         self.bucket = bucket
+#         self.path = path
+#         obj = self.bucket.get_object(self.path)
+#         super().__init__(obj.read())
+
+
+class OSSReadStream:
+    def __init__(self, bucket: oss2.Bucket, path: str, chunk_size: int = 64 * 1024):
+        """
+        :param bucket: oss2.Bucket 实例
+        :param path: OSS 上的文件路径
+        :param chunk_size: 每次读取的字节数，默认为 64KB
+        """
         self.bucket = bucket
         self.path = path
-        obj = self.bucket.get_object(self.path)
-        super().__init__(obj.read())
+        self.chunk_size = chunk_size
+        # 获取 OSS 对象的响应流，不一次性读取所有数据
+        self.resp = self.bucket.get_object(self.path)
+        self._closed = False
+
+    def read(self, amt: int = None) -> bytes:
+        if self.closed:
+            raise ValueError("I/O operation on closed file.")
+        if amt is None:
+            amt = self.chunk_size
+        return self.resp.read(amt)
+
+    def readable(self) -> bool:
+        return True
+
+    def writable(self) -> bool:
+        return False
+
+    def seekable(self) -> bool:
+        return False
+
+    def flush(self):
+        # 只读流不需要实际 flush 操作，但必须实现该方法以兼容 TextIOWrapper
+        pass    
+
+    def close(self):
+        if not self._closed:
+            self._closed = True
+    
+    @property
+    def closed(self) -> bool:
+        return self._closed
+
+    def __iter__(self):
+        while True:
+            data = self.read(self.chunk_size)
+            if not data:
+                break
+            yield data
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()    
         
     
 class OSSWriteStream():
@@ -148,6 +204,8 @@ class OSSWriteStream():
         return False        
 
 
+def is_object_exist(bucket, path):
+    return bucket.object_exists(path)
 
 
 def upload_file_to_oss(file_path, to_dir, bucket):
@@ -159,6 +217,8 @@ def upload_file_to_oss(file_path, to_dir, bucket):
     file_name = os.path.basename(file_path)
     oss_file_path = os.path.join(to_dir, file_name)
     _, oss_file_path = split_file_path(oss_file_path)
-    bucket.put_object_from_file(oss_file_path, file_path, headers={"x-oss-forbid-overwrite": "true"})
-
+    if is_object_exist(bucket, oss_file_path):
+        print("==== upload file already exists: {}".format(oss_file_path))
+        return
+    bucket.put_object_from_file(oss_file_path, file_path)
     print("==== finish upload file: {}".format(oss_file_path))    
