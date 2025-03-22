@@ -14,16 +14,8 @@ if __name__ == '__main__':
     file_path = "oss://si002558te8h/dclm/process_tasks.json"
     fin_file_path = finished_task_file(file_path)
 
-    with open("./process_tasks.json", "w") as localf:
-        with oss.OSSPath(file_path).open("r") as f:
-            data = json.loads(f.read())
-            json.dump(data, localf, indent=4)
-
-    if is_exists(fin_file_path):
-        with open("./finished_process_tasks.json", "w") as localf:
-            with oss.OSSPath(fin_file_path).open("r") as f:
-                data = json.loads(f.read())
-                json.dump(data, localf, indent=4)    
-    
+    with open("./process_tasks.jsonl", "w") as localf:
+        for line in read_jsonl(file_path):
+            localf.write(line)
     
     # list(read_jsonl(file_path))
