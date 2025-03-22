@@ -11,16 +11,6 @@ spec:
       labels:
         app: dclm-sci
     spec:
-      affinity:
-        podAntiAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-            - labelSelector:
-                matchExpressions:
-                  - key: app
-                    operator: In
-                    values:
-                      - dclm-sci
-              topologyKey: "kubernetes.io/hostname"
       imagePullSecrets:
         - name: cr-docker-registry
       containers:
