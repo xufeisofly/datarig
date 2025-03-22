@@ -203,13 +203,8 @@ def get_task_item(retry_tasks=False, task_file_path=DEFAULT_TASKS_FILE_PATH, loc
     # 分布式锁允许 1 hour 超时时间
     if lock.acquire_or_block(timeout=7200):
         # 改写 tasks.json 文件，领取任务
-        ret = ""
         try:
-            with oss.OSSPath(task_file_path).open("rb") as f:
-                data = f.read()
-                ret = json.loads(data)
-            task_items = ret['tasks']
-
+            task_items = list(read_jsonl(task_file_path))
             for i, task_item in enumerate(task_items):
                 # 若存在没有完成的 task，记录下来
                 if task_item['worker'] is None or \
@@ -232,12 +227,7 @@ def get_task_item(retry_tasks=False, task_file_path=DEFAULT_TASKS_FILE_PATH, loc
                 lock.release()
                 return None, all_finished
 
-            new_data = {
-                'tasks': task_items,
-            }
-            with oss.OSSPath(task_file_path).open("w") as f:
-                f.write(json.dumps(new_data))
-
+            write_jsonl(task_items, task_file_path)
             lock.release()
             return TaskItem(asigned_task['shard_dir'],
                             asigned_task['file_range'],
@@ -261,11 +251,7 @@ def mark_task_item_finished(shard_dir: str, file_range, task_file_path=DEFAULT_T
         # 改写 tasks.json 文件，领取任务
         ret = ""
         try:
-            with oss.OSSPath(task_file_path).open("rb") as f:
-                data = f.read()
-                ret = json.loads(data)
-            task_items = ret['tasks']
-
+            task_items = list(read_jsonl(task_file_path))
             for i, task_item in enumerate(task_items):
                 # 判断匹配方式：如果提供了files，按files匹配；否则按shard_dir和file_range匹配
                 if files and "files" in task_item and set(files) == set(task_item["files"]):
@@ -290,27 +276,16 @@ def mark_task_item_finished(shard_dir: str, file_range, task_file_path=DEFAULT_T
                     break
 
             print("mark finish task ======== {}".format(matched_task))
-            new_data = {
-                'tasks': task_items,
-            }
-            with oss.OSSPath(task_file_path).open("w") as f:
-                f.write(json.dumps(new_data))
+            write_jsonl(task_items, task_file_path)
 
             # write to finished_tasks.json
             fin_task_file = oss.finished_task_file(task_file_path)
             if is_exists(fin_task_file):
-                with oss.OSSPath(fin_task_file).open("rb") as f:
-                    fin_data = f.read()
-                    fin_ret = json.loads(fin_data)
-                fin_task_items = fin_ret['tasks']
+                fin_task_items = list(read_jsonl(fin_task_file))
             else:
                 fin_task_items = []
             fin_task_items.append(matched_task)
-            fin_new_data = {
-                'tasks': fin_task_items,
-            }
-            with oss.OSSPath(fin_task_file).open("w") as f:
-                f.write(json.dumps(fin_new_data))            
+            write_jsonl(fin_task_items, fin_task_file)            
 
             lock.release()
             return matched_task  # 返回匹配的任务信息
@@ -356,38 +331,16 @@ def add_task_to_queue(tasks: List[dict], task_file_path=DEFAULT_TASKS_FILE_PATH,
         return False
     
     try:
-        # 读取现有任务列表
-        tasks_data = {"tasks": []}  # 默认初始化
-        with oss.OSSPath(task_file_path).open("rb") as f:
-            data = f.read()
-            tasks_data = json.loads(data)
-            print(f"读取到 {len(tasks_data.get('tasks', []))} 个任务")
-        
-        # 确保 tasks 字段存在
-        if 'tasks' not in tasks_data:
-            tasks_data['tasks'] = []
+        ori_tasks = list(read_jsonl(task_file_path))
+        print(f"读取到 {len(ori_tasks)} 个任务")
         
         # 将新任务插入到任务列表开头
-        tasks_before = len(tasks_data['tasks'])
-        tasks_data['tasks'] = tasks + tasks_data['tasks']
-        print(f"添加 {len(tasks)} 个新任务后，任务数量: {len(tasks_data['tasks'])}")
+        new_tasks = tasks + ori_tasks
+        print(f"添加 {len(tasks)} 个新任务后，任务数量: {len(new_tasks)}")
         
-        # 写回任务文件
-        with oss.OSSPath(task_file_path).open("w") as f:
-            f.write(json.dumps(tasks_data))
-            print(f"已将 {len(tasks)} 个任务添加到队列开头")
-        
-        # 验证写入是否成功
-        with oss.OSSPath(task_file_path).open("rb") as f:
-            updated_data = json.loads(f.read())
-            tasks_after = len(updated_data.get('tasks', []))
-            if tasks_after != tasks_before + len(tasks):
-                raise RuntimeError(f"任务写入失败：预期任务数 {tasks_before + len(tasks)}，实际任务数 {tasks_after}")
-            print(f"验证成功，当前任务总数: {tasks_after}")
-        
+        write_jsonl(new_tasks, task_file_path)
         lock.release()
-        return True
-    
+        return True   
     except json.JSONDecodeError as e:
         print(f"JSON 解析错误: {e}")
         lock.release()
