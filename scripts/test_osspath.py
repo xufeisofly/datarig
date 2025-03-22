@@ -3,7 +3,7 @@ import os
 import json
 
 from baselines.oss import oss
-from baselines.core.file_utils import is_exists, read_jsonl
+from baselines.core.file_utils import is_exists, read_jsonl, write_jsonl
 
 def finished_task_file(task_file_path):
     filename = os.path.basename(task_file_path)
@@ -14,8 +14,7 @@ if __name__ == '__main__':
     file_path = "oss://si002558te8h/dclm/process_tasks.jsonl"
     fin_file_path = finished_task_file(file_path)
 
-    with open("./process_tasks.jsonl", "wb") as localf:
-        for line in read_jsonl(file_path):
-            localf.write(line)
+    data = list(read_jsonl(file_path))
+    write_jsonl(data, "./process_tasks.jsonl")
     
     # list(read_jsonl(file_path))
