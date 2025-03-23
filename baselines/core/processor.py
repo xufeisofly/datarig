@@ -9,7 +9,7 @@ from typing import Any, Dict, Tuple, List
 from yaml import safe_load
 
 from baselines.core.factories import get_mapper, get_aggregator, get_transform
-from baselines.core.file_utils import is_oss, read_jsonl, write_jsonl, makedirs_if_missing, delete_file, is_exists, get_file_size
+from baselines.core.file_utils import is_oss, read_jsonl, write_jsonl, makedirs_if_missing, delete_file, is_exists, get_file_size, add_suffix_to_file
 from baselines.core.constants import PROCESS_SETUP_KEY_NAME, PROCESS_END_KEY_NAME, COMMIT_KEY_NAME, GLOBAL_FUNCTIONS
 from baselines.oss.oss import OSSPath, upload_file_to_oss, split_file_path, Bucket
 
@@ -112,13 +112,17 @@ def split_large_file(input_path: str, max_size_mb: int = 1024, temp_dir: str = "
 
         # 当缓冲区大小接近最大限制，写入临时文件
         if buffer_size_bytes >= max_size_bytes - (max_size_bytes*0.01):
-            chunk_path = os.path.join(temp_dir, f"chunk{chunk_idx}_{file_name}{file_ext}")
+            chunk_path = os.path.join(temp_dir, f"p{chunk_idx}_{file_name}{file_ext}")
             print(f"写入切分文件 {chunk_idx+1}: {chunk_path}")
+
+            # test exception strategy
+            # if chunk_idx == 2:
+            #     raise Exception("readjsonl failed !!!!!!!!!!!!!!!!!!!")
             
             # 修改：先将内容写入本地临时文件，然后一次性上传
             if is_oss(temp_dir):
                 # 创建本地临时文件
-                local_filename = f"/tmp/chunk{chunk_idx}_{base_filename}" 
+                local_filename = f"/tmp/p{chunk_idx}_{base_filename}" 
                 print("=========={}".format(local_filename))
                 try:
                     write_jsonl(line_buffer, local_filename)
@@ -142,13 +146,13 @@ def split_large_file(input_path: str, max_size_mb: int = 1024, temp_dir: str = "
             buffer_size_bytes = 0
     # 写入最后剩余的内容
     if line_buffer:
-        chunk_path = os.path.join(temp_dir, f"chunk{chunk_idx}_{file_name}{file_ext}")
+        chunk_path = os.path.join(temp_dir, f"p{chunk_idx}_{file_name}{file_ext}")
         print(f"写入最后一个切分文件: {chunk_path}")
         
         # 修改：对最后一个文件也使用相同的方法一次性上传
         if is_oss(temp_dir):
             # 创建本地临时文件
-            local_filename = f"/tmp/chunk{chunk_idx}_{base_filename}" 
+            local_filename = f"/tmp/p{chunk_idx}_{base_filename}" 
             try:
                 write_jsonl(line_buffer, local_filename)
 

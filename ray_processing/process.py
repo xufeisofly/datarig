@@ -118,12 +118,12 @@ def process_local_chunk(
             for i in range(0, len(temp_files), chunk_size):
                 batch_files = temp_files[i:i+chunk_size]
                 tasks_to_add.append({
-                    "shard_dir": oss_temp_dir, 
-                    "file_range": [0,-1], 
-                    "files": batch_files,
-                    "worker": None, 
                     "is_temp": True,
+                    "shard_dir": oss_temp_dir, 
+                    "file_range": [0,-1],
+                    "worker": None,
                     "original_shard_dir": shard_dir, 
+                    "files": batch_files,
                 })
             
             add_task_to_queue(tasks_to_add, task_file_path=task_file_path, lock_file=lock_file)
@@ -144,6 +144,7 @@ def process_local_chunk(
         )
         return RAY_CHUNK_SUCCESS, pages_in, pages_out
     except Exception as e:
+        print(f"process file failed ==== : {e}")
         traceback.print_exc()
         return RAY_CHUNK_FAILURE, 0, 0
 
@@ -211,15 +212,15 @@ def get_task_item(retry_tasks=False, task_file_path=DEFAULT_TASKS_FILE_PATH, loc
                    task_item['worker']['status'] != "finished":
                     all_finished = False
                 
-                if not retry_tasks and task_item['worker'] is not None:
+                if not retry_tasks and (task_item['worker'] is not None and task_item['worker']['status'] != 'failed'):
                     continue
-                elif retry_tasks and task_item['worker']['status'] == 'finished':
+                elif retry_tasks and task_item['worker']['status'] == 'processed':
                     continue
                 asigned_task = task_item
                 task_items[i]['worker'] = {
                     'key': get_worker_key(),
                     'status': 'processing',
-                    'process_time': datetime.now().strftime("%Y-%m-%d %H:%M:%S"), 
+                    'process_time': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                 }
                 break
 
@@ -240,7 +241,7 @@ def get_task_item(retry_tasks=False, task_file_path=DEFAULT_TASKS_FILE_PATH, loc
             return None, False
     else:
         print(f"Worker {get_worker_key()} could not acquire the lock within timeout.")
-        return None, False
+        return None, False    
 
 
 def mark_task_item_finished(shard_dir: str, file_range, task_file_path=DEFAULT_TASKS_FILE_PATH, lock_file=DEFAULT_LOCK_FILE, files=None):
@@ -275,7 +276,7 @@ def mark_task_item_finished(shard_dir: str, file_range, task_file_path=DEFAULT_T
                     del task_items[i]
                     break
 
-            print("mark finish task ======== {}".format(matched_task))
+            print("[=== MARK FINISH TASK ===] {}".format(matched_task))
             write_jsonl(task_items, task_file_path)
 
             # write to finished_tasks.json
@@ -289,6 +290,52 @@ def mark_task_item_finished(shard_dir: str, file_range, task_file_path=DEFAULT_T
 
             lock.release()
             return matched_task  # 返回匹配的任务信息
+        except BaseException as e:
+            print(f"标记任务完成失败: {e}")
+            lock.release()
+    else:
+        print(f"Worker {get_worker_key()} could not acquire the lock within timeout.")
+    return None
+
+
+def mark_task_item_failed(shard_dir: str, file_range, task_file_path=DEFAULT_TASKS_FILE_PATH, lock_file=DEFAULT_LOCK_FILE, files=None):
+    lock = SimpleOSSLock(lock_file)
+    matched_task = None
+    if lock.acquire_or_block(timeout=7200):
+        try:
+            task_items = list(read_jsonl(task_file_path))
+            total = len(task_items)
+            for i, task_item in enumerate(task_items):
+                # 判断匹配方式：如果提供了files，按files匹配；否则按shard_dir和file_range匹配
+                if files and "files" in task_item and set(files) == set(task_item["files"]):
+                    task_items[i]['worker'] = {
+                        'key': task_items[i]['worker'].get('key'),
+                        'status': 'failed',
+                        'process_time': task_items[i]['worker'].get('process_time'),
+                        'fail_time': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    }
+                    matched_task = task_item
+                    del task_items[i]
+                    break
+                elif task_item['shard_dir'] == shard_dir and task_item['file_range'] == file_range:
+                    task_items[i]['worker'] = {
+                        'key': task_items[i]['worker'].get('key'),
+                        'status': 'failed',
+                        'process_time': task_items[i]['worker'].get('process_time'),
+                        'fail_time': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    }
+                    matched_task = task_item
+                    del task_items[i]
+                    break
+
+            if matched_task:
+                task_items.append(matched_task)
+                
+            print("[=== MARK FAILED TASK ===] {}".format(matched_task))                
+            write_jsonl(task_items, task_file_path)
+
+            lock.release()
+            return matched_task
         except BaseException as e:
             print(f"标记任务完成失败: {e}")
             lock.release()
@@ -454,6 +501,7 @@ def process_task_item(args, task_item: TaskItem|None, with_init=True):
 
     overwrite = args.overwrite
 
+    task_success = True
     for i, c in enumerate(chunks):
         chunk_start = time.time()
         step_name = LOCAL_CHUNK if c == LOCAL_CHUNK else c["func"]
@@ -470,7 +518,7 @@ def process_task_item(args, task_item: TaskItem|None, with_init=True):
             shard_list_filters = args.shard_list_filters
             shard_files = list_shard_files(working_dir, args.num_shards, args.shard_list_file, shard_list_filters, file_range=file_range)
 
-        print("===========shard_files:{}".format(shard_files))
+        print("[=== DEALING SHARD FILES ===]: {}".format(shard_files))
         if not shard_files:
             print(f"No files found in {working_dir}")
             break
@@ -554,6 +602,7 @@ def process_task_item(args, task_item: TaskItem|None, with_init=True):
                 write_jsonl(global_stats, global_stats_path, "w")
 
                 if failures > 0:
+                    task_success = False
                     warnings.warn(
                         f"Local chunk failed on {failures} shards out of {len(ret)}. This may significantly and unpredictably affect final results. Re-running this local chunk by using the same yaml config and turning off the --ignore_failures flag."
                     )
@@ -585,10 +634,18 @@ def process_task_item(args, task_item: TaskItem|None, with_init=True):
     
     if task_item is not None:    
         # 更新：接收返回的任务信息
-        updated_task = mark_task_item_finished(shard_dir, file_range,
-                                               task_file_path=args.task_file_path,
-                                               lock_file=args.oss_lock_file,
-                                               files=files)
+        if task_success:
+            updated_task = mark_task_item_finished(shard_dir, file_range,
+                                                   task_file_path=args.task_file_path,
+                                                   lock_file=args.oss_lock_file,
+                                                   files=files)
+        else:
+            mark_task_item_failed(shard_dir, file_range,
+                                  task_file_path=args.task_file_path,
+                                  lock_file=args.oss_lock_file,
+                                  files=files)
+            # 失败则不删除临时文件，用于下次重试
+            updated_task = False
     
         # 使用更新后的任务信息 - 如果有返回值的话
         if updated_task:
@@ -598,7 +655,7 @@ def process_task_item(args, task_item: TaskItem|None, with_init=True):
 
             # 如果是临时文件任务，删除指定的临时文件
             if is_temp and task_files:
-                print(f"准备删除临时文件: {task_files}")
+                print(f"[=== DELETE TEMP FILES START ===]: {task_files}")
                 try:
                     for file_path in task_files:
                         if is_oss(file_path):
@@ -610,9 +667,9 @@ def process_task_item(args, task_item: TaskItem|None, with_init=True):
                             # 删除本地文件
                             if os.path.exists(file_path):
                                 os.remove(file_path)
-                            print(f"已删除所有临时文件")
+                            print(f"[=== DELETE TEMP FILES SUCCESS ===]")
                 except Exception as e:
-                    print(f"删除临时文件时出错: {e}")
+                    print(f"[=== DELETE TEMP FILES FAILED ===]: {e}")
 
 if __name__ == "__main__":
     process_all()

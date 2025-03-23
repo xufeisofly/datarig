@@ -15,7 +15,7 @@ spec:
         - name: cr-docker-registry
       containers:
       - name: dclm-sci
-        image: cr.registry.res.cloud.zhejianglab.com/dataprocess/datarig:v1.6
+        image: cr.registry.res.cloud.zhejianglab.com/dataprocess/datarig:v1.9
         resources:
           requests:
             cpu: "4"
@@ -29,13 +29,13 @@ spec:
             value: "0"
         args:
           - "--readable_name"
-          - "first_round_test_200_2"
+          - "first_round_test_200_4"
           - "--output_dir"
           - "oss://si002558te8h/dclm/output"
           - "--config_path"
           - "baselines/baselines_configs/sci.yaml"
           - "--oss_temp_dir"
-          - "oss://si002558te8h/dclm/temp_dir_500_2/"
+          - "oss://si002558te8h/dclm/temp_dir_500/"
           - "--source_name"
           - "cc"
           - "--max_file_size_mb"
