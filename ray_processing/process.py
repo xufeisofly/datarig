@@ -655,7 +655,7 @@ def process_task_item(args, task_item: TaskItem|None, with_init=True):
 
             # 如果是临时文件任务，删除指定的临时文件
             if is_temp and task_files:
-                print(f"准备删除临时文件: {task_files}")
+                print(f"[=== DELETE TEMP FILES START ===]: {task_files}")
                 try:
                     for file_path in task_files:
                         if is_oss(file_path):
