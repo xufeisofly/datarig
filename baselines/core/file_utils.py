@@ -73,9 +73,15 @@ def read_jsonl(file_path: str):
                 for line in _jsonl_bytes_reader(reader):
                     yield line
     elif file_path.endswith(".gz"):
-        with gzip.open(path, 'rb') as f:
-            for line in _jsonl_bytes_reader(f):
-                yield line
+        if isinstance(path, OSSPath):
+            with path.open('rb') as f:
+                with gzip.GzipFile(fileobj=f) as gzfile:
+                    for line in _jsonl_bytes_reader(gzfile):
+                        yield line
+        else:
+            with gzip.open(path, 'rb') as f:
+                for line in _jsonl_bytes_reader(f):
+                    yield line
     else:
         with path.open('rb') as f:    
             for line in _jsonl_bytes_reader(f):
@@ -100,8 +106,13 @@ def write_jsonl(data, file_path: str, mode: str = "w"):
             with zstd.ZstdCompressor().stream_writer(f) as writer:
                 writer.write(data)
     elif file_path.endswith(".gz"):
-        with path.open("wb") as f:
-            f.write(gzip.compress(data))
+        if isinstance(path, OSSPath):
+            with path.open("wb") as f:
+                with gzip.GzipFile(fileobj=f, mode="wb") as gz:
+                    gz.write(data)
+        else:
+            with path.open("wb") as f:
+                f.write(gzip.compress(data))
     else:
         with path.open(mode) as f:
             for item in data:

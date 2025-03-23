@@ -4,7 +4,7 @@ from baselines.core.file_utils import is_exists, read_jsonl, write_jsonl
 
 
 if __name__ == '__main__':
-    file_path = "oss://si002558te8h/dclm/process_tasks.jsonl"
+    file_path = "oss://si002558te8h/dclm/pool/process_tasks.jsonl"
     fin_file_path = oss.finished_task_file(file_path)
 
     data = list(read_jsonl(file_path))

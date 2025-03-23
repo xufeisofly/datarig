@@ -84,15 +84,6 @@ def create_task_items(shard_dir: str, mode: str, chunk_size: int) -> List[dict]:
                         end = total
                     file_range = [start, end]
                     start += chunk_size
-                    tasks.append(TaskItem(shard_dir, file_range).to_dict())
-
-        # 递归遍历所有子目录
-        sub_dirs = oss.get_sub_folders(bucket, path)
-        for sub_dir in sub_dirs:
-            sub_dir = os.path.join("oss://" + bucket_name, sub_dir)
-            tasks += create_task_items(sub_dir, mode, chunk_size)
-            
-        return tasks
     else:
         # 原来的process模式逻辑
         bucket_name, path = oss.split_file_path(shard_dir) 
@@ -111,7 +102,8 @@ def create_task_items(shard_dir: str, mode: str, chunk_size: int) -> List[dict]:
                         end = total
                     file_range = [start, end]
                     start += chunk_size
-                    tasks.append(TaskItem(shard_dir, file_range).to_dict())
+                    if 'subject=AerospaceAeronautics' not in shard_dir:
+                        tasks.append(TaskItem(shard_dir, file_range).to_dict())
 
 
         sub_dirs = oss.get_sub_folders(bucket, path)
