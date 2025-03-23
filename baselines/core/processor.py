@@ -115,8 +115,9 @@ def split_large_file(input_path: str, max_size_mb: int = 1024, temp_dir: str = "
             chunk_path = os.path.join(temp_dir, f"p{chunk_idx}_{file_name}{file_ext}")
             print(f"写入切分文件 {chunk_idx+1}: {chunk_path}")
 
-            if chunk_idx == 2:
-                raise Exception("readjsonl failed !!!!!!!!!!!!!!!!!!!")
+            # test exception strategy
+            # if chunk_idx == 2:
+            #     raise Exception("readjsonl failed !!!!!!!!!!!!!!!!!!!")
             
             # 修改：先将内容写入本地临时文件，然后一次性上传
             if is_oss(temp_dir):
