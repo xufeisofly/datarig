@@ -226,4 +226,9 @@ def upload_file_to_oss(file_path, to_dir, bucket):
 
 def finished_task_file(task_file_path):
     filename = os.path.basename(task_file_path)
-    return task_file_path.replace(filename, "finished_"+filename)    
+    return task_file_path.replace(filename, "finished_"+filename)
+
+
+def failed_task_file(task_file_path):
+    filename = os.path.basename(task_file_path)
+    return task_file_path.replace(filename, "failed_"+filename)

@@ -144,6 +144,7 @@ def process_local_chunk(
         )
         return RAY_CHUNK_SUCCESS, pages_in, pages_out
     except Exception as e:
+        print(f"process file failed ==== : {e}")
         traceback.print_exc()
         return RAY_CHUNK_FAILURE, 0, 0
 
@@ -286,6 +287,59 @@ def mark_task_item_finished(shard_dir: str, file_range, task_file_path=DEFAULT_T
                 fin_task_items = []
             fin_task_items.append(matched_task)
             write_jsonl(fin_task_items, fin_task_file)            
+
+            lock.release()
+            return matched_task  # 返回匹配的任务信息
+        except BaseException as e:
+            print(f"标记任务完成失败: {e}")
+            lock.release()
+    else:
+        print(f"Worker {get_worker_key()} could not acquire the lock within timeout.")
+    return None
+
+
+def mark_task_item_failed(shard_dir: str, file_range, task_file_path=DEFAULT_TASKS_FILE_PATH, lock_file=DEFAULT_LOCK_FILE, files=None):
+    lock = SimpleOSSLock(lock_file)
+    matched_task = None
+    if lock.acquire_or_block(timeout=7200):
+        try:
+            task_items = list(read_jsonl(task_file_path))
+            for i, task_item in enumerate(task_items):
+                # 判断匹配方式：如果提供了files，按files匹配；否则按shard_dir和file_range匹配
+                if files and "files" in task_item and set(files) == set(task_item["files"]):
+                    task_items[i]['worker'] = {
+                        'key': task_items[i]['worker'].get('key'),
+                        'status': 'failed',
+                        'process_time': task_items[i]['worker'].get('process_time'),
+                        'fail_time': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                        'retried': int(task_items[i]['worker'].get('retried', 0)) + 1, 
+                    }
+                    matched_task = task_item  # 保存匹配的任务
+                    del task_items[i]
+                    break
+                elif task_item['shard_dir'] == shard_dir and task_item['file_range'] == file_range:
+                    task_items[i]['worker'] = {
+                        'key': task_items[i]['worker'].get('key'),
+                        'status': 'failed',
+                        'process_time': task_items[i]['worker'].get('process_time'),
+                        'fail_time': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                        'retried': int(task_items[i]['worker'].get('retried', 0)) + 1,
+                    }
+                    matched_task = task_item  # 保存匹配的任务
+                    del task_items[i]
+                    break
+
+            print("Fail: mark fail task ======== {}".format(matched_task))
+            write_jsonl(task_items, task_file_path)
+
+            # write to finished_tasks.json
+            fail_task_file = oss.failed_task_file(task_file_path)
+            if is_exists(fail_task_file):
+                fail_task_items = list(read_jsonl(fail_task_file))
+            else:
+                fail_task_items = []
+            fail_task_items.append(matched_task)
+            write_jsonl(fail_task_items, fail_task_file)            
 
             lock.release()
             return matched_task  # 返回匹配的任务信息
@@ -454,6 +508,7 @@ def process_task_item(args, task_item: TaskItem|None, with_init=True):
 
     overwrite = args.overwrite
 
+    task_success = False
     for i, c in enumerate(chunks):
         chunk_start = time.time()
         step_name = LOCAL_CHUNK if c == LOCAL_CHUNK else c["func"]
@@ -554,6 +609,7 @@ def process_task_item(args, task_item: TaskItem|None, with_init=True):
                 write_jsonl(global_stats, global_stats_path, "w")
 
                 if failures > 0:
+                    task_success = False
                     warnings.warn(
                         f"Local chunk failed on {failures} shards out of {len(ret)}. This may significantly and unpredictably affect final results. Re-running this local chunk by using the same yaml config and turning off the --ignore_failures flag."
                     )
@@ -585,10 +641,16 @@ def process_task_item(args, task_item: TaskItem|None, with_init=True):
     
     if task_item is not None:    
         # 更新：接收返回的任务信息
-        updated_task = mark_task_item_finished(shard_dir, file_range,
-                                               task_file_path=args.task_file_path,
-                                               lock_file=args.oss_lock_file,
-                                               files=files)
+        if task_success:
+            updated_task = mark_task_item_finished(shard_dir, file_range,
+                                                   task_file_path=args.task_file_path,
+                                                   lock_file=args.oss_lock_file,
+                                                   files=files)
+        else:
+            updated_task = mark_task_item_failed(shard_dir, file_range,
+                                                 task_file_path=args.task_file_path,
+                                                 lock_file=args.oss_lock_file,
+                                                 files=files)            
     
         # 使用更新后的任务信息 - 如果有返回值的话
         if updated_task:
