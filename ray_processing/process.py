@@ -502,7 +502,7 @@ def process_task_item(args, task_item: TaskItem|None, with_init=True):
 
     overwrite = args.overwrite
 
-    task_success = False
+    task_success = True
     for i, c in enumerate(chunks):
         chunk_start = time.time()
         step_name = LOCAL_CHUNK if c == LOCAL_CHUNK else c["func"]
