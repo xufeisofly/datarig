@@ -212,15 +212,15 @@ def get_task_item(retry_tasks=False, task_file_path=DEFAULT_TASKS_FILE_PATH, loc
                    task_item['worker']['status'] != "finished":
                     all_finished = False
                 
-                if not retry_tasks and task_item['worker'] is not None:
+                if not retry_tasks and (task_item['worker'] is not None and task_item['worker']['status'] != 'failed'):
                     continue
-                elif retry_tasks and task_item['worker']['status'] == 'finished':
+                elif retry_tasks and task_item['worker']['status'] == 'processed':
                     continue
                 asigned_task = task_item
                 task_items[i]['worker'] = {
                     'key': get_worker_key(),
                     'status': 'processing',
-                    'process_time': datetime.now().strftime("%Y-%m-%d %H:%M:%S"), 
+                    'process_time': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                 }
                 break
 
@@ -313,7 +313,6 @@ def mark_task_item_failed(shard_dir: str, file_range, task_file_path=DEFAULT_TAS
                         'status': 'failed',
                         'process_time': task_items[i]['worker'].get('process_time'),
                         'fail_time': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                        'retried': int(task_items[i]['worker'].get('retried', 0)) + 1, 
                     }
                     matched_task = task_item
                     del task_items[i]
@@ -324,7 +323,6 @@ def mark_task_item_failed(shard_dir: str, file_range, task_file_path=DEFAULT_TAS
                         'status': 'failed',
                         'process_time': task_items[i]['worker'].get('process_time'),
                         'fail_time': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                        'retried': int(task_items[i]['worker'].get('retried', 0)) + 1,
                     }
                     matched_task = task_item
                     del task_items[i]
