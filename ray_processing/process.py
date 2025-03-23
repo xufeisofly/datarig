@@ -641,10 +641,12 @@ def process_task_item(args, task_item: TaskItem|None, with_init=True):
                                                    lock_file=args.oss_lock_file,
                                                    files=files)
         else:
-            updated_task = mark_task_item_failed(shard_dir, file_range,
-                                                 task_file_path=args.task_file_path,
-                                                 lock_file=args.oss_lock_file,
-                                                 files=files)            
+            mark_task_item_failed(shard_dir, file_range,
+                                  task_file_path=args.task_file_path,
+                                  lock_file=args.oss_lock_file,
+                                  files=files)
+            # 失败则不删除临时文件，用于下次重试
+            updated_task = False
     
         # 使用更新后的任务信息 - 如果有返回值的话
         if updated_task:
