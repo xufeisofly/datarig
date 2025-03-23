@@ -241,7 +241,7 @@ def get_task_item(retry_tasks=False, task_file_path=DEFAULT_TASKS_FILE_PATH, loc
             return None, False
     else:
         print(f"Worker {get_worker_key()} could not acquire the lock within timeout.")
-        return None, False
+        return None, False    
 
 
 def mark_task_item_finished(shard_dir: str, file_range, task_file_path=DEFAULT_TASKS_FILE_PATH, lock_file=DEFAULT_LOCK_FILE, files=None):
@@ -304,6 +304,7 @@ def mark_task_item_failed(shard_dir: str, file_range, task_file_path=DEFAULT_TAS
     if lock.acquire_or_block(timeout=7200):
         try:
             task_items = list(read_jsonl(task_file_path))
+            total = len(task_items)
             for i, task_item in enumerate(task_items):
                 # 判断匹配方式：如果提供了files，按files匹配；否则按shard_dir和file_range匹配
                 if files and "files" in task_item and set(files) == set(task_item["files"]):
@@ -314,7 +315,7 @@ def mark_task_item_failed(shard_dir: str, file_range, task_file_path=DEFAULT_TAS
                         'fail_time': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                         'retried': int(task_items[i]['worker'].get('retried', 0)) + 1, 
                     }
-                    matched_task = task_item  # 保存匹配的任务
+                    matched_task = task_item
                     del task_items[i]
                     break
                 elif task_item['shard_dir'] == shard_dir and task_item['file_range'] == file_range:
@@ -325,24 +326,19 @@ def mark_task_item_failed(shard_dir: str, file_range, task_file_path=DEFAULT_TAS
                         'fail_time': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                         'retried': int(task_items[i]['worker'].get('retried', 0)) + 1,
                     }
-                    matched_task = task_item  # 保存匹配的任务
+                    matched_task = task_item
                     del task_items[i]
                     break
 
-            print("Fail: mark fail task ======== {}".format(matched_task))
+            if matched_task:
+                task_items.append(matched_task)
+                
+            print("Fail: mark fail task ======== {}".format(matched_task))                
             write_jsonl(task_items, task_file_path)
-
-            # write to finished_tasks.json
-            fail_task_file = oss.failed_task_file(task_file_path)
-            if is_exists(fail_task_file):
-                fail_task_items = list(read_jsonl(fail_task_file))
-            else:
-                fail_task_items = []
-            fail_task_items.append(matched_task)
-            write_jsonl(fail_task_items, fail_task_file)            
+            print("fail task put to the end of the queue ======== {}".format(matched_task))            
 
             lock.release()
-            return matched_task  # 返回匹配的任务信息
+            return matched_task
         except BaseException as e:
             print(f"标记任务完成失败: {e}")
             lock.release()
