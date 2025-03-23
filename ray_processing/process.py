@@ -276,7 +276,7 @@ def mark_task_item_finished(shard_dir: str, file_range, task_file_path=DEFAULT_T
                     del task_items[i]
                     break
 
-            print("mark finish task ======== {}".format(matched_task))
+            print("[=== MARK FINISH TASK ===] {}".format(matched_task))
             write_jsonl(task_items, task_file_path)
 
             # write to finished_tasks.json
@@ -331,9 +331,8 @@ def mark_task_item_failed(shard_dir: str, file_range, task_file_path=DEFAULT_TAS
             if matched_task:
                 task_items.append(matched_task)
                 
-            print("Fail: mark fail task ======== {}".format(matched_task))                
+            print("[=== MARK FAILED TASK ===] {}".format(matched_task))                
             write_jsonl(task_items, task_file_path)
-            print("fail task put to the end of the queue ======== {}".format(matched_task))            
 
             lock.release()
             return matched_task
@@ -519,7 +518,7 @@ def process_task_item(args, task_item: TaskItem|None, with_init=True):
             shard_list_filters = args.shard_list_filters
             shard_files = list_shard_files(working_dir, args.num_shards, args.shard_list_file, shard_list_filters, file_range=file_range)
 
-        print("===========shard_files:{}".format(shard_files))
+        print("[=== DEALING SHARD FILES ===]: {}".format(shard_files))
         if not shard_files:
             print(f"No files found in {working_dir}")
             break
