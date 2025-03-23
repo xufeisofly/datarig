@@ -667,9 +667,9 @@ def process_task_item(args, task_item: TaskItem|None, with_init=True):
                             # 删除本地文件
                             if os.path.exists(file_path):
                                 os.remove(file_path)
-                            print(f"已删除所有临时文件")
+                            print(f"[=== DELETE TEMP FILES SUCCESS ===]")
                 except Exception as e:
-                    print(f"删除临时文件时出错: {e}")
+                    print(f"[=== DELETE TEMP FILES FAILED ===]: {e}")
 
 if __name__ == "__main__":
     process_all()
