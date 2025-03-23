@@ -1,10 +1,6 @@
 # -*- coding: utf-8 -*-
-import os
-import json
-
 from baselines.oss import oss
 from baselines.core.file_utils import is_exists, read_jsonl, write_jsonl
-
 
 
 if __name__ == '__main__':
