@@ -31,7 +31,7 @@ def main():
         except Exception as e:
             logging.error(f"Failed to get lock file: {e}")
 
-        time.sleep(60)  # 每 10 分钟检查一次
+        time.sleep(10)  # 每 10 分钟检查一次
 
 if __name__ == '__main__':
     main()
