@@ -22,4 +22,4 @@ if __name__ == '__main__':
     fin_file = "./finished_process_tasks.jsonl"
     fins = list(read_jsonl(fin_file))
     ori_files = [f for f in fins if f['is_temp'] is False]
-    print("processed origin files: {}".format(len(ori_files)))
+    print("processed origin tasks: {}".format(len(ori_files)))
