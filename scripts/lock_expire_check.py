@@ -22,7 +22,7 @@ def main():
             # 如果之前的时间存在且与当前相同，则删除锁文件
             if previous_timestamp is not None and meta.last_modified == previous_timestamp:
                 logging.info("Lock file unchanged, deleting lock file.")
-                # bucket.delete_object(path)
+                bucket.delete_object(path)
             else:
                 logging.info("Lock file updated or first check.")
 
@@ -31,7 +31,7 @@ def main():
         except Exception as e:
             logging.error(f"Failed to get lock file: {e}")
 
-        time.sleep(10)  # 每 10 分钟检查一次
+        time.sleep(300)  # 每 5 分钟检查一次
 
 if __name__ == '__main__':
     main()
