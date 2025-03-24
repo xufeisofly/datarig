@@ -47,27 +47,38 @@ class TaskItem:
     def get_files(self):
         return self._files
 
-    def to_dict(self) -> dict:
-        return {
+    def to_dict(self, mode='process') -> dict:
+        result = {
             "shard_dir": self._shard_dir,
             "file_range": self._file_range,
-            "worker": self._worker,
-            "is_temp": self.is_temp,  # 在字典中包含 is_temp
-            "files": self._files  # 在字典中包含 files
+            "worker": self._worker
         }
+        
+        # 在非dedup模式下才添加这些字段
+        if mode != 'dedup':
+            result["is_temp"] = self.is_temp
+            result["files"] = self._files
+            
+        if self._original_shard_dir is not None:
+            result["original_shard_dir"] = self._original_shard_dir
+            
+        return result
 
 def create_task_items(shard_dir: str, mode: str, chunk_size: int) -> List[dict]:
     tasks = []
-    # if mode == 'dedup':
-    #     shard_dir = [os.path.join(shard_dir, 'processed_data')]
-
+    if mode == 'dedup':
+        original_shard_dir = shard_dir
+    
     bucket_name, path = oss.split_file_path(shard_dir) 
     bucket = oss.Bucket(bucket_name)
     
     file_paths = oss.get_sub_files(bucket, path)
     if len(file_paths) > 0:
         if chunk_size == -1:
-            tasks.append(TaskItem(shard_dir, [0, -1]).to_dict())
+            task_item = TaskItem(shard_dir, [0, -1])
+            if mode == 'dedup':
+                task_item._original_shard_dir = original_shard_dir
+            tasks.append(task_item.to_dict(mode))
         else:
             total = len(file_paths)
             start = 0
@@ -77,7 +88,10 @@ def create_task_items(shard_dir: str, mode: str, chunk_size: int) -> List[dict]:
                     end = total
                 file_range = [start, end]
                 start += chunk_size
-                tasks.append(TaskItem(shard_dir, file_range).to_dict())
+                task_item = TaskItem(shard_dir, file_range)
+                if mode == 'dedup':
+                    task_item._original_shard_dir = original_shard_dir
+                tasks.append(task_item.to_dict(mode))
 
 
     sub_dirs = oss.get_sub_folders(bucket, path)
@@ -104,7 +118,7 @@ def asign_task(parent_dir: str, tasks_file_path: str, mode: str='process', chunk
     existed = oss.Bucket(task_bucket_name).object_exists(task_file)
 
     if existed:
-        print(f"Success: {len(all_task_items)} tasks generated")
+        print(f"Success: {len(all_task_items)} tasks generated in {mode} mode")
     else:
         print(f"Failed")
 
