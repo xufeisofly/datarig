@@ -49,71 +49,47 @@ class TaskItem:
         return self._files
 
     def to_dict(self) -> dict:
-        result = {
+        return {
             "shard_dir": self._shard_dir,
             "file_range": self._file_range,
-            "worker": self._worker
+            "worker": self._worker,
+            "is_temp": self.is_temp,  # 在字典中包含 is_temp
+            "files": self._files  # 在字典中包含 files
         }
-        # 在process模式下添加is_temp和files字段
-        if hasattr(self, 'is_temp') and self.is_temp:
-            result["is_temp"] = self.is_temp
-        if hasattr(self, '_files') and self._files:
-            result["files"] = self._files
-        if self._original_shard_dir:
-            result["original_shard_dir"] = self._original_shard_dir
-        return result
 
 def create_task_items(shard_dir: str, mode: str, chunk_size: int) -> List[dict]:
     tasks = []
+    # if mode == 'dedup':
+    #     shard_dir = [os.path.join(shard_dir, 'processed_data')]
+
+    bucket_name, path = oss.split_file_path(shard_dir) 
+    bucket = oss.Bucket(bucket_name)
     
-    if mode == 'dedup':
-        # 在dedup模式下，只需要遍历所有文件，不需要is_temp和files参数
-        bucket_name, path = oss.split_file_path(shard_dir) 
-        bucket = oss.Bucket(bucket_name)
-        
-        file_paths = oss.get_sub_files(bucket, path)
-        if len(file_paths) > 0:
-            if chunk_size == -1:
-                tasks.append(TaskItem(shard_dir, [0, -1]).to_dict())
-            else:
-                total = len(file_paths)
-                start = 0
-                while start < total:
-                    end = start+chunk_size
-                    if end >= total:
-                        end = total
-                    file_range = [start, end]
-                    start += chunk_size
-    else:
-        # 原来的process模式逻辑
-        bucket_name, path = oss.split_file_path(shard_dir) 
-        bucket = oss.Bucket(bucket_name)
-        
-        file_paths = oss.get_sub_files(bucket, path)
-        if len(file_paths) > 0:
-            if chunk_size == -1:
-                tasks.append(TaskItem(shard_dir, [0, -1]).to_dict())
-            else:
-                total = len(file_paths)
-                start = 0
-                while start < total:
-                    end = start+chunk_size
-                    if end >= total:
-                        end = total
-                    file_range = [start, end]
-                    start += chunk_size
-                    # if 'subject=AerospaceAeronautics' not in shard_dir:
+    file_paths = oss.get_sub_files(bucket, path)
+    if len(file_paths) > 0:
+        if chunk_size == -1:
+            tasks.append(TaskItem(shard_dir, [0, -1]).to_dict())
+        else:
+            total = len(file_paths)
+            start = 0
+            while start < total:
+                end = start+chunk_size
+                if end >= total:
+                    end = total
+                file_range = [start, end]
+                start += chunk_size
+                if 'subject=AerospaceAeronautics' not in shard_dir:
                     tasks.append(TaskItem(shard_dir, file_range).to_dict())
 
 
-        sub_dirs = oss.get_sub_folders(bucket, path)
-        if len(sub_dirs) == 0:
-            return tasks
-
-        for sub_dir in sub_dirs:
-            sub_dir = os.path.join("oss://" + bucket_name, sub_dir)
-            tasks += create_task_items(sub_dir, mode, chunk_size)
+    sub_dirs = oss.get_sub_folders(bucket, path)
+    if len(sub_dirs) == 0:
         return tasks
+
+    for sub_dir in sub_dirs:
+        sub_dir = os.path.join("oss://" + bucket_name, sub_dir)
+        tasks += create_task_items(sub_dir, mode, chunk_size)
+    return tasks
 
     
 def asign_task(parent_dir: str, tasks_file_path: str, mode: str='process', chunk_size=-1):
