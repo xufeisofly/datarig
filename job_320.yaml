@@ -1,10 +1,10 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: datarig2-40
+  name: datarig2-30-2
 spec:
-  parallelism: 40 # 2x(3-4)C=6C-8C 2x(12-15)G=24-30G per node, (6C-8C)x40 = 240C-320C max: 80pod 
-  completions: 40
+  parallelism: 30 # 5x(4-5)C=20C-25C 5x(10-12)G=50-60G per node, (20C-25C)x89 = 1780C-2225C max: 445pod
+  completions: 30
   backoffLimit: 0  # 如果任务失败后不希望重试，则设置为 0；否则设置为需要的重试次数
   template:
     metadata:
@@ -15,31 +15,31 @@ spec:
         - name: cr-docker-registry
       containers:
       - name: dclm-sci
-        image: cr.registry.res.cloud.zhejianglab.com/dataprocess/datarig:v2.4
+        image: cr.registry.res.cloud.zhejianglab.com/dataprocess/datarig:v2.5
         resources:
           requests:
-            cpu: "3"
-            memory: "12Gi"
-          limits:
             cpu: "4"
-            memory: "15Gi"
+            memory: "10Gi"
+          limits:
+            cpu: "5"
+            memory: "12Gi"
         command: ["/app/dclm-sci/start.sh"]
         env:
           - name: RAY_DEDUP_LOGS
             value: "0"
         args:
           - "--readable_name"
-          - "Aerospace"
+          - "r2_formal"
           - "--output_dir"
           - "oss://si002558te8h/dclm/output"
           - "--config_path"
           - "baselines/baselines_configs/sci.yaml"
           - "--oss_temp_dir"
-          - "oss://si002558te8h/dclm/temp_dir_100/"
+          - "oss://si002558te8h/dclm/temp_dir_300/"
           - "--source_name"
           - "cc"
           - "--max_file_size_mb"
-          - "100"
+          - "300"
           - "--chunk_size"
           - "3" # 4 有可能出现 oom，不过没有影响最终产出
           - "--output_has_dataset_name"
