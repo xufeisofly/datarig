@@ -20,7 +20,7 @@ use std::hash::{BuildHasher, Hash, Hasher};
 use std::io;
 use std::io::{BufRead, BufReader, BufWriter, Cursor, Write};
 use std::mem::size_of;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread::available_parallelism;
@@ -48,6 +48,25 @@ use oss_rust_sdk::async_object::*;
 use oss_rust_sdk::errors::*;
 use std::collections::HashMap;
 use tokio_util::io::StreamReader;
+use serde::{Deserialize, Serialize};
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+struct TaskWorker {
+    key: Option<String>,
+    status: Option<String>,
+    process_time: Option<String>,
+    finish_time: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+struct TaskItem {
+    shard_dir: String,
+    file_range: Vec<i32>,
+    worker: Option<TaskWorker>,
+    is_temp: Option<bool>,
+    files: Option<Vec<String>>,
+    original_shard_dir: Option<String>,
+}
 
 #[derive(Parser)]
 #[clap(author, version, about, long_about = None)]
@@ -193,6 +212,371 @@ enum RemoveType {
 
     /// Does exact removal (it's not _really_ exact, shhh....)
     Exact,
+}
+
+async fn is_exists(path: &PathBuf) -> bool {
+    if is_oss(path) {
+        let (bucket, key) = split_oss_path(path);
+        let client = oss::get_bucket(bucket);
+        // 替换为 head_object 检查文件是否存在
+        match client.head_object(&key).await {
+            Ok(_) => true,
+            Err(_) => false
+        }
+    } else {
+        path.exists()
+    }
+}
+
+async fn get_task_item(
+    tasks_file: &PathBuf,
+    retry_tasks: bool,
+    lock_file: &str,
+) -> Result<(Option<TaskItem>, bool), anyhow::Error> {
+    // 错误处理修复
+    let lock = oss::SimpleOSSLock::new(lock_file).map_err(|e| anyhow!(e))?;
+    let mut all_finished = true;
+    
+    // 获取锁，超时时间7200秒
+    if lock.acquire_or_block(7200).await {
+        // 读取任务文件
+        let reader = get_reader_from_oss(tasks_file, None).await?;
+        let mut task_items: Vec<TaskItem> = Vec::new();
+        
+        for line in std::io::BufRead::lines(reader) {
+            let line = line?;
+            let task_item: TaskItem = serde_json::from_str(&line)?;
+            task_items.push(task_item);
+        }
+        
+        let mut assigned_task = None;
+        for i in 0..task_items.len() {
+            // 检查任务是否已完成
+            if task_items[i].worker.is_none() || 
+               task_items[i].worker.as_ref().unwrap().status.as_deref() != Some("finished") {
+                all_finished = false;
+            }
+            
+            // 选择可处理的任务
+            if !retry_tasks && 
+               (task_items[i].worker.is_some() && 
+                task_items[i].worker.as_ref().unwrap().status.as_deref() != Some("failed")) {
+                continue;
+            } else if retry_tasks && 
+                    task_items[i].worker.as_ref().map_or(false, |w| w.status.as_deref() == Some("processed")) {
+                continue;
+            }
+            
+            // 找到可处理的任务
+            assigned_task = Some(task_items[i].clone());
+            // 更新任务状态
+            task_items[i].worker = Some(TaskWorker {
+                key: Some(oss::get_worker_key()),
+                status: Some("processing".to_string()),
+                process_time: Some(chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string()),
+                finish_time: None,
+            });
+            break;
+        }
+        
+        if assigned_task.is_none() {
+            lock.release().await;
+            return Ok((None, all_finished));
+        }
+        
+        // 写回任务文件
+        let output_data = task_items.iter()
+            .map(|item| serde_json::to_string(item).unwrap())
+            .collect::<Vec<String>>()
+            .join("\n");
+        
+        let (bucket, key) = split_oss_path(tasks_file);
+        let client = oss::get_bucket(bucket);
+        let mut headers = std::collections::HashMap::new();
+        headers.insert("content-type".to_string(), "text/plain".to_string());
+        
+        client.put_object(output_data.as_bytes(), key, headers, None).await?;
+        lock.release().await;
+        
+        Ok((assigned_task, false))
+    } else {
+        println!("Worker {} 无法在超时时间内获取锁", oss::get_worker_key());
+        Ok((None, false))
+    }
+}
+
+async fn mark_task_item_finished(
+    task_item: &TaskItem,
+    tasks_file: &PathBuf,
+    lock_file: &str,
+) -> Result<(), anyhow::Error> {
+    let lock = oss::SimpleOSSLock::new(lock_file).map_err(|e| anyhow!(e))?;
+    
+    if lock.acquire_or_block(7200).await {
+        // 读取任务文件
+        let reader = get_reader_from_oss(tasks_file, None).await?;
+        let mut task_items: Vec<TaskItem> = Vec::new();
+        let mut matched_idx = None;
+        
+        for (i, line) in std::io::BufRead::lines(reader).enumerate() {
+            let line = line?;
+            let mut task: TaskItem = serde_json::from_str(&line)?;
+            
+            // 匹配任务
+            let files_match = task_item.files.is_some() && task.files.is_some() && 
+                              task_item.files.as_ref().unwrap() == task.files.as_ref().unwrap();
+            let dir_range_match = task.shard_dir == task_item.shard_dir && 
+                                  task.file_range == task_item.file_range;
+            
+            if files_match || dir_range_match {
+                if let Some(worker) = &mut task.worker {
+                    worker.status = Some("finished".to_string());
+                    worker.finish_time = Some(chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string());
+                }
+                matched_idx = Some(i);
+            }
+            
+            task_items.push(task);
+        }
+        
+        // 移除已完成的任务
+        if let Some(idx) = matched_idx {
+            let finished_task = task_items.remove(idx);
+            println!("[=== MARK FINISH TASK ===] {:?}", finished_task);
+            
+            // 写回任务文件
+            let output_data = task_items.iter()
+                .map(|item| serde_json::to_string(item).unwrap())
+                .collect::<Vec<String>>()
+                .join("\n");
+            
+            let (bucket, key) = split_oss_path(tasks_file);
+            let client = oss::get_bucket(bucket);
+            let mut headers = std::collections::HashMap::new();
+            headers.insert("content-type".to_string(), "text/plain".to_string());
+            
+            client.put_object(output_data.as_bytes(), key, headers.clone(), None).await?; 
+            
+            // 写入已完成任务文件
+            let fin_task_file = format!("{}_finished", tasks_file.to_str().unwrap());
+            let fin_path = PathBuf::from(&fin_task_file);
+            
+            let mut fin_tasks = Vec::new();
+            if is_oss(&fin_path) && is_exists(&fin_path).await {
+                let fin_reader = get_reader_from_oss(&fin_path, None).await?;
+                for line in std::io::BufRead::lines(fin_reader) {
+                    let line = line?;
+                    let task: TaskItem = serde_json::from_str(&line)?;
+                    fin_tasks.push(task);
+                }
+            }
+            
+            fin_tasks.push(finished_task);
+            let fin_output = fin_tasks.iter()
+                .map(|item| serde_json::to_string(item).unwrap())
+                .collect::<Vec<String>>()
+                .join("\n");
+            
+            let (fin_bucket, fin_key) = split_oss_path(&fin_path);
+            let fin_client = oss::get_bucket(fin_bucket);
+            fin_client.put_object(fin_output.as_bytes(), fin_key, headers, None).await?;
+        }
+        
+        lock.release().await;
+        Ok(())
+    } else {
+        println!("Worker {} 无法在超时时间内获取锁", oss::get_worker_key());
+        Err(anyhow!("无法获取锁"))
+    }
+}
+
+async fn mark_task_item_failed(
+    task_item: &TaskItem,
+    tasks_file: &PathBuf,
+    lock_file: &str,
+) -> Result<(), anyhow::Error> {
+    let lock = oss::SimpleOSSLock::new(lock_file).map_err(|e| anyhow!(e))?;
+    
+    if lock.acquire_or_block(7200).await {
+        // 读取任务文件
+        let reader = get_reader_from_oss(tasks_file, None).await?;
+        let mut task_items: Vec<TaskItem> = Vec::new();
+        let mut matched_idx = None;
+        
+        for (i, line) in std::io::BufRead::lines(reader).enumerate() {
+            let line = line?;
+            let mut task: TaskItem = serde_json::from_str(&line)?;
+            
+            // 匹配任务
+            let files_match = task_item.files.is_some() && task.files.is_some() && 
+                              task_item.files.as_ref().unwrap() == task.files.as_ref().unwrap();
+            let dir_range_match = task.shard_dir == task_item.shard_dir && 
+                                  task.file_range == task_item.file_range;
+            
+            if files_match || dir_range_match {
+                if let Some(worker) = &mut task.worker {
+                    worker.status = Some("failed".to_string());
+                    worker.finish_time = Some(chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string());
+                }
+                matched_idx = Some(i);
+            }
+            
+            task_items.push(task);
+        }
+        
+        // 移除失败的任务并添加到列表末尾
+        if let Some(idx) = matched_idx {
+            let failed_task = task_items.remove(idx);
+            println!("[=== MARK FAILED TASK ===] {:?}", failed_task);
+            task_items.push(failed_task);
+            
+            // 写回任务文件
+            let output_data = task_items.iter()
+                .map(|item| serde_json::to_string(item).unwrap())
+                .collect::<Vec<String>>()
+                .join("\n");
+            
+            let (bucket, key) = split_oss_path(tasks_file);
+            let client = oss::get_bucket(bucket);
+            let mut headers = std::collections::HashMap::new();
+            headers.insert("content-type".to_string(), "text/plain".to_string());
+            
+            client.put_object(output_data.as_bytes(), key, headers.clone(), None).await?;
+        }
+        
+        lock.release().await;
+        Ok(())
+    } else {
+        println!("Worker {} 无法在超时时间内获取锁", oss::get_worker_key());
+        Err(anyhow!("无法获取锁"))
+    }
+}
+
+async fn process_tasks(
+    tasks_file: &PathBuf,
+    output_directory: &PathBuf,
+    bloom_filter_file: &Option<PathBuf>,
+    expected_ngram_count: &usize,
+    fp_rate: &f64,
+    min_ngram_size: &usize,
+    max_ngram_size: &usize,
+    substr_seqlen: &usize,
+    filtering_threshold: &f64,
+    remove_type: &RemoveType,
+    num_hashers: &usize,
+    no_update_bloom_filter: &bool,
+    annotate: &bool,
+    threads: &usize,
+    no_save_bloom_filter: &bool,
+    no_progress_bar: &bool,
+    shard_num: &usize,
+    total_shards: &usize,
+    retry_tasks: bool,
+) -> Result<()> {
+    let lock_file = "oss://si002558te8h/dclm/dedupe_lockfile";
+    let mut processed_any = false;
+    
+    loop {
+        // 获取任务
+        let (task_item, all_finished) = get_task_item(tasks_file, retry_tasks, lock_file).await?;
+        
+        if task_item.is_none() {
+            if !all_finished && !processed_any {
+                println!("没有可处理的任务，等待10秒...");
+                tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
+                continue;
+            } else {
+                println!("所有任务已处理完成");
+                break;
+            }
+        }
+        
+        let task = task_item.unwrap();
+        processed_any = true;
+        
+        println!("处理任务：{:?}", task);
+        
+        // 处理文件范围
+        let file_range = task.file_range.clone();
+        let shard_dir = PathBuf::from(&task.shard_dir);
+        
+        // 获取目录中的文件
+        let all_files = expand_dirs(&[shard_dir.clone()]).await?;
+        let mut files_to_process = Vec::new();
+        
+        if let Some(ref task_files) = task.files { // 使用引用而不是移动
+            // 使用指定的文件列表
+            for file in task_files {
+                files_to_process.push(PathBuf::from(file));
+            }
+        } else {
+            // 根据file_range获取文件
+            let start = file_range[0] as usize;
+            let end = file_range[1] as usize;
+            
+            if end <= all_files.len() {
+                files_to_process.extend_from_slice(&all_files[start..end]);
+            } else {
+                files_to_process.extend_from_slice(&all_files[start..]);
+            }
+        }
+        
+        println!("处理文件：{:?}", files_to_process);
+        
+        // 执行处理
+        let result = bff(
+            &files_to_process,
+            output_directory,
+            bloom_filter_file,
+            expected_ngram_count,
+            fp_rate,
+            min_ngram_size,
+            max_ngram_size,
+            substr_seqlen,
+            filtering_threshold,
+            remove_type,
+            num_hashers,
+            no_update_bloom_filter,
+            annotate,
+            threads,
+            no_save_bloom_filter,
+            no_progress_bar,
+            shard_num,
+            total_shards,
+        ).await;
+        
+        // 更新任务状态
+        match result {
+            Ok(_) => {
+                mark_task_item_finished(&task, tasks_file, lock_file).await?;
+                
+                // 如果是临时文件，处理完成后删除
+                if task.is_temp.unwrap_or(false) && task.files.is_some() {
+                    println!("[=== DELETE TEMP FILES START ===]: {:?}", task.files);
+                    // 使用克隆避免部分移动错误
+                    for file_path in task.files.as_ref().unwrap() {
+                        if is_oss(&PathBuf::from(file_path)) {
+                            let (bucket, key) = split_oss_path(&PathBuf::from(file_path));
+                            let client = oss::get_bucket(bucket);
+                            if let Err(e) = client.delete_object(&key).await {
+                                println!("删除临时文件失败: {}", e);
+                            }
+                        }
+                    }
+                    println!("[=== DELETE TEMP FILES SUCCESS ===]");
+                }
+            },
+            Err(e) => {
+                println!("处理任务失败: {}", e);
+                mark_task_item_failed(&task, tasks_file, lock_file).await?;
+            }
+        }
+        
+        // 等待1秒后处理下一个任务
+        tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+    }
+    
+    Ok(())
 }
 
 fn not_whitespace(w: &str) -> bool {
@@ -1672,21 +2056,32 @@ async fn get_reader_from_oss(
     let body_stream = StreamReader::new(byte_stream);
     let mut data = Vec::new();
 
-    if (path.extension().unwrap() == "zstd") || (path.extension().unwrap() == "zst") {
-        let zstd = asyncZstd::new(body_stream);
-        let mut reader = tBufReader::with_capacity(1024 * 1024, zstd);
-        reader
-            .read_to_end(&mut data)
-            .await
-            .expect("Failed to read data {:path}");
-    } else if path.extension().unwrap() == "gz" {
-        let gz = asyncGZ::new(body_stream);
-        let mut reader = tBufReader::with_capacity(1024 * 1024, gz);
-        reader
-            .read_to_end(&mut data)
-            .await
-            .expect("Failed to read data {:path}");
+    // 安全获取扩展名
+    if let Some(ext) = path.extension().and_then(|ext| ext.to_str()) {
+        if ext == "zstd" || ext == "zst" {
+            let zstd = asyncZstd::new(body_stream);
+            let mut reader = tBufReader::with_capacity(1024 * 1024, zstd);
+            reader
+                .read_to_end(&mut data)
+                .await
+                .expect("Failed to read data {:path}");
+        } else if ext == "gz" {
+            let gz = asyncGZ::new(body_stream);
+            let mut reader = tBufReader::with_capacity(1024 * 1024, gz);
+            reader
+                .read_to_end(&mut data)
+                .await
+                .expect("Failed to read data {:path}");
+        } else {
+            // 包括 tsv 在内的普通文本文件
+            let mut reader = tBufReader::with_capacity(1024 * 1024, body_stream);
+            reader
+                .read_to_end(&mut data)
+                .await
+                .expect("Failed to read data {:path}");
+        }
     } else {
+        // 没有扩展名的文件，作为普通文本处理
         let mut reader = tBufReader::with_capacity(1024 * 1024, body_stream);
         reader
             .read_to_end(&mut data)
@@ -1791,10 +2186,8 @@ fn get_output_filename(
 }
 
 fn compress_data(data: Vec<u8>, filename: &PathBuf) -> Vec<u8> {
-    // Given a filename with an extension, compresses a bytestream accordingly
-    // {zst, zstd} -> zstandard, {gz} -> gzip, anything else -> nothing
-
-    let output_data = match filename.extension().unwrap().to_str() {
+    // 安全获取扩展名，防止无扩展名文件导致的崩溃
+    let output_data = match filename.extension().and_then(|ext| ext.to_str()) {
         Some("gz") => {
             let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
             encoder.write_all(&data).unwrap();
@@ -1899,41 +2292,20 @@ async fn main() -> Result<()> {
             total_shards,
         } => {
             assert!(shard_num < total_shards, "Shard num must be < total shards");
-            let mut stop = false;
+            
+            // 如果output_directory为空，创建一个临时目录
+            let output_dir = if let Some(dir) = output_directory {
+                dir.clone()
+            } else {
+                PathBuf::from("./output")
+            };
 
-            loop {
-                if stop {
-                    break;
-                }
-                let mut real_output_dir = PathBuf::new();
-                let real_inputs: Vec<PathBuf> = if tasks_file.is_some() {
-                    let temp = get_task_inputs(tasks_file.as_ref().unwrap()).await.unwrap();
-                    if !temp.is_empty() {
-                        break;
-                    }
-
-                    temp
-                } else {
-                    stop = true;
-                    inputs.clone()
-                };
-
-                if tasks_file.is_some() {
-                    if let Some(ref dir) = output_directory {
-                        real_output_dir = dir.to_path_buf();
-                    } else {
-                        let first_path = &real_inputs[0];
-                        real_output_dir = first_path.join("dedup_data");
-                    }
-                } else {
-                    if let Some(ref dir) = output_directory {
-                        real_output_dir = dir.to_path_buf();
-                    }
-                }
-
-                bff(
-                    &real_inputs,
-                    &real_output_dir,
+            // 检查是否使用任务文件
+            if let Some(task_file) = tasks_file {
+                println!("从任务文件处理：{:?}", task_file);
+                process_tasks(
+                    task_file,
+                    &output_dir,
                     bloom_filter_file,
                     expected_ngram_count,
                     fp_rate,
@@ -1950,8 +2322,61 @@ async fn main() -> Result<()> {
                     no_progress_bar,
                     shard_num,
                     total_shards,
-                )
-                .await?;
+                    false, // 不重试失败任务
+                ).await?;
+            } else if !inputs.is_empty() {
+                // 检查输入是否为单个任务文件
+                let is_task_file = inputs.len() == 1 && 
+                                 inputs[0].to_str().map(|s| s.ends_with(".jsonl")).unwrap_or(false);
+                
+                if is_task_file {
+                    println!("从输入文件处理任务：{:?}", inputs[0]);
+                    process_tasks(
+                        &inputs[0],
+                        &output_dir,
+                        bloom_filter_file,
+                        expected_ngram_count,
+                        fp_rate,
+                        min_ngram_size,
+                        max_ngram_size,
+                        substr_seqlen,
+                        filtering_threshold,
+                        remove_type,
+                        num_hashers,
+                        no_update_bloom_filter,
+                        annotate,
+                        threads,
+                        no_save_bloom_filter,
+                        no_progress_bar,
+                        shard_num,
+                        total_shards,
+                        false, // 不重试失败任务
+                    ).await?;
+                } else {
+                    // 原有的处理逻辑
+                    bff(
+                        inputs,
+                        &output_dir,
+                        bloom_filter_file,
+                        expected_ngram_count,
+                        fp_rate,
+                        min_ngram_size,
+                        max_ngram_size,
+                        substr_seqlen,
+                        filtering_threshold,
+                        remove_type,
+                        num_hashers,
+                        no_update_bloom_filter,
+                        annotate,
+                        threads,
+                        no_save_bloom_filter,
+                        no_progress_bar,
+                        shard_num,
+                        total_shards,
+                    ).await?;
+                }
+            } else {
+                return Err(anyhow!("必须提供输入文件或任务文件"));
             }
         }
         Commands::Sysreq {

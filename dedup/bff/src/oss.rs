@@ -41,7 +41,7 @@ fn get_local_ip() -> String {
 }
 
 /// 根据本机 IP 和进程号生成唯一标识
-fn get_worker_key() -> String {
+pub fn get_worker_key() -> String {
     format!("{}_{}", get_local_ip(), process::id())
 }
 
