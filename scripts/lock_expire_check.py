@@ -22,7 +22,7 @@ def main():
             # 如果之前的时间存在且与当前相同，则删除锁文件
             if previous_timestamp is not None and meta.last_modified == previous_timestamp:
                 logging.info("Lock file unchanged, deleting lock file.")
-                bucket.delete_object(path)
+                # bucket.delete_object(path)
             else:
                 logging.info("Lock file updated or first check.")
 
