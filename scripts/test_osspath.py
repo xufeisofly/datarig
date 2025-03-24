@@ -23,3 +23,6 @@ if __name__ == '__main__':
     fins = list(read_jsonl(fin_file))
     ori_files = [f for f in fins if f['is_temp'] is False]
     print("processed origin tasks: {}".format(len(ori_files)))
+
+    # f = "oss://si002558te8h/dclm/temp_dir_300/p7_20250322082825803g1fusa1ty1a5_M1_1_4_0-0_TableSink1-0-.tsv.gz"
+    # is_exists(f)
