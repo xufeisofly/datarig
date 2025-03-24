@@ -45,7 +45,7 @@ spec:
           - "--max_file_size_mb"
           - "300"
           - "--chunk_size"
-          - "4" # 4 有可能出现 oom，不过没有影响最终产出
+          - "3" # 4 有可能出现 oom，不过没有影响最终产出
           - "--output_has_dataset_name"
           - "--overwrite"
           - "--use_task"
