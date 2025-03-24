@@ -12,3 +12,9 @@ if __name__ == '__main__':
 
     if is_exists(fin_file_path):
         write_jsonl(list(read_jsonl(fin_file_path)), "./finished_process_tasks.jsonl")
+
+    tmp_folder = "oss://si002558te8h/dclm/temp_dir_300/"
+    bucket_name, path = oss.split_file_path(tmp_folder)
+    bucket = oss.Bucket(bucket_name)
+    files = oss.get_sub_files(bucket, path)
+    print(len(files))
