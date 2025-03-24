@@ -102,8 +102,8 @@ def create_task_items(shard_dir: str, mode: str, chunk_size: int) -> List[dict]:
                         end = total
                     file_range = [start, end]
                     start += chunk_size
-                    if 'subject=AerospaceAeronautics' not in shard_dir:
-                        tasks.append(TaskItem(shard_dir, file_range).to_dict())
+                    # if 'subject=AerospaceAeronautics' not in shard_dir:
+                    tasks.append(TaskItem(shard_dir, file_range).to_dict())
 
 
         sub_dirs = oss.get_sub_folders(bucket, path)
