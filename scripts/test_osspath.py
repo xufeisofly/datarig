@@ -17,4 +17,9 @@ if __name__ == '__main__':
     bucket_name, path = oss.split_file_path(tmp_folder)
     bucket = oss.Bucket(bucket_name)
     files = oss.get_sub_files(bucket, path)
-    print(len(files))
+    print("temp files: {}".format(len(files)))
+
+    fin_file = "./finished_process_tasks.jsonl"
+    fins = list(read_jsonl(fin_file))
+    ori_files = [f for f in fins if f['is_temp'] is False]
+    print("processed origin files: {}".format(len(ori_files)))
