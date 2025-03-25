@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
 import time
+import logging
 from baselines.oss import oss
 from baselines.core.file_utils import is_exists, read_jsonl, write_jsonl
 
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s: %(message)s")
 
 def one():
     file_path = "oss://si002558te8h/dclm/process_tasks.jsonl"
@@ -18,12 +20,12 @@ def one():
     bucket_name, path = oss.split_file_path(tmp_folder)
     bucket = oss.Bucket(bucket_name)
     files = oss.get_sub_files(bucket, path)
-    print("temp files: {}".format(len(files)))
+    logging.info("temp files: {}".format(len(files)))
 
     fin_file = "./finished_process_tasks.jsonl"
     fins = list(read_jsonl(fin_file))
     ori_files = [f for f in fins if f['is_temp'] is False]
-    print("processed origin tasks: {}".format(len(ori_files)))    
+    logging.info("processed origin tasks: {}".format(len(ori_files)))    
 
 if __name__ == '__main__':
     while True:
