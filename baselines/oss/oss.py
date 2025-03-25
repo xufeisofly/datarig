@@ -18,7 +18,7 @@ auth = oss2.Auth("D3XdW8uT66mdJ3TO", "LpBPv841EkOhqNV8tiaknQfWJJm1uP")
 
 
 def Bucket(name) -> oss2.Bucket:
-    return oss2.Bucket(auth, endpoint, name, region=region)
+    return oss2.Bucket(auth, endpoint, name, region=region, connect_timeout=(600, 600))
 
 
 # ZJ_Bucket = Bucket("si002558te8h")
@@ -109,7 +109,7 @@ class OSSPath:
 
 
 class OSSReadStream:
-    def __init__(self, bucket: oss2.Bucket, path: str, chunk_size: int = 64 * 1024):
+    def __init__(self, bucket: oss2.Bucket, path: str, chunk_size: int = 256 * 1024):
         """
         :param bucket: oss2.Bucket 实例
         :param path: OSS 上的文件路径

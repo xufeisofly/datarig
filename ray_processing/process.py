@@ -402,6 +402,7 @@ def add_task_to_queue(tasks: List[dict], task_file_path=DEFAULT_TASKS_FILE_PATH,
         return False
 
 def process_task_item(args, task_item: TaskItem|None, with_init=True):
+    print("======== task: {}".format(task_item))
     os.environ["RAY_LOG_TO_STDERR"] = "1"
     
     task_input_dirpath, shard_name = '', ''
