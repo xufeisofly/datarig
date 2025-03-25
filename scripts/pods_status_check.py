@@ -57,7 +57,8 @@ def check_pods_status():
         if abnormal_count > 0:
             logging.warning(f"WARNING: {abnormal_count} out of {total} pods are not Running.")
             # send ding message
-            msgstr = f"{abnormal_count} out of {total} pods are not Running."
+            msgstr = f"[ERROR] DCLM pods 状态异常 @许飞 \n\n"
+            msgstr += f"{abnormal_count} out of {total} pods are not Running."
             DingMessage("[ERROR] pods 状态异常", msgstr, False)
             # 你也可以打印出具体的 Pod 名称和状态
             for pod in abnormal:
