@@ -35,7 +35,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--dir_path", help="", type=str, default='')
     args = parser.parse_args()
-    logging.info("result: {}".format(get_oss_dir_size(args.dir_path)))
+    logging.info("result: {}GB".format(get_oss_dir_size(args.dir_path) / 1024))
 
 if __name__ == '__main__':
     main()
