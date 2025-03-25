@@ -17,7 +17,7 @@ def get_oss_dir_size(dir_path, dir_prefix):
     _, prefix = oss.split_file_path(dir_path)
     total_size_mb = 0    
 
-    if dir_prefix in prefix:
+    if dir_prefix is None or dir_prefix in prefix:
         for obj in oss.get_all_objects_iter(bucket, prefix):
             total_size_mb += obj.size / 1024 / 1024
 
@@ -34,7 +34,7 @@ def get_oss_dir_size(dir_path, dir_prefix):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--dir_path", help="", type=str, default='')
-    parser.add_argument("--dir_prefix", help="", type=str, default='processed_data')
+    parser.add_argument("--dir_prefix", help="", type=str, default=None)
     args = parser.parse_args()
     logging.info("result: {}GB".format(get_oss_dir_size(args.dir_path, args.dir_prefix) / 1024))
 
