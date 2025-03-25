@@ -64,7 +64,7 @@ def main():
             "size_gb": subject_size,
         })
         logging.info(f"subject: {subject_dir}, size: {subject_size}GB")
-        time.sleep(1)
+        time.sleep(2)
 
     dir_path = "oss://train1/basemodel-subjet-data/r2/fineweb/"
     _, path = oss.split_file_path(dir_path) 
@@ -78,7 +78,7 @@ def main():
             "size_gb": subject_size,
         })
         logging.info(f"subject: {subject_dir}, size: {subject_size}GB")
-        time.sleep(1)        
+        time.sleep(2)        
 
     write_jsonl(stat_data, "./oridata_size.jsonl")
     
