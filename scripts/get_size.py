@@ -13,11 +13,11 @@ dir_path = "oss://si002558te8h/dclm/output/Aerospace/"
 bucket_name, _ = oss.split_file_path(dir_path)
 bucket = oss.Bucket(bucket_name)
 
-def get_oss_dir_size(dir_path):
+def get_oss_dir_size(dir_path, dir_prefix):
     _, prefix = oss.split_file_path(dir_path)
     total_size_mb = 0    
 
-    if 'processed_data' in prefix:
+    if dir_prefix in prefix:
         for obj in oss.get_all_objects_iter(bucket, prefix):
             total_size_mb += obj.size / 1024 / 1024
 
@@ -34,8 +34,9 @@ def get_oss_dir_size(dir_path):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--dir_path", help="", type=str, default='')
+    parser.add_argument("--dir_prefix", help="", type=str, default='processed_data')
     args = parser.parse_args()
-    logging.info("result: {}GB".format(get_oss_dir_size(args.dir_path) / 1024))
+    logging.info("result: {}GB".format(get_oss_dir_size(args.dir_path, args.dir_prefix) / 1024))
 
 if __name__ == '__main__':
     main()
