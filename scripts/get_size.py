@@ -9,11 +9,6 @@ from baselines.core.file_utils import is_exists  # 如果需要判断是否存�
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s: %(message)s")
 
 
-dir_path = "oss://si002558te8h/dclm/output/Aerospace/dclm/subject=AerospaceAeronautics/"
-bucket_name, _ = oss.split_file_path(dir_path)
-bucket = oss.Bucket(bucket_name)
-
-
 def get_sub_files_with_size(bucket, dir_path, dir_prefix):
     if not dir_path.endswith('/'):
         dir_path += '/'
@@ -34,8 +29,8 @@ def get_sub_files_with_size(bucket, dir_path, dir_prefix):
         all_files.append(f)
     return all_files
 
-def get_oss_dir_size(dir_path, dir_prefix):
-    _, path = oss.split_file_path(dir_path)
+def get_oss_dir_size(bucket, dir_path, dir_prefix):
+    bucket_name, path = oss.split_file_path(dir_path)
     files_with_size = get_sub_files_with_size(bucket, path, dir_prefix)
     total_size_mb = 0
     if len(files_with_size) > 0:
@@ -49,7 +44,7 @@ def get_oss_dir_size(dir_path, dir_prefix):
 
     for sub_dir in sub_dirs:
         sub_dir = oss.join_file_path(bucket_name, sub_dir)
-        total_size_mb += get_oss_dir_size(sub_dir, dir_prefix)
+        total_size_mb += get_oss_dir_size(bucket, sub_dir, dir_prefix)
 
     logging.info(f"calculating dir: {dir_path} is {total_size_mb} MB")
     return total_size_mb
@@ -59,7 +54,10 @@ def main():
     parser.add_argument("--dir_path", help="", type=str, default='')
     parser.add_argument("--dir_prefix", help="", type=str, default=None)
     args = parser.parse_args()
-    logging.info("result: {}GB".format(get_oss_dir_size(args.dir_path, args.dir_prefix) / 1024))
+
+    bucket_name, _ = oss.split_file_path(args.dir_path)
+    bucket = oss.Bucket(bucket_name)    
+    logging.info("result: {}GB".format(get_oss_dir_size(bucket, args.dir_path, args.dir_prefix) / 1024))
 
 if __name__ == '__main__':
     main()
