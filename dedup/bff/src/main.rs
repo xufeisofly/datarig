@@ -324,11 +324,19 @@ async fn mark_task_item_finished(
             
             // 匹配任务
             let files_match = task_item.files.is_some() && task.files.is_some() && 
-                              task_item.files.as_ref().unwrap() == task.files.as_ref().unwrap();
+                              task_item.files.as_ref().unwrap() == task.files.as_ref().unwrap() &&
+                              !task_item.files.as_ref().unwrap().is_empty();
             let dir_range_match = task.shard_dir == task_item.shard_dir && 
                                   task.file_range == task_item.file_range;
             
-            if files_match || dir_range_match {
+            // 更全面的匹配：确保在 files 为空时使用 dir_range_match，否则使用 files_match
+            let is_match = if task_item.files.as_ref().map_or(true, |f| f.is_empty()) {
+                dir_range_match  // 当 files 为空时，只使用目录和范围匹配
+            } else {
+                files_match && dir_range_match  // 当 files 不为空时，两者都要匹配
+            };
+            
+            if is_match {
                 if let Some(worker) = &mut task.worker {
                     worker.status = Some("finished".to_string());
                     worker.finish_time = Some(chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string());
@@ -354,6 +362,9 @@ async fn mark_task_item_finished(
             let client = oss::get_bucket(bucket);
             let mut headers = std::collections::HashMap::new();
             headers.insert("content-type".to_string(), "text/plain".to_string());
+            // 添加 Content-Length
+            let content_length = output_data.len().to_string();
+            headers.insert("content-length".to_string(), content_length);
             
             client.put_object(output_data.as_bytes(), key, headers.clone(), None).await?; 
             
@@ -379,7 +390,13 @@ async fn mark_task_item_finished(
             
             let (fin_bucket, fin_key) = split_oss_path(&fin_path);
             let fin_client = oss::get_bucket(fin_bucket);
-            fin_client.put_object(fin_output.as_bytes(), fin_key, headers, None).await?;
+            // 为已完成任务文件重新设置 headers
+            let mut fin_headers = std::collections::HashMap::new();
+            fin_headers.insert("content-type".to_string(), "text/plain".to_string());
+            let fin_content_length = fin_output.len().to_string();
+            fin_headers.insert("content-length".to_string(), fin_content_length);
+            
+            fin_client.put_object(fin_output.as_bytes(), fin_key, fin_headers, None).await?;
         }
         
         lock.release().await;
@@ -409,13 +426,21 @@ async fn mark_task_item_failed(
             
             // 匹配任务
             let files_match = task_item.files.is_some() && task.files.is_some() && 
-                              task_item.files.as_ref().unwrap() == task.files.as_ref().unwrap();
+                              task_item.files.as_ref().unwrap() == task.files.as_ref().unwrap() &&
+                              !task_item.files.as_ref().unwrap().is_empty();
             let dir_range_match = task.shard_dir == task_item.shard_dir && 
                                   task.file_range == task_item.file_range;
             
-            if files_match || dir_range_match {
+            // 更全面的匹配：确保在 files 为空时使用 dir_range_match，否则使用 files_match
+            let is_match = if task_item.files.as_ref().map_or(true, |f| f.is_empty()) {
+                dir_range_match  // 当 files 为空时，只使用目录和范围匹配
+            } else {
+                files_match && dir_range_match  // 当 files 不为空时，两者都要匹配
+            };
+            
+            if is_match {
                 if let Some(worker) = &mut task.worker {
-                    worker.status = Some("failed".to_string());
+                    worker.status = Some("finished".to_string());
                     worker.finish_time = Some(chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string());
                 }
                 matched_idx = Some(i);
@@ -440,6 +465,9 @@ async fn mark_task_item_failed(
             let client = oss::get_bucket(bucket);
             let mut headers = std::collections::HashMap::new();
             headers.insert("content-type".to_string(), "text/plain".to_string());
+            // 添加 Content-Length
+            let content_length = output_data.len().to_string();
+            headers.insert("content-length".to_string(), content_length);
             
             client.put_object(output_data.as_bytes(), key, headers.clone(), None).await?;
         }
@@ -504,20 +532,27 @@ async fn process_tasks(
         let all_files = expand_dirs(&[shard_dir.clone()]).await?;
         let mut files_to_process = Vec::new();
         
-        if let Some(ref task_files) = task.files { // 使用引用而不是移动
-            // 使用指定的文件列表
-            for file in task_files {
-                files_to_process.push(PathBuf::from(file));
+        match &task.files {
+            Some(task_files) if !task_files.is_empty() => {
+                // 如果 files 不为空，使用指定的文件列表
+                for file in task_files {
+                    files_to_process.push(PathBuf::from(file));
+                }
             }
-        } else {
-            // 根据file_range获取文件
-            let start = file_range[0] as usize;
-            let end = file_range[1] as usize;
-            
-            if end <= all_files.len() {
-                files_to_process.extend_from_slice(&all_files[start..end]);
-            } else {
-                files_to_process.extend_from_slice(&all_files[start..]);
+            _ => {
+                // 如果 files 为空或不存在，使用 file_range 获取文件
+                let start = file_range[0] as usize;
+                let end = if file_range[1] == -1 {
+                    all_files.len()
+                } else {
+                    file_range[1] as usize
+                };
+                
+                if end <= all_files.len() {
+                    files_to_process.extend_from_slice(&all_files[start..end]);
+                } else if start < all_files.len() {
+                    files_to_process.extend_from_slice(&all_files[start..]);
+                }
             }
         }
         
@@ -548,23 +583,14 @@ async fn process_tasks(
         // 更新任务状态
         match result {
             Ok(_) => {
-                mark_task_item_finished(&task, tasks_file, lock_file).await?;
-                
-                // 如果是临时文件，处理完成后删除
-                if task.is_temp.unwrap_or(false) && task.files.is_some() {
-                    println!("[=== DELETE TEMP FILES START ===]: {:?}", task.files);
-                    // 使用克隆避免部分移动错误
-                    for file_path in task.files.as_ref().unwrap() {
-                        if is_oss(&PathBuf::from(file_path)) {
-                            let (bucket, key) = split_oss_path(&PathBuf::from(file_path));
-                            let client = oss::get_bucket(bucket);
-                            if let Err(e) = client.delete_object(&key).await {
-                                println!("删除临时文件失败: {}", e);
-                            }
-                        }
+                println!("Task completed, checking output...");
+                for file in &files_to_process {
+                    let output = get_output_filename(&files_to_process, &file, output_directory);
+                    if is_oss(&output) && !is_exists(&output).await {
+                        println!("Output file not found: {:?}", output);
                     }
-                    println!("[=== DELETE TEMP FILES SUCCESS ===]");
                 }
+                mark_task_item_finished(&task, tasks_file, lock_file).await?;
             },
             Err(e) => {
                 println!("处理任务失败: {}", e);
@@ -1210,6 +1236,7 @@ async fn process_file(
                 .send()
                 .await;
         } else if is_oss(output_file) {
+            println!("Writing to OSS path: {:?}", output_file);
             let (output_bucket, output_key) = split_oss_path(output_file);
             let client = oss::get_bucket(output_bucket);
             let mut headers = HashMap::new();
@@ -2175,14 +2202,20 @@ fn get_output_filename(
     input_filename: &PathBuf,
     output_directory: &PathBuf,
 ) -> PathBuf {
-    // More fancy output-file naming that no longer assumes unique inputs
-    let matching_prefix = inputs
-        .iter()
-        .find(|pfx| input_filename.starts_with(pfx))
-        .expect("No matching prefix found?!?");
-
-    let relative_path = input_filename.strip_prefix(matching_prefix).unwrap();
-    output_directory.clone().join(relative_path)
+    // 检查 inputs 是否包含目录
+    if inputs.iter().any(|p| p.is_dir() || p.to_str().unwrap().ends_with("/")) {
+        // 原有逻辑：处理目录前缀
+        let matching_prefix = inputs
+            .iter()
+            .find(|pfx| input_filename.starts_with(pfx))
+            .expect("No matching prefix found?!?");
+        let relative_path = input_filename.strip_prefix(matching_prefix).unwrap();
+        output_directory.clone().join(relative_path)
+    } else {
+        // 新逻辑：inputs 是文件列表时，只取文件名
+        let file_name = input_filename.file_name().unwrap();
+        output_directory.clone().join(file_name)
+    }
 }
 
 fn compress_data(data: Vec<u8>, filename: &PathBuf) -> Vec<u8> {
@@ -2201,64 +2234,6 @@ fn compress_data(data: Vec<u8>, filename: &PathBuf) -> Vec<u8> {
         _ => data,
     };
     output_data
-}
-
-async fn get_task_inputs(tasks_file: &PathBuf) -> Result<Vec<PathBuf>, anyhow::Error> {
-    let mut ret: Vec<PathBuf> = Vec::new();
-    let lock_file = "oss://si002558te8h/dclm/dedupe_lockfile";
-    let lock = oss::SimpleOSSLock::new(lock_file).expect("创建锁失败");
-
-    if lock.acquire_or_block(3600).await {
-        let reader = get_reader_from_oss(tasks_file, None).await?;
-        let mut data: serde_json::Value = serde_json::from_reader(reader)?;
-
-        if let Some(tasks_array) = data["tasks"].as_array_mut() {
-            for task in tasks_array.iter_mut() {
-                // 克隆出 shard_dir 数组和 worker 字段，结束对 task 的不可变借用
-                let shard_dirs_opt = task.get("shard_dir").and_then(|v| v.as_array()).cloned();
-                let worker_opt = task.get("worker").cloned();
-
-                if let (Some(shard_dirs), Some(worker)) = (shard_dirs_opt, worker_opt) {
-                    print!("==== 1");
-                    if worker.is_null() {
-                        print!("==== 2");
-                        // 修改 worker 字段
-                        task["worker"] = serde_json::Value::String("deduping".to_string());
-                        // 遍历克隆出的 shard_dirs，将每个字符串转换为 PathBuf 并存入 ret
-                        for shard_value in shard_dirs {
-                            if let Some(shard_str) = shard_value.as_str() {
-                                print!("==== {shard_str}");
-                                ret.push(PathBuf::from(shard_str));
-                            }
-                        }
-                        // 一旦满足条件，退出循环
-                        break;
-                    }
-                }
-            }
-        } else {
-            eprintln!("tasks 字段不是一个数组！");
-        }
-
-        // 将更新后的 JSON 写回 OSS
-        let (output_bucket, output_key) = split_oss_path(tasks_file);
-        let client = oss::get_bucket(output_bucket);
-        let mut headers = std::collections::HashMap::new();
-        headers.insert("content-type".to_string(), "text/plain".to_string());
-        let new_data = serde_json::to_vec(&data)?;
-        let _ = client
-            .put_object(new_data.as_slice(), output_key.clone(), headers, None)
-            .await;
-
-        if lock.release().await {
-            println!("锁已释放");
-        } else {
-            println!("释放锁失败");
-        }
-    } else {
-        println!("在超时时间内未能获取锁");
-    }
-    Ok(ret)
 }
 
 /*=============================================================
