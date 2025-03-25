@@ -1929,18 +1929,52 @@ async fn expand_s3_dirs(s3_uri: &PathBuf) -> Result<Vec<PathBuf>> {
     Ok(s3_files)
 }
 
+async fn list_all_oss_objects(bucket: &str, prefix: &str) -> Result<Vec<String>> {
+    let client = oss::get_bucket(bucket.to_string());
+    let mut all_keys = Vec::new();
+    let mut marker: Option<String> = None;
+    let mut is_truncated = true;
+    
+    while is_truncated {
+        let mut params = HashMap::new();
+        params.insert("prefix", Some(prefix));
+        params.insert("max-keys", Some("1000"));
+        
+        // 如果有marker，添加到参数中
+        if let Some(mark) = &marker {
+            params.insert("marker", Some(mark));
+        }
+
+        let result = client.list_object(None, params).await?;
+        
+        // 检查是否还有更多结果
+        is_truncated = result.is_truncated();
+        
+        // 获取最后一个对象的key作为下一页的marker
+        let contents = result.contents();
+        marker = if is_truncated && !contents.is_empty() {
+            Some(contents.last().unwrap().key().to_string())
+        } else {
+            None
+        };
+        
+        for object in contents {
+            all_keys.push(object.key().to_string());
+        }
+    }
+    
+    Ok(all_keys)
+}
+
+// 修改后的expand_oss_dirs函数
 async fn expand_oss_dirs(oss_uri: &PathBuf) -> Result<Vec<PathBuf>> {
     let mut oss_files: Vec<PathBuf> = Vec::new();
     let (bucket, prefix) = split_oss_path(oss_uri);
-    let client = oss::get_bucket(bucket.clone());
-
-    let mut params = HashMap::new();
-    params.insert("prefix", Some(prefix.as_str()));
-
-    let result = client.list_object(None, params).await.unwrap();
-
-    for object in result.contents() {
-        let key = object.key();
+    
+    // 调用封装的函数
+    let all_keys = list_all_oss_objects(&bucket, &prefix).await?;
+    
+    for key in all_keys {
         if !(key.ends_with(".jsonl.gz")
             || key.ends_with(".jsonl")
             || key.ends_with(".jsonl.zstd")
@@ -1951,15 +1985,14 @@ async fn expand_oss_dirs(oss_uri: &PathBuf) -> Result<Vec<PathBuf>> {
         }
         let mut oss_file = PathBuf::from("oss://");
         oss_file.push(bucket.clone());
-        oss_file.push(key);
+        oss_file.push(&key);
         oss_files.push(oss_file);
     }
 
-    println!("Find oss file num: {}", oss_files.len());
+    println!("查找到OSS文件数量: {}", oss_files.len());
 
     Ok(oss_files)
 }
-
 async fn get_object_with_retry(
     bucket: &str,
     key: &str,
