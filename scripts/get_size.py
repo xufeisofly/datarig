@@ -19,16 +19,11 @@ def get_oss_dir_size(dir_path, dir_prefix):
 
     if dir_prefix is None or dir_prefix in prefix:
         for obj in oss.get_all_objects_iter(bucket, prefix):
+            if obj.key.endswith('/'):
+                continue
             total_size_mb += obj.size / 1024 / 1024
 
     logging.info(f"calculating dir: {dir_path} is {total_size_mb}")
-
-    subfolders = oss.get_sub_folders(bucket, prefix)
-    if len(subfolders) == 0:
-        return total_size_mb
-    for subfolder in subfolders:
-        total_size_mb += get_oss_dir_size(oss.join_file_path(bucket_name, subfolder), dir_prefix)
-        time.sleep(0.1)
     return total_size_mb
 
 def main():
