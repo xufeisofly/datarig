@@ -27,7 +27,7 @@ def get_oss_dir_size(dir_path, dir_prefix):
     if len(subfolders) == 0:
         return total_size_mb
     for subfolder in subfolders:
-        total_size_mb += get_oss_dir_size(oss.join_file_path(bucket_name, subfolder))
+        total_size_mb += get_oss_dir_size(oss.join_file_path(bucket_name, subfolder), dir_prefix)
         time.sleep(0.1)
     return total_size_mb
 
