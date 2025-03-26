@@ -77,9 +77,11 @@ def merge_stat_data(stat_data: List[Dict], processed_data: List[Dict], deduped_d
 
         if processed:
             item['processed_gb'] = processed['size_gb']
+            item['processed_rate'] = processed['size_gb'] / item['size_gb']
 
         if deduped:
             item['deduped_gb'] = deduped['size_gb']
+            item['deduped_rate'] = deduped['size_gb'] / item['processed_gb']
 
         merge_stat.append(item)
     
