@@ -54,7 +54,7 @@ def check_pods_status():
         abnormal = [pod for pod in pods if pod.get("status", {}).get("phase") != "Running"]
         abnormal_count = len(abnormal)
         
-        if abnormal_count > 0 or total != 440:
+        if abnormal_count > 0 or total < 400:
             logging.warning(f"WARNING: {abnormal_count} out of {total} pods are not Running.")
             # send ding message
             msgstr = f"[ERROR] DCLM pods 状态异常 @许飞 \n\n"
