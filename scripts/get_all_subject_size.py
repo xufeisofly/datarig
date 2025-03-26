@@ -70,20 +70,33 @@ def merge_stat_data(stat_data: List[Dict], processed_data: List[Dict], deduped_d
     def get_item_from_data(item, data):
         return next((x for x in data if item['subject_name'] == x['subject_name']), None)
 
-    merge_stat = [] 
+    merge_stat = []
+    total_ori_size = 0
+    total_processed_size = 0
+    total_deduped_size = 0
     for item in stat_data:
         processed = get_item_from_data(item, processed_data)
         deduped = get_item_from_data(item, deduped_data)
 
+        total_ori_size += item['size_gb']
+
         if processed:
             item['processed_gb'] = processed['size_gb']
             item['processed_rate'] = processed['size_gb'] / item['size_gb']
+            total_processed_size = processed['size_gb']
 
         if deduped:
             item['deduped_gb'] = deduped['size_gb']
             item['deduped_rate'] = deduped['size_gb'] / item['processed_gb']
+            total_deduped_size = deduped['size_gb']
 
         merge_stat.append(item)
+
+    merge_stat.append({
+        'total_origin_size_gb': total_ori_size,
+        'total_processed_size_gb': total_processed_size,
+        'total_deduped_size_gb': total_deduped_size,
+    })
     
     return merge_stat
 
