@@ -18,11 +18,11 @@ spec:
         image: cr.registry.res.cloud.zhejianglab.com/dataprocess/datarig:v2.5
         resources:
           requests:
-            cpu: "4"
-            memory: "10Gi"
+            cpu: "2"
+            memory: "18Gi"
           limits:
-            cpu: "5"
-            memory: "12Gi"
+            cpu: "3"
+            memory: "20Gi"
         command: ["/app/dclm-sci/start.sh"]
         env:
           - name: RAY_DEDUP_LOGS
@@ -47,4 +47,4 @@ spec:
           - "--use_task"
           - "--ignore_failures"
         imagePullPolicy: IfNotPresent
-      restartPolicy: Never
+      restartPolicy: OnFailure
