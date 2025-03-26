@@ -1,12 +1,55 @@
 # -*- coding: utf-8 -*-
 import time
+import sys
 import logging
 from baselines.oss import oss
-from baselines.core.file_utils import is_exists, write_jsonl  # 如果需要判断是否存在
+from baselines.core.file_utils import is_exists, write_jsonl, read_jsonl
 from typing import List, Dict
 
 # 设置日志
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s: %(message)s")
+
+
+def get_limited_objects_iter(bucket, prefix, limit=100):
+    result = bucket.list_objects(prefix=prefix, max_keys=limit)
+    objects = result.object_list
+    for o in objects:
+        yield o
+
+
+def get_sub_files_with_uncompressed_size(bucket, dir_path, dir_prefix, limit=100):
+    if not dir_path.endswith('/'):
+        dir_path += '/'
+    bucket_name, dir_path = oss.split_file_path(dir_path)
+    rets = list(get_limited_objects_iter(bucket, dir_path, limit=int(limit*1.5)))
+    subfolders = oss.get_sub_folders(bucket, dir_path)
+
+    def get_object_uncompressed_size(key):
+        size = 0
+        for line in read_jsonl(key):
+            size += sys.getsizeof(line)
+        return size
+    
+    files = [ret.key for ret in rets if not ret.key.endswith('/') and (dir_prefix is None or dir_prefix in ret.key)]
+
+    total_size = 0
+    def belong_to_folders(f, dirs):
+        for folder in dirs:
+            if folder in f:
+                return True
+        return False
+
+    count = 0
+    for f in files:
+        if belong_to_folders(f, subfolders):
+            continue
+        f_path = oss.join_file_path(bucket_name, f)
+        total_size += get_object_uncompressed_size(f_path)
+        count += 1
+        print(f"------{count} - {total_size}")
+        if count > limit:
+            break
+    return total_size
 
 
 def get_sub_files_with_size(bucket, dir_path, dir_prefix):
@@ -48,6 +91,12 @@ def get_oss_dir_size(bucket, dir_path, dir_prefix):
 
     logging.info(f"calculating dir: {dir_path} is {total_size_mb} MB")
     return total_size_mb
+
+
+def get_uncompressed_size_of_limited_files(bucket, dir_path, dir_prefix, limit=100):
+    pass
+    
+
 
 def get_subject_data(bucket, path: str, label: str|None) -> List[Dict]:
     _, path = oss.split_file_path(path)
