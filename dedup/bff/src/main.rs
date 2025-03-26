@@ -585,12 +585,12 @@ async fn process_tasks(
         match result {
             Ok(_) => {
                 println!("Task completed, checking output...");
-                for file in &files_to_process {
-                    let output = get_task_output_filename(&file, &task, &task_output_dir);
-                    if is_oss(&output) && !is_exists(&output).await {
-                        println!("Output file not found: {:?}", output);
-                    }
-                }
+                // for file in &files_to_process {
+                //     let output = get_task_output_filename(&file, &task, &task_output_dir);
+                //     if is_oss(&output) && !is_exists(&output).await {
+                //         println!("Output file not found: {:?}", output);
+                //     }
+                // }
                 mark_task_item_finished(&task, tasks_file, lock_file).await?;
             },
             Err(e) => {
@@ -1237,7 +1237,7 @@ async fn process_file(
                 .send()
                 .await;
         } else if is_oss(output_file) {
-            println!("Writing to OSS path: {:?}", output_file);
+            // println!("Writing to OSS path: {:?}", output_file);
             let (output_bucket, output_key) = split_oss_path(output_file);
             let client = oss::get_bucket(output_bucket);
             let mut headers = HashMap::new();
@@ -2280,20 +2280,12 @@ fn get_task_output_directory(task_item: &TaskItem, base_output_dir: &PathBuf) ->
     base_output_dir.clone()
 }
 
-fn get_task_output_filename(
-    file_path: &PathBuf,
-    task_item: &TaskItem,
-    output_directory: &PathBuf
-) -> PathBuf {
-    // 获取文件名
-    let file_name = file_path.file_name().unwrap();
-    
-    // 获取该任务的输出目录
-    let task_output_dir = get_task_output_directory(task_item, output_directory);
-    
-    // 返回完整的输出路径
-    task_output_dir.join(file_name)
-}
+// fn get_task_output_filename(file_path: &PathBuf, output_directory: &PathBuf) -> PathBuf {
+//     // 获取文件名
+//     let file_name = file_path.file_name().unwrap();
+//     // 返回完整的输出路径
+//     output_directory.join(file_name)
+// }
 
 fn compress_data(data: Vec<u8>, filename: &PathBuf) -> Vec<u8> {
     // 安全获取扩展名，防止无扩展名文件导致的崩溃
