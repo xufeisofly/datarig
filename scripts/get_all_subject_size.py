@@ -62,7 +62,7 @@ def get_subject_data(bucket, path: str, label: str|None) -> List[Dict]:
             "size_gb": subject_size,
         })
         logging.info(f"{label} subject: {subject_dir}, size: {subject_size}GB")
-        time.sleep(1)  # Optional: only if rate-limiting is required
+        time.sleep(0.5)  # Optional: only if rate-limiting is required
     return data
 
 # 合并数据并返回最终的统计数据
@@ -119,6 +119,9 @@ def main():
     # 获取processed数据
     processed_data = []
     processed_base_dir = "oss://si002558te8h/dclm/output/r2_formal/"
+    bucket_name, _ = oss.split_file_path(processed_base_dir)
+    bucket = oss.Bucket(bucket_name)
+    
     for sub_dir in ["dclm", "fineweb"]:
         dir_path = f"{processed_base_dir}{sub_dir}/"
         data = get_subject_data(bucket, dir_path, "processed_data")
@@ -127,6 +130,8 @@ def main():
     # 获取deduped数据
     deduped_data = []
     deduped_base_dir = "oss://train1/basemodel-subjet-data-processed/r2/"
+    bucket_name, _ = oss.split_file_path(deduped_base_dir)
+    bucket = oss.Bucket(bucket_name)    
     for sub_dir in ["dclm", "fineweb"]:
         dir_path = f"{deduped_base_dir}{sub_dir}/"
         data = get_subject_data(bucket, dir_path, None)
