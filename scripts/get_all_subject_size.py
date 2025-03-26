@@ -50,6 +50,7 @@ def get_oss_dir_size(bucket, dir_path, dir_prefix):
     return total_size_mb
 
 def get_subject_data(bucket, path: str, label: str|None) -> List[Dict]:
+    _, path = oss.split_file_path(path)
     subject_dirs = oss.get_sub_folders(bucket, path)
     data = []
     for subject_dir in subject_dirs:
@@ -95,7 +96,7 @@ def main():
     stat_data = []
     for sub_dir in ["dclm", "fineweb"]:
         dir_path = f"{base_dir}{sub_dir}/"
-        data = get_subject_data(bucket, dir_path, "original_shard_dir")
+        data = get_subject_data(bucket, dir_path, None)
         stat_data.extend(data)
 
     # 获取processed数据
