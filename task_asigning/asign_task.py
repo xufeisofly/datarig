@@ -59,16 +59,45 @@ class TaskItem:
 
 def create_task_items(shard_dir: str, mode: str, chunk_size: int) -> List[dict]:
     tasks = []
-    # if mode == 'dedup':
-    #     shard_dir = [os.path.join(shard_dir, 'processed_data')]
-
     bucket_name, path = oss.split_file_path(shard_dir) 
     bucket = oss.Bucket(bucket_name)
     
+    # 仅在 dedup 模式下处理 subject= 开头的目录
+    if mode == 'dedup':
+        dir_basename = os.path.basename(path.rstrip('/'))
+        if dir_basename.startswith('subject='):
+            # 处理 subject 目录下的 processed_data 文件夹
+            processed_data_path = os.path.join(path, 'processed_data')
+            # if oss.folder_exists(bucket, processed_data_path):
+            processed_files = oss.get_sub_files(bucket, processed_data_path)
+            processed_data_dir = os.path.join("oss://" + bucket_name, processed_data_path)
+            
+            if len(processed_files) > 0:
+                if chunk_size == -1:
+                    # dedup 模式下不写入 files 信息
+                    tasks.append(TaskItem(processed_data_dir, [0, -1], 
+                                        original_shard_dir=shard_dir).to_dict())
+                else:
+                    total = len(processed_files)
+                    start = 0
+                    while start < total:
+                        end = start + chunk_size
+                        if end >= total:
+                            end = total
+                        file_range = [start, end]
+                        # dedup 模式下不写入 files 信息
+                        tasks.append(TaskItem(processed_data_dir, file_range,
+                                            original_shard_dir=shard_dir).to_dict())
+                        start += chunk_size
+            
+            # dedup 模式下处理完 processed_data 就返回，不处理其他子目录
+            return tasks
+    
+    # 如果不是 dedup 模式或者不是 subject= 目录，按原来的逻辑处理
     file_paths = oss.get_sub_files(bucket, path)
     if len(file_paths) > 0:
         if chunk_size == -1:
-            tasks.append(TaskItem(shard_dir, [0, -1]).to_dict())
+            tasks.append(TaskItem(shard_dir, [0, -1], files=file_paths).to_dict())
         else:
             total = len(file_paths)
             start = 0
@@ -77,11 +106,11 @@ def create_task_items(shard_dir: str, mode: str, chunk_size: int) -> List[dict]:
                 if end >= total:
                     end = total
                 file_range = [start, end]
+                chunk_files = file_paths[start:end]
+                tasks.append(TaskItem(shard_dir, file_range, files=chunk_files).to_dict())
                 start += chunk_size
-                if 'subject=AerospaceAeronautics' not in shard_dir:
-                    tasks.append(TaskItem(shard_dir, file_range).to_dict())
 
-
+    # 递归处理子目录
     sub_dirs = oss.get_sub_folders(bucket, path)
     if len(sub_dirs) == 0:
         return tasks

@@ -523,7 +523,8 @@ async fn process_tasks(
         processed_any = true;
         
         println!("处理任务：{:?}", task);
-        
+        let task_output_dir = get_task_output_directory(&task, output_directory);
+        println!("任务输出目录：{:?}", task_output_dir);
         // 处理文件范围
         let file_range = task.file_range.clone();
         let shard_dir = PathBuf::from(&task.shard_dir);
@@ -556,12 +557,12 @@ async fn process_tasks(
             }
         }
         
-        println!("处理文件：{:?}", files_to_process);
+        // println!("处理文件：{:?}", files_to_process);
         
         // 执行处理
         let result = bff(
             &files_to_process,
-            output_directory,
+            &task_output_dir, // 修改为使用特定任务的输出目录
             bloom_filter_file,
             expected_ngram_count,
             fp_rate,
@@ -585,7 +586,7 @@ async fn process_tasks(
             Ok(_) => {
                 println!("Task completed, checking output...");
                 for file in &files_to_process {
-                    let output = get_output_filename(&files_to_process, &file, output_directory);
+                    let output = get_task_output_filename(&file, &task, &task_output_dir);
                     if is_oss(&output) && !is_exists(&output).await {
                         println!("Output file not found: {:?}", output);
                     }
@@ -1989,7 +1990,7 @@ async fn expand_oss_dirs(oss_uri: &PathBuf) -> Result<Vec<PathBuf>> {
         oss_files.push(oss_file);
     }
 
-    println!("查找到OSS文件数量: {}", oss_files.len());
+    // println!("查找到OSS文件数量: {}", oss_files.len());
 
     Ok(oss_files)
 }
@@ -2249,6 +2250,49 @@ fn get_output_filename(
         let file_name = input_filename.file_name().unwrap();
         output_directory.clone().join(file_name)
     }
+}
+
+fn extract_subject_from_path(shard_dir: &str) -> Option<String> {
+    // 查找包含"subject="的路径段
+    if let Some(subject_pos) = shard_dir.find("subject=") {
+        // 从subject=开始截取到下一个斜杠
+        let subject_start = subject_pos;
+        if let Some(end_pos) = shard_dir[subject_start..].find('/') {
+            return Some(shard_dir[subject_start..subject_start+end_pos].to_string());
+        } else {
+            // 如果没有下一个斜杠，则取到结尾
+            return Some(shard_dir[subject_start..].to_string());
+        }
+    }
+    None
+}
+
+fn get_task_output_directory(task_item: &TaskItem, base_output_dir: &PathBuf) -> PathBuf {
+    let shard_dir = &task_item.shard_dir;
+    
+    // 从shard_dir中提取主题子目录
+    if let Some(subject_dir) = extract_subject_from_path(shard_dir) {
+        // 将主题子目录添加到输出目录
+        return base_output_dir.join(subject_dir);
+    }
+    
+    // 如果无法提取主题，则使用默认输出目录
+    base_output_dir.clone()
+}
+
+fn get_task_output_filename(
+    file_path: &PathBuf,
+    task_item: &TaskItem,
+    output_directory: &PathBuf
+) -> PathBuf {
+    // 获取文件名
+    let file_name = file_path.file_name().unwrap();
+    
+    // 获取该任务的输出目录
+    let task_output_dir = get_task_output_directory(task_item, output_directory);
+    
+    // 返回完整的输出路径
+    task_output_dir.join(file_name)
 }
 
 fn compress_data(data: Vec<u8>, filename: &PathBuf) -> Vec<u8> {
