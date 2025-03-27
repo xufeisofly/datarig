@@ -108,6 +108,7 @@ def get_subject_data(bucket, path: str, label: str|None) -> List[Dict]:
         tag = "/".join(subject_dir.split("/")[-3:-1])  # Extract subject name (assumes structure is consistent)
         data.append({
             "subject_name": tag,
+            "subject_dir": subject_dir,
             "size_gb": subject_size,
         })
         logging.info(f"{label} subject: {subject_dir}, size: {subject_size}GB")
@@ -179,11 +180,48 @@ def main():
         data = get_subject_data(bucket, dir_path, 'deduped_output')
         deduped_data.extend(data)        
 
-    # 合并数据
-    merged_data = merge_stat_data(stat_data, processed_data, deduped_data)
 
-    # 写入最终的 JSONL 文件
-    write_jsonl(merged_data, "./statistic.jsonl")
+    total_size_gb = 0
+    for deduped_item in deduped_data:
+        if deduped_item['subject_name'] == 'dclm/deduped_output':
+            deduped_item['subject_name'] = 'dclm/AerospaceAeronautics'
+        if deduped_item['subject_name'] == 'fineweb/deduped_output':
+            deduped_item['subject_name'] = 'fineweb/AerospaceAeronautics'
+        total_size_gb += deduped_item['size_gb']
+
+    need_size_gb = 130
+    # plan1 是按照学科比例抽样
+    plan1_percent = need_size_gb/total_size_gb
+    plan1_dict = {}
+
+    for item in deduped_data:
+        plan1_dict[item['subject_dir']] = {
+            'size_gb': plan1_percent*item['size_gb'],
+            'subject_name': item['subject_name'],
+        }
+
+    plan1_sampling(plan1_dict)
+        
+    # plan2 是全随机抽样
+    plan2_size_gb = need_size_gb/len(deduped_data)
+
+
+def get_output_dir(subject_name):
+    return os.path.join("", subject_name)
+
+
+def sampling(subject_dir, size_gb, output_dir):
+    pass
+
+    
+def plan1_sampling(plan1_dict):
+    base_dir = "oss://train1/basemodel-subjet-data-processed/r2/"
+    bucket_name, _ = oss.split_file_path(base_dir)
+    bucket = oss.Bucket(bucket_name)
+    for subject_dir, subject_info in plan1_dict:
+        output_dir = get_output_dir(subject_info['subject_name'])
+        sampling(subject_dir, subject_info['size_gb'], output_dir)
+        
     
 
 if __name__ == '__main__':
