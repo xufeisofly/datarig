@@ -22,10 +22,11 @@ def one():
     files = oss.get_sub_files(bucket, path)
     logging.info("temp files: {}".format(len(files)))
 
-    fin_file = "./finished_process_tasks.jsonl"
-    fins = list(read_jsonl(fin_file))
-    ori_files = [f for f in fins if f['is_temp'] is False]
-    logging.info("processed origin tasks: {}".format(len(ori_files)))    
+    # fin_file = "./finished_process_tasks.jsonl"
+    # fins = list(read_jsonl(fin_file))
+    # ori_files = [f for f in fins if f['is_temp'] is False]
+    # logging.info("processed origin tasks: {}".format(len(ori_files)))
+    
 
 if __name__ == '__main__':
     while True:

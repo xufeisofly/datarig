@@ -153,29 +153,6 @@ def merge_stat_data(stat_data: List[Dict], processed_data: List[Dict], deduped_d
 
 
 def main():
-    # 定义OSS路径和桶
-    base_dir = "oss://train1/basemodel-subjet-data/r2/"
-    bucket_name, _ = oss.split_file_path(base_dir)
-    bucket = oss.Bucket(bucket_name)
-
-    # 获取stat数据
-    stat_data = []
-    for sub_dir in ["dclm", "fineweb"]:
-        dir_path = f"{base_dir}{sub_dir}/"
-        data = get_subject_data(bucket, dir_path, None)
-        stat_data.extend(data)
-
-    # 获取processed数据
-    processed_data = []
-    processed_base_dir = "oss://si002558te8h/dclm/output/r2_formal/"
-    bucket_name, _ = oss.split_file_path(processed_base_dir)
-    bucket = oss.Bucket(bucket_name)
-    
-    for sub_dir in ["dclm", "fineweb"]:
-        dir_path = f"{processed_base_dir}{sub_dir}/"
-        data = get_subject_data(bucket, dir_path, "processed_data")
-        processed_data.extend(data)
-
     # 获取deduped数据
     deduped_data = []
     deduped_base_dir = "oss://train1/basemodel-subjet-data-processed/r2/"
@@ -185,6 +162,22 @@ def main():
         dir_path = f"{deduped_base_dir}{sub_dir}/"
         data = get_subject_data(bucket, dir_path, None)
         deduped_data.extend(data)
+
+    aero_base_dir = "oss://train1/basemodel-subjet-data-processed/hpc-processed/AerospaceAeronautics/"
+    bucket_name, _ = oss.split_file_path(aero_base_dir)
+    bucket = oss.Bucket(bucket_name)    
+    for sub_dir in ["dclm", "fineweb"]:
+        dir_path = f"{deduped_base_dir}{sub_dir}/"
+        data = get_subject_data(bucket, dir_path, 'deduped_output')
+        deduped_data.extend(data)
+
+    geo_base_dir = "oss://train1/basemodel-subjet-data-processed/hpc-processed/geo/"
+    bucket_name, _ = oss.split_file_path(geo_base_dir)
+    bucket = oss.Bucket(bucket_name)    
+    for sub_dir in ["dclm", "fineweb"]:
+        dir_path = f"{deduped_base_dir}{sub_dir}/"
+        data = get_subject_data(bucket, dir_path, 'deduped_output')
+        deduped_data.extend(data)        
 
     # 合并数据
     merged_data = merge_stat_data(stat_data, processed_data, deduped_data)
