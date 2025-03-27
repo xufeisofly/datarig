@@ -10,11 +10,11 @@ from task_asigning.asign_task import DEFAULT_TASKS_FILE_PATH
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s: %(message)s")
 
 # 设置阈值
-THRESHOLD_STR = "2025-03-25 22:45:02"
+THRESHOLD_STR = "2025-03-26 16:15:57"
 THRESHOLD = datetime.strptime(THRESHOLD_STR, "%Y-%m-%d %H:%M:%S")
 
 
-def filter_jsonl(file_path: str):
+def filter_jsonl(file_path: str, is_temp: bool):
     for record in read_jsonl(file_path):
         worker = record.get("worker", {})
         if worker is None:
@@ -51,7 +51,7 @@ def check_temp_file_exist(input_file):
 def recover_temp_file_tasks(task_file):
     lock = SimpleOSSLock(DEFAULT_LOCK_FILE)    
     try:
-        temp_tasks_to_recover = list(filter_jsonl(task_file))
+        temp_tasks_to_recover = list(filter_jsonl(task_file, is_temp=True))
         all_tasks = list(read_jsonl(task_file))
 
         def is_task_to_recover(task_item):
@@ -74,8 +74,35 @@ def recover_temp_file_tasks(task_file):
         lock.release()
         return -1
 
+def recover_ori_file_tasks(task_file):
+    lock = SimpleOSSLock(DEFAULT_LOCK_FILE)    
+    try:
+        temp_tasks_to_recover = list(filter_jsonl(task_file, is_temp=False))
+        all_tasks = list(read_jsonl(task_file))
+
+        def is_task_to_recover(task_item):
+            for t in temp_tasks_to_recover:
+                if task_item == t:
+                    return True
+            return False
+
+        count = 0
+        for i, task_item in enumerate(all_tasks):
+            if is_task_to_recover(task_item):
+                all_tasks[i]['worker'] = None
+                count += 1
+
+        write_jsonl(all_tasks, task_file)
+        lock.release()
+        return count
+    except BaseException as e:
+        print(e)
+        lock.release()
+        return -1
+
+
 if __name__ == '__main__':
-    file_path = DEFAULT_TASKS_FILE_PATH
+    file_path = './processed_tasks.jsonl'
     print(check_temp_file_exist(file_path))
 
     print("====start")
