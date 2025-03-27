@@ -36,7 +36,7 @@ def filter_jsonl(file_path: str, is_temp: bool):
 
 def check_temp_file_exist(input_file):
     # 替换为你的 JSONL 文件路径
-    data = list(filter_jsonl(input_file))
+    data = list(filter_jsonl(input_file, is_temp=True))
 
     invalid_f = []
     for record in data:
