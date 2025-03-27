@@ -1,55 +1,15 @@
 # -*- coding: utf-8 -*-
 import time
+import os
+import json
 import sys
 import logging
 from baselines.oss import oss
-from baselines.core.file_utils import is_exists, write_jsonl, read_jsonl
+from baselines.core.file_utils import delete_file, is_exists, write_jsonl, read_jsonl
 from typing import List, Dict
 
 # 设置日志
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s: %(message)s")
-
-
-def get_limited_objects_iter(bucket, prefix, limit=100):
-    result = bucket.list_objects(prefix=prefix, max_keys=limit)
-    objects = result.object_list
-    for o in objects:
-        yield o
-
-
-def get_sub_files_with_uncompressed_size(bucket, dir_path, dir_prefix, limit=100):
-    if not dir_path.endswith('/'):
-        dir_path += '/'
-    bucket_name, dir_path = oss.split_file_path(dir_path)
-    rets = list(get_limited_objects_iter(bucket, dir_path, limit=int(limit*1.5)))
-    subfolders = oss.get_sub_folders(bucket, dir_path)
-
-    def get_object_uncompressed_size(key):
-        size = 0
-        for line in read_jsonl(key):
-            size += sys.getsizeof(line)
-        return size
-    
-    files = [ret.key for ret in rets if not ret.key.endswith('/') and (dir_prefix is None or dir_prefix in ret.key)]
-
-    total_size = 0
-    def belong_to_folders(f, dirs):
-        for folder in dirs:
-            if folder in f:
-                return True
-        return False
-
-    count = 0
-    for f in files:
-        if belong_to_folders(f, subfolders):
-            continue
-        f_path = oss.join_file_path(bucket_name, f)
-        total_size += get_object_uncompressed_size(f_path)
-        count += 1
-        print(f"------{count} - {total_size}")
-        if count > limit:
-            break
-    return total_size
 
 
 def get_sub_files_with_size(bucket, dir_path, dir_prefix):
@@ -90,12 +50,7 @@ def get_oss_dir_size(bucket, dir_path, dir_prefix):
         total_size_mb += get_oss_dir_size(bucket, sub_dir, dir_prefix)
 
     logging.info(f"calculating dir: {dir_path} is {total_size_mb} MB")
-    return total_size_mb
-
-
-def get_uncompressed_size_of_limited_files(bucket, dir_path, dir_prefix, limit=100):
-    pass
-    
+    return total_size_mb    
 
 
 def get_subject_data(bucket, path: str, label: str|None) -> List[Dict]:
@@ -164,29 +119,8 @@ def main():
         data = get_subject_data(bucket, dir_path, None)
         deduped_data.extend(data)
 
-    aero_base_dir = "oss://train1/basemodel-subjet-data-processed/hpc-processed/AerospaceAeronautics/"
-    bucket_name, _ = oss.split_file_path(aero_base_dir)
-    bucket = oss.Bucket(bucket_name)    
-    for sub_dir in ["dclm", "fineweb"]:
-        dir_path = f"{aero_base_dir}{sub_dir}/"
-        data = get_subject_data(bucket, dir_path, 'deduped_output')
-        deduped_data.extend(data)
-
-    geo_base_dir = "oss://train1/basemodel-subjet-data-processed/hpc-processed/geo/"
-    bucket_name, _ = oss.split_file_path(geo_base_dir)
-    bucket = oss.Bucket(bucket_name)    
-    for sub_dir in ["dclm", "fineweb"]:
-        dir_path = f"{geo_base_dir}{sub_dir}/"
-        data = get_subject_data(bucket, dir_path, 'deduped_output')
-        deduped_data.extend(data)        
-
-
     total_size_gb = 0
     for deduped_item in deduped_data:
-        if deduped_item['subject_name'] == 'dclm/deduped_output':
-            deduped_item['subject_name'] = 'dclm/AerospaceAeronautics'
-        if deduped_item['subject_name'] == 'fineweb/deduped_output':
-            deduped_item['subject_name'] = 'fineweb/AerospaceAeronautics'
         total_size_gb += deduped_item['size_gb']
 
     need_size_gb = 130
@@ -210,8 +144,34 @@ def get_output_dir(subject_name):
     return os.path.join("", subject_name)
 
 
-def sampling(subject_dir, size_gb, output_dir):
-    pass
+def sampling(bucket, subject_dir, size_gb, output_dir):
+    files = oss.get_sub_files(bucket, subject_dir)
+    buffer_size_bytes = 0
+    lines = []
+    local_files = []
+    local_dir = "/tmp"
+    stop = False
+    for file_path in files:
+        filename = os.path.basename(file_path) 
+        for line in read_jsonl(file_path):
+            lines.append(line)
+            buffer_size_bytes += len(json.dumps(line).encode('utf-8'))
+            if buffer_size_bytes >= size_gb * 1024 * 1024 * 1024:
+                stop = True
+                break
+
+        local_file_path = os.path.join(local_dir, filename)
+        local_files.append(local_file_path)
+        write_jsonl(lines, local_file_path)
+        lines = []
+        if stop:
+            break
+
+    # 上传 local files
+    for local_file in local_files:
+        oss.upload_file_to_oss(local_file, output_dir, bucket)
+        delete_file(local_file)
+    
 
     
 def plan1_sampling(plan1_dict):
@@ -220,7 +180,7 @@ def plan1_sampling(plan1_dict):
     bucket = oss.Bucket(bucket_name)
     for subject_dir, subject_info in plan1_dict:
         output_dir = get_output_dir(subject_info['subject_name'])
-        sampling(subject_dir, subject_info['size_gb'], output_dir)
+        sampling(bucket, subject_dir, subject_info['size_gb'], output_dir)
         
     
 
