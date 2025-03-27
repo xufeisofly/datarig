@@ -106,8 +106,7 @@ def create_task_items(shard_dir: str, mode: str, chunk_size: int) -> List[dict]:
                 if end >= total:
                     end = total
                 file_range = [start, end]
-                chunk_files = file_paths[start:end]
-                tasks.append(TaskItem(shard_dir, file_range, files=chunk_files).to_dict())
+                tasks.append(TaskItem(shard_dir, file_range, files=[]).to_dict())
                 start += chunk_size
 
     # 递归处理子目录
