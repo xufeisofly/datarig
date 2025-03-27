@@ -10,7 +10,7 @@ from task_asigning.asign_task import DEFAULT_TASKS_FILE_PATH
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s: %(message)s")
 
 # 设置阈值
-THRESHOLD_STR = "2025-03-27 03:19:51"
+THRESHOLD_STR = "2025-03-27 03:29:10"
 THRESHOLD = datetime.strptime(THRESHOLD_STR, "%Y-%m-%d %H:%M:%S")
 
 
@@ -44,24 +44,30 @@ def check_temp_file_exist(input_file):
             if not is_exists(f):
                 invalid_f.append(f)
 
-    print(invalid_f)
-    return len(invalid_f) == 0
+    return invalid_f
 
-def recover_temp_file_tasks(task_file):
+def recover_temp_file_tasks(task_file, invalid_fs=[]):
     lock = SimpleOSSLock(DEFAULT_LOCK_FILE)    
     try:
         temp_tasks_to_recover = list(filter_jsonl(task_file, is_temp=True))
         all_tasks = list(read_jsonl(task_file))
 
-        def is_task_to_recover(task_item):
+        def task_item_doesnt_have_invalid_files(task_item, invalid_fs):
+            for task_file in task_item['files']:
+                if task_file in invalid_fs:
+                    return False
+            return True
+
+        def is_task_to_recover(task_item, invalid_fs):
             for t in temp_tasks_to_recover:
                 if task_item == t:
-                    return True
+                    if task_item_doesnt_have_invalid_files(task_item, invalid_fs):
+                        return True
             return False
 
         count = 0
         for i, task_item in enumerate(all_tasks):
-            if is_task_to_recover(task_item):
+            if is_task_to_recover(task_item, invalid_fs):
                 all_tasks[i]['worker'] = None
                 count += 1
 
@@ -102,10 +108,17 @@ def recover_ori_file_tasks(task_file):
 
 if __name__ == '__main__':
     file_path = DEFAULT_TASKS_FILE_PATH
-    print(check_temp_file_exist(file_path))
-
+    invalid_fs = check_temp_file_exist(file_path)
+    
     print("====start")
-    ret = recover_temp_file_tasks(file_path)
+    ret = recover_temp_file_tasks(file_path, invalid_fs)
     print("====end", ret)
     ret = recover_ori_file_tasks(file_path)
     print("====end", ret)
+
+    # 救场用，有时候 finished_process_tasks.jsonl 会出现 null 导致崩溃，需要重新传一个
+    # fin_path = './finished_process_tasks.jsonl'
+    # dir_path = "oss://si002558te8h/dclm/"
+    # bucket_name, path = oss.split_file_path(dir_path)
+    # bucket = oss.Bucket(bucket_name)
+    # oss.upload_file_to_oss(fin_path, path, bucket)
