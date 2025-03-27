@@ -10,7 +10,7 @@ from task_asigning.asign_task import DEFAULT_TASKS_FILE_PATH
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s: %(message)s")
 
 # 设置阈值
-THRESHOLD_STR = "2025-03-26 16:15:57"
+THRESHOLD_STR = "2025-03-27 03:19:51"
 THRESHOLD = datetime.strptime(THRESHOLD_STR, "%Y-%m-%d %H:%M:%S")
 
 
