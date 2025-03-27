@@ -167,7 +167,7 @@ def main():
     bucket_name, _ = oss.split_file_path(aero_base_dir)
     bucket = oss.Bucket(bucket_name)    
     for sub_dir in ["dclm", "fineweb"]:
-        dir_path = f"{deduped_base_dir}{sub_dir}/"
+        dir_path = f"{aero_base_dir}{sub_dir}/"
         data = get_subject_data(bucket, dir_path, 'deduped_output')
         deduped_data.extend(data)
 
@@ -175,7 +175,7 @@ def main():
     bucket_name, _ = oss.split_file_path(geo_base_dir)
     bucket = oss.Bucket(bucket_name)    
     for sub_dir in ["dclm", "fineweb"]:
-        dir_path = f"{deduped_base_dir}{sub_dir}/"
+        dir_path = f"{geo_base_dir}{sub_dir}/"
         data = get_subject_data(bucket, dir_path, 'deduped_output')
         deduped_data.extend(data)        
 

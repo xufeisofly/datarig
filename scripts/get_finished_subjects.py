@@ -32,6 +32,7 @@ def main():
     for subject_dir in subject_dirs:
         if in_tasks(subject_dir):
             continue
+        _, path = oss.split_file_path(dir_path)
         finished.add(subject_dir)
 
     dir_path = "oss://train1/basemodel-subjet-data-processed/r2/dclm/"
