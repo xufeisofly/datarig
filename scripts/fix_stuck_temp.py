@@ -101,7 +101,7 @@ def recover_ori_file_tasks(task_file):
 
 
 if __name__ == '__main__':
-    file_path = './process_tasks_bak.jsonl'
+    file_path = DEFAULT_TASKS_FILE_PATH
     print(check_temp_file_exist(file_path))
 
     print("====start")
