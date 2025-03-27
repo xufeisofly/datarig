@@ -6,6 +6,10 @@ from baselines.oss import oss
 from baselines.core.file_utils import is_exists, write_jsonl, read_jsonl
 from typing import List, Dict
 
+"""
+验证一下 processed 的文件数量和 deduped 的文件数量是否一致
+"""
+
 # 设置日志
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s: %(message)s")
 
@@ -29,6 +33,8 @@ def get_sub_files(bucket, dir_path, dir_prefix):
             continue
         all_files.append(f)
     return all_files
+
+dir_path = "oss://si002558te8h/dclm/output/r2_formal/dclm/subject=Accounting/processed_data/"
 
 def get_oss_dir_filenum(bucket, dir_path, dir_prefix):
     bucket_name, path = oss.split_file_path(dir_path)
