@@ -21,10 +21,9 @@ def filter_jsonl(file_path: str, is_temp: bool):
             continue
         status = worker.get("status")
         process_time_str = worker.get("process_time")
-        is_temp = record['is_temp']
 
         # 仅对 status 为 "processing" 并且 process_time 存在的记录进行判断
-        if status == "processing" and process_time_str and is_temp:
+        if status == "processing" and process_time_str and record['is_temp'] == is_temp:
             try:
                 process_time = datetime.strptime(process_time_str, "%Y-%m-%d %H:%M:%S")
             except ValueError as e:
