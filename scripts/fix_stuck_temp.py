@@ -108,3 +108,5 @@ if __name__ == '__main__':
     print("====start")
     ret = recover_temp_file_tasks(file_path)
     print("====end", ret)
+    ret = recover_ori_file_tasks(file_path)
+    print("====end", ret)
