@@ -102,7 +102,7 @@ def recover_ori_file_tasks(task_file):
 
 
 if __name__ == '__main__':
-    file_path = './processed_tasks.jsonl'
+    file_path = './processed_tasks_bak.jsonl'
     print(check_temp_file_exist(file_path))
 
     print("====start")
