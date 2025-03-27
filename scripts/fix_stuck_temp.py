@@ -89,10 +89,10 @@ def recover_ori_file_tasks(task_file):
         count = 0
         for i, task_item in enumerate(all_tasks):
             if is_task_to_recover(task_item):
-                all_tasks[i]['worker'] = None
+                # all_tasks[i]['worker'] = None
                 count += 1
 
-        write_jsonl(all_tasks, task_file)
+        # write_jsonl(all_tasks, task_file)
         lock.release()
         return count
     except BaseException as e:
