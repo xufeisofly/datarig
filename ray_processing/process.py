@@ -285,7 +285,9 @@ def mark_task_item_finished(shard_dir: str, file_range, task_file_path=DEFAULT_T
                 fin_task_items = list(read_jsonl(fin_task_file))
             else:
                 fin_task_items = []
-            fin_task_items.append(matched_task)
+
+            if matched_task is not None:
+                fin_task_items.append(matched_task)
             write_jsonl(fin_task_items, fin_task_file)            
 
             lock.release()
