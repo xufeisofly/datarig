@@ -114,6 +114,15 @@ def main():
 
     # 写入最终的 JSONL 文件
     write_jsonl(merged_data, "./filenum.jsonl")
+
+    data = list(read_jsonl("./filenum.jsonl"))
+
+    ret = []
+    for item in data:
+        if item['filenum'] != item['deduped_filenum']:
+            ret.append(item)
+
+    write_jsonl(ret, "./error_deduped_subject.jsonl")
     
 
 if __name__ == '__main__':
