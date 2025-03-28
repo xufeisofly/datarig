@@ -34,7 +34,6 @@ def get_sub_files(bucket, dir_path, dir_prefix):
         all_files.append(f)
     return all_files
 
-dir_path = "oss://si002558te8h/dclm/output/r2_formal/dclm/subject=Accounting/processed_data/"
 
 def get_oss_dir_filenum(bucket, dir_path, dir_prefix):
     bucket_name, path = oss.split_file_path(dir_path)
