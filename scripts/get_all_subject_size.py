@@ -140,22 +140,6 @@ def main():
 
     # 写入最终的 JSONL 文件
     write_jsonl(merged_data, "./statistic.jsonl")
-
-    # 定义OSS路径和桶
-    base_dir = "oss://si002558te8h/dclm/output/output/"
-    bucket_name, _ = oss.split_file_path(base_dir)
-    bucket = oss.Bucket(bucket_name)
-
-    # 获取stat数据
-    stat_data = []
-    dir_path = f"{base_dir}"
-    data = get_subject_data(bucket, dir_path, None)
-    stat_data.extend(data)
-
-    total = 0
-    for item in data:
-        total += item['size_gb']
-    print(total)
     
 
 if __name__ == '__main__':
