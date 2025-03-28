@@ -30,4 +30,5 @@ def main():
 if __name__ == '__main__':
     while True:
         main()
+        print("synced")
         time.sleep(10)
