@@ -24,8 +24,8 @@ def main():
     task_file = "oss://si002558te8h/dclm/fineweb_dedup_tasks.jsonl"
     write_jsonl(list(read_jsonl(task_file)), "./fineweb_dedup_tasks.jsonl")    
 
-    # local_task_file = "./dclm_dedup_tasks.jsonl"
-    # write_jsonl(list(read_jsonl(local_task_file)), fineweb_task_file)
+    local_task_file = "./fineweb_dedup_tasks.jsonl"
+    write_jsonl(list(read_jsonl(local_task_file)), task_file)
 
 if __name__ == '__main__':
     while True:
