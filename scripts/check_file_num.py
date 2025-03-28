@@ -57,6 +57,9 @@ def get_subject_data(bucket, path: str, label: str|None) -> List[Dict]:
     _, path = oss.split_file_path(path)
     subject_dirs = oss.get_sub_folders(bucket, path)
     data = []
+    
+    subject_dir = "oss://train1/basemodel-subjet-data-processed/r2/fineweb/subject=ReligionsTheology/"
+    
     for subject_dir in subject_dirs:
         subject_dir = oss.join_file_path(bucket.bucket_name, subject_dir)
         subject_filenum = get_oss_dir_filenum(bucket, subject_dir, label)
