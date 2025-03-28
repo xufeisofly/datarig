@@ -118,7 +118,7 @@ def main():
 
     ret = []
     for item in data:
-        if item['filenum'] != item['deduped_filenum']:
+        if item['filenum'] != item.get('deduped_filenum', 0):
             ret.append(item)
 
     write_jsonl(ret, "./error_deduped_subject.jsonl")
