@@ -84,10 +84,11 @@ def merge_stat_data(stat_data: List[Dict], processed_data: List[Dict], deduped_d
         if processed:
             item['processed_gb'] = round(processed['size_gb'], 2)
             item['processed_rate'] = f"{(processed['size_gb'] / item['size_gb']) * 100}%"
-            total_processed_size = processed['size_gb']
+            total_processed_size += processed['size_gb']
 
         if deduped:
             item['deduped_gb'] = round(deduped['size_gb'], 2)
+            total_deduped_size += round(deduped['size_gb'], 2)
 
         merge_stat.append(item)
 
@@ -130,7 +131,7 @@ def main():
     deduped_base_dir = "oss://train1/basemodel-subjet-data-processed/r2/"
     bucket_name, _ = oss.split_file_path(deduped_base_dir)
     bucket = oss.Bucket(bucket_name)    
-    for sub_dir in ["dclm"]:
+    for sub_dir in ["dclm", "fineweb"]:
         dir_path = f"{deduped_base_dir}{sub_dir}/"
         data = get_subject_data(bucket, dir_path, None)
         deduped_data.extend(data)
