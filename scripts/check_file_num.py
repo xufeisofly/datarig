@@ -66,7 +66,6 @@ def get_subject_data(bucket, path: str, label: str|None) -> List[Dict]:
             "filenum": subject_filenum,
         })
         logging.info(f"{label} subject: {subject_dir}, filenum: {subject_filenum}")
-        time.sleep(0.5)  # Optional: only if rate-limiting is required
     return data
 
 # 合并数据并返回最终的统计数据
