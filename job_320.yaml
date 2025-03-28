@@ -18,11 +18,11 @@ spec:
         image: cr.registry.res.cloud.zhejianglab.com/dataprocess/dedup-bff:v1.2
         resources:
           requests:
-            cpu: "2"
-            memory: "18Gi"
+            cpu: "28"
+            memory: "40Gi"
           limits:
-            cpu: "3"
-            memory: "20Gi"
+            cpu: "30"
+            memory: "42Gi"
         command: []
         env:
           - name: OSS_ACCESS_KEY_ID
