@@ -10,47 +10,6 @@ from typing import List, Dict
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s: %(message)s")
 
 
-def get_limited_objects_iter(bucket, prefix, limit=100):
-    result = bucket.list_objects(prefix=prefix, max_keys=limit)
-    objects = result.object_list
-    for o in objects:
-        yield o
-
-
-def get_sub_files_with_uncompressed_size(bucket, dir_path, dir_prefix, limit=100):
-    if not dir_path.endswith('/'):
-        dir_path += '/'
-    bucket_name, dir_path = oss.split_file_path(dir_path)
-    rets = list(get_limited_objects_iter(bucket, dir_path, limit=int(limit*1.5)))
-    subfolders = oss.get_sub_folders(bucket, dir_path)
-
-    def get_object_uncompressed_size(key):
-        size = 0
-        for line in read_jsonl(key):
-            size += sys.getsizeof(line)
-        return size
-    
-    files = [ret.key for ret in rets if not ret.key.endswith('/') and (dir_prefix is None or dir_prefix in ret.key)]
-
-    total_size = 0
-    def belong_to_folders(f, dirs):
-        for folder in dirs:
-            if folder in f:
-                return True
-        return False
-
-    count = 0
-    for f in files:
-        if belong_to_folders(f, subfolders):
-            continue
-        f_path = oss.join_file_path(bucket_name, f)
-        total_size += get_object_uncompressed_size(f_path)
-        count += 1
-        print(f"------{count} - {total_size}")
-        if count > limit:
-            break
-    return total_size
-
 
 def get_sub_files_with_size(bucket, dir_path, dir_prefix):
     if not dir_path.endswith('/'):
@@ -92,12 +51,6 @@ def get_oss_dir_size(bucket, dir_path, dir_prefix):
     logging.info(f"calculating dir: {dir_path} is {total_size_mb} MB")
     return total_size_mb
 
-
-def get_uncompressed_size_of_limited_files(bucket, dir_path, dir_prefix, limit=100):
-    pass
-    
-
-
 def get_subject_data(bucket, path: str, label: str|None) -> List[Dict]:
     _, path = oss.split_file_path(path)
     subject_dirs = oss.get_sub_folders(bucket, path)
@@ -130,23 +83,20 @@ def merge_stat_data(stat_data: List[Dict], processed_data: List[Dict], deduped_d
         total_ori_size += item['size_gb']
 
         if processed:
-            item['processed_gb'] = processed['size_gb']
+            item['processed_gb'] = round(processed['size_gb'], 2)
             item['processed_rate'] = f"{(processed['size_gb'] / item['size_gb']) * 100}%"
             total_processed_size = processed['size_gb']
 
         if deduped:
-            item['deduped_gb'] = deduped['size_gb']
-            item['deduped_rate'] = f"{(deduped['size_gb'] / item['processed_gb']) * 100}%"
-            total_deduped_size = deduped['size_gb']
+            item['deduped_gb'] = round(deduped['size_gb'], 2)
 
         merge_stat.append(item)
 
     merge_stat.append({
-        'total_origin_size_gb': total_ori_size,
-        'total_processed_size_gb': total_processed_size,
-        'total_deduped_size_gb': total_deduped_size,
+        'total_origin_size_gb': round(total_ori_size, 2),
+        'total_processed_size_gb': round(total_processed_size, 2),
+        'total_deduped_size_gb': round(total_deduped_size, 2),
         'total_processed_rate': f"{(total_processed_size / total_ori_size) * 100}%",
-        'total_deduped_rate': f"{(total_deduped_size / total_processed_size) * 100}%",
     })
     
     return merge_stat
