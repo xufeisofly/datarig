@@ -3,37 +3,39 @@ kind: Job
 metadata:
   name: dedup-bff-dclm
 spec:
-  parallelism: 1 # 5x(4-5)C=20C-25C 5x(10-12)G=50-60G per node, (20C-25C)x89 = 1780C-2225C max: 445pod
-  completions: 1
-  backoffLimit: 5  # 如果任务失败后不希望重试，则设置为 0；否则设置为需要的重试次数
+  parallelism: 40 # 5x(4-5)C=20C-25C 5x(10-12)G=50-60G per node, (20C-25C)x89 = 1780C-2225C max: 445pod
+  completions: 40
+  backoffLimit: 0  # 如果任务失败后不希望重试，则设置为 0；否则设置为需要的重试次数
   template:
     metadata:
       labels:
-        app: dclm-sci
+        app: dedup-bff
     spec:
       imagePullSecrets:
         - name: cr-docker-registry
       containers:
-      - name: dclm-sci
+      - name: dedup-bff
         image: cr.registry.res.cloud.zhejianglab.com/dataprocess/dedup-bff:v1.2
         resources:
           requests:
             cpu: "28"
-            memory: "40Gi"
+            memory: "30Gi"
           limits:
             cpu: "30"
-            memory: "42Gi"
-        command: []
+            memory: "32Gi"
+        command: ["cargo","run"]
         env:
           - name: OSS_ACCESS_KEY_ID
             value: "D3XdW8uT66mdJ3TO"
           - name: OSS_ACCESS_KEY_SECRET
-            value: "LpBPv841EkOhqNV8tiaknQfWJJm1uP"		  
+            value: "LpBPv841EkOhqNV8tiaknQfWJJm1uP"
         args:
+          - "--release"
+          - "bff"
           - "--tasks-file"
           - "oss://si002558te8h/dclm/dclm_dedup_tasks.jsonl"
           - "--output-directory"
-          - "oss://train1/basemodel-subjet-data-processed/r2/dclm/"
+          - "oss://train1/basemodel-subjet-data-processed/r2/dclm"
           - "--expected-ngram-count"
           - "1000000000"
           - "--fp-rate"
