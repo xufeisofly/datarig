@@ -1,50 +1,53 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: datarig1-40-1
+  name: dedup-bff-fineweb-new
 spec:
-  parallelism: 40 # 5x(4-5)C=20C-25C 5x(10-12)G=50-60G per node, (20C-25C)x89 = 1780C-2225C max: 445pod
-  completions: 40
+  parallelism: 5 # 5x(4-5)C=20C-25C 5x(10-12)G=50-60G per node, (20C-25C)x89 = 1780C-2225C max: 445pod
+  completions: 5
   backoffLimit: 0  # 如果任务失败后不希望重试，则设置为 0；否则设置为需要的重试次数
   template:
     metadata:
       labels:
-        app: dclm-sci
-    spec:
+        app: dedup-bff
+    spec: 
       imagePullSecrets:
         - name: cr-docker-registry
       containers:
-      - name: dclm-sci
-        image: cr.registry.res.cloud.zhejianglab.com/dataprocess/datarig:v2.5
+      - name: dedup-bff
+        image: cr.registry.res.cloud.zhejianglab.com/dataprocess/dedup-bff:v1.2
         resources:
           requests:
-            cpu: "4"
-            memory: "10Gi"
+            cpu: "28"
+            memory: "30Gi"
           limits:
-            cpu: "5"
-            memory: "12Gi"
-        command: ["/app/dclm-sci/start.sh"]
+            cpu: "30"
+            memory: "32Gi"
+        command: ["cargo","run"]
         env:
-          - name: RAY_DEDUP_LOGS
-            value: "0"
+          - name: OSS_ACCESS_KEY_ID
+            value: "D3XdW8uT66mdJ3TO"
+          - name: OSS_ACCESS_KEY_SECRET
+            value: "LpBPv841EkOhqNV8tiaknQfWJJm1uP"
         args:
-          - "--readable_name"
-          - "r2_formal"
-          - "--output_dir"
-          - "oss://si002558te8h/dclm/output"
-          - "--config_path"
-          - "baselines/baselines_configs/sci.yaml"
-          - "--oss_temp_dir"
-          - "oss://si002558te8h/dclm/temp_dir_300/"
-          - "--source_name"
-          - "cc"
-          - "--max_file_size_mb"
-          - "300"
-          - "--chunk_size"
-          - "3" # 4 有可能出现 oom，不过没有影响最终产出
-          - "--output_has_dataset_name"
-          - "--overwrite"
-          - "--use_task"
-          - "--ignore_failures"
+          - "--release"
+          - "bff"
+          - "--tasks-file"
+          - "oss://si002558te8h/dclm/dedup_tasks2.jsonl"
+          - "--output-directory"
+          - "oss://train1/basemodel-subjet-data-processed/r2/fineweb"
+          - "--expected-ngram-count"
+          - "100000"
+          - "--fp-rate"
+          - "0.01"
+          - "--min-ngram-size"
+          - "13"
+          - "--max-ngram-size"
+          - "13"
+          - "--filtering-threshold"
+          - "0.8"
+          - "--remove-type"
+          - "old-both"
+          - "--annotate"
         imagePullPolicy: IfNotPresent
       restartPolicy: Never
