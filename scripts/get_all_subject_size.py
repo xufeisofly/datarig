@@ -88,6 +88,7 @@ def merge_stat_data(stat_data: List[Dict], processed_data: List[Dict], deduped_d
 
         if deduped:
             item['deduped_gb'] = round(deduped['size_gb'], 2)
+            item['deduped_rate'] = f"{(deduped['size_gb'] / item['processed_gb']) * 100}%"
             total_deduped_size += round(deduped['size_gb'], 2)
 
         merge_stat.append(item)
@@ -97,6 +98,7 @@ def merge_stat_data(stat_data: List[Dict], processed_data: List[Dict], deduped_d
         'total_processed_size_gb': round(total_processed_size, 2),
         'total_deduped_size_gb': round(total_deduped_size, 2),
         'total_processed_rate': f"{(total_processed_size / total_ori_size) * 100}%",
+        'total_deduped_rate': f"{(total_deduped_size / total_processed_size) * 100}%",
     })
     
     return merge_stat

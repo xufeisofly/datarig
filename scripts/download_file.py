@@ -33,8 +33,6 @@ def main():
     bucket = oss.Bucket(bucket_name)    
     keys = oss.get_sub_files(bucket, path)
 
-    dir_path = "oss://train1/basemodel-subjet-data-processed/r2_deduped/dclm/subject=Accounting/"
-
     total = 0
     file_keys = []
     for key in keys[0:1]:
