@@ -3,6 +3,8 @@ kind: Pod
 metadata:
   name: redis-tester
 spec:
+  imagePullSecrets:
+    - name: cr-docker-registry
   containers:
     - name: redis-cli
       image: cr.registry.res.cloud.zhejianglab.com/dataprocess/redis-tester:v0.1
