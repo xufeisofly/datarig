@@ -10,6 +10,13 @@ spec:
       image: cr.registry.res.cloud.zhejianglab.com/dataprocess/redis-tester:v0.1
       command: ["/bin/bash"]
       args: ["-c", "sleep infinity"]
-      stdin: true
       tty: true
+      stdin: true
+      resources:
+        requests:
+          cpu: 100m
+          memory: 128Mi
+        limits:
+          cpu: 500m
+          memory: 256Mi
   restartPolicy: Never
