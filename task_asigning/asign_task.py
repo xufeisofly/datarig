@@ -92,7 +92,7 @@ def create_task_items(shard_dir: str, mode: str, chunk_size: int) -> List[dict]:
             
             # dedup 模式下处理完 processed_data 就返回，不处理其他子目录
             return tasks
-    
+
     # 如果不是 dedup 模式或者不是 subject= 目录，按原来的逻辑处理
     file_paths = oss.get_sub_files(bucket, path)
     if len(file_paths) > 0:
@@ -106,8 +106,7 @@ def create_task_items(shard_dir: str, mode: str, chunk_size: int) -> List[dict]:
                 if end >= total:
                     end = total
                 file_range = [start, end]
-                chunk_files = file_paths[start:end]
-                tasks.append(TaskItem(shard_dir, file_range, files=chunk_files).to_dict())
+                tasks.append(TaskItem(shard_dir, file_range, files=[]).to_dict())
                 start += chunk_size
 
     # 递归处理子目录

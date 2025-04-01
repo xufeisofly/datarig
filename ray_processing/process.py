@@ -13,7 +13,9 @@ from baselines.core import process_single_file
 from baselines.core.processor import split_large_file
 from baselines.core.file_utils import read_jsonl, write_jsonl, delete_file, is_exists, is_s3, is_oss, get_file_size
 from baselines.oss import oss
-from baselines.oss.lock import SimpleOSSLock, DEFAULT_LOCK_FILE, get_worker_key
+from baselines.oss.lock import DEFAULT_LOCK_FILE, get_worker_key
+from baselines.lock.distri_lock import LockFactory
+from baselines.redis import redis
 from ray_processing import GLOBAL_FUNCTIONS
 from ray_processing.utils import generate_untokenized_dataset_json, get_source_ref, get_source_ref_by_key
 from task_asigning.asign_task import DEFAULT_TASKS_FILE_PATH, TaskItem
@@ -199,7 +201,7 @@ def list_shard_files(data_dirpath, num_shards=None, shard_list_file=None, shard_
 
 def get_task_item(retry_tasks=False, task_file_path=DEFAULT_TASKS_FILE_PATH, lock_file=DEFAULT_LOCK_FILE):
     asigned_task = None
-    lock = SimpleOSSLock(lock_file)
+    lock = LockFactory().create(redis.Client, lock_key=lock_file)
     all_finished = True
     # 分布式锁允许 1 hour 超时时间
     if lock.acquire_or_block(timeout=7200):
@@ -245,7 +247,7 @@ def get_task_item(retry_tasks=False, task_file_path=DEFAULT_TASKS_FILE_PATH, loc
 
 
 def mark_task_item_finished(shard_dir: str, file_range, task_file_path=DEFAULT_TASKS_FILE_PATH, lock_file=DEFAULT_LOCK_FILE, files=None):
-    lock = SimpleOSSLock(lock_file)
+    lock = LockFactory().create(redis.Client, lock_key=lock_file)
     # 分布式锁允许 1 hour 超时时间
     matched_task = None
     if lock.acquire_or_block(timeout=7200):
@@ -285,7 +287,9 @@ def mark_task_item_finished(shard_dir: str, file_range, task_file_path=DEFAULT_T
                 fin_task_items = list(read_jsonl(fin_task_file))
             else:
                 fin_task_items = []
-            fin_task_items.append(matched_task)
+
+            if matched_task is not None:
+                fin_task_items.append(matched_task)
             write_jsonl(fin_task_items, fin_task_file)            
 
             lock.release()
@@ -299,7 +303,7 @@ def mark_task_item_finished(shard_dir: str, file_range, task_file_path=DEFAULT_T
 
 
 def mark_task_item_failed(shard_dir: str, file_range, task_file_path=DEFAULT_TASKS_FILE_PATH, lock_file=DEFAULT_LOCK_FILE, files=None):
-    lock = SimpleOSSLock(lock_file)
+    lock = LockFactory().create(redis.Client, lock_key=lock_file)
     matched_task = None
     if lock.acquire_or_block(timeout=7200):
         try:
@@ -370,10 +374,10 @@ def add_task_to_queue(tasks: List[dict], task_file_path=DEFAULT_TASKS_FILE_PATH,
     :param tasks: 要添加的任务字典列表，例如 [{"shard_dir": "oss://...", "files": ["file1.json", "file2.json"], "worker": None, "is_temp": True}]
     :return: bool, 添加是否成功
     """
-    lock = SimpleOSSLock(lock_file)
+    lock = LockFactory().create(redis.Client, lock_key=lock_file)
     
     # 获取分布式锁，超时时间 1 小时
-    if not lock.acquire_or_block(timeout=3600):
+    if not lock.acquire_or_block(timeout=7200):
         print(f"Worker {get_worker_key()} 无法在超时时间内获取锁。")
         return False
     
@@ -443,9 +447,18 @@ def process_task_item(args, task_item: TaskItem|None, with_init=True):
     
     if with_init:
         if args.ray_use_working_dir:
-            ray.init(address=args.ray_address, runtime_env={"working_dir": "./", "excludes": ["tests/"]})
+            ray.init(address=args.ray_address, runtime_env={"working_dir": "./", "excludes": ["tests/"],
+                                                            "env_vars": {
+                                                                "REDIS_HOST": os.getenv("REDIS_HOST"),
+                                                                "REDIS_PORT": os.getenv("REDIS_PORT"),
+                                                            }})
         else:
-            ray.init(address=args.ray_address)
+            ray.init(address=args.ray_address, runtime_env={
+                "env_vars": {
+                    "REDIS_HOST": os.getenv("REDIS_HOST"),
+                    "REDIS_PORT": os.getenv("REDIS_PORT"),
+                }
+            })
 
     config_path = args.config_path
     

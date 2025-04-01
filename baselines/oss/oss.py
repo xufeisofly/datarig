@@ -56,6 +56,10 @@ def split_file_path(file_path):
     return bucket_name, path
 
 
+def join_file_path(bucket_name: str, path: str) -> str:
+    return f"oss://{bucket_name}/{path}"
+
+
 def get_sub_folders(bucket, dir_path):
     if not dir_path.endswith('/'):
         dir_path += '/'    

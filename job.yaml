@@ -50,4 +50,4 @@ spec:
           - "old-both"
           - "--annotate"
         imagePullPolicy: IfNotPresent
-      restartPolicy: Never
+      restartPolicy: OnFailure
