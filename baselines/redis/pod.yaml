@@ -5,7 +5,7 @@ metadata:
 spec:
   containers:
     - name: redis-cli
-      image: redis-tester
+	  image: cr.registry.res.cloud.zhejianglab.com/dataprocess/redis-tester:v0.1
       command: ["/bin/bash"]
       args: ["-c", "sleep infinity"]
       stdin: true
