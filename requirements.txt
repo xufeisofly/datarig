@@ -34,3 +34,4 @@ zstandard
 llm-foundry==0.9.0
 lxml_html_clean
 oss2
+redis

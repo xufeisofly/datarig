@@ -285,7 +285,9 @@ def mark_task_item_finished(shard_dir: str, file_range, task_file_path=DEFAULT_T
                 fin_task_items = list(read_jsonl(fin_task_file))
             else:
                 fin_task_items = []
-            fin_task_items.append(matched_task)
+
+            if matched_task is not None:
+                fin_task_items.append(matched_task)
             write_jsonl(fin_task_items, fin_task_file)            
 
             lock.release()
@@ -373,7 +375,7 @@ def add_task_to_queue(tasks: List[dict], task_file_path=DEFAULT_TASKS_FILE_PATH,
     lock = SimpleOSSLock(lock_file)
     
     # 获取分布式锁，超时时间 1 小时
-    if not lock.acquire_or_block(timeout=3600):
+    if not lock.acquire_or_block(timeout=7200):
         print(f"Worker {get_worker_key()} 无法在超时时间内获取锁。")
         return False
     
