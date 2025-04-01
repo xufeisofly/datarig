@@ -2,11 +2,13 @@ import os
 import multiprocessing
 import argparse
 from baselines.oss.lock import SimpleOSSLock, DEFAULT_LOCK_FILE
+from baselines.lock.distri_lock import LockFactory
+from baselines.redis import redis
 
 file_path = "./num.txt"
 
 def worker(lock_file: str, index: int, timeout: int):
-    lock = SimpleOSSLock(lock_file)
+    lock = LockFactory(mode='redis').create(redis.Client, lock_key=lock_file)
     print(f"Worker {index} (PID: {os.getpid()}) trying to acquire lock...")
     if lock.acquire_or_block(timeout=timeout):
         print(f"Worker {index} (PID: {os.getpid()}) acquired the lock.")
