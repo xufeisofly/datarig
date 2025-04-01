@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: redis-tester
+spec:
+  containers:
+    - name: redis-cli
+      image: redis-tester
+      command: ["/bin/bash"]
+      args: ["-c", "sleep infinity"]
+      stdin: true
+      tty: true
+  restartPolicy: Never
