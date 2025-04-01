@@ -106,9 +106,8 @@ def create_task_items(shard_dir: str, mode: str, chunk_size: int) -> List[dict]:
                 if end >= total:
                     end = total
                 file_range = [start, end]
-                if 'AerospaceAeronautics' in shard_dir:
-                    tasks.append(TaskItem(shard_dir, file_range, files=[]).to_dict())
-                    start += chunk_size
+                tasks.append(TaskItem(shard_dir, file_range, files=[]).to_dict())
+                start += chunk_size
 
     # 递归处理子目录
     sub_dirs = oss.get_sub_folders(bucket, path)
