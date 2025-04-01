@@ -1,5 +1,5 @@
-# 使用 Ubuntu 22.04.5 LTS 作为基础镜像
-FROM ubuntu:22.04
+# 使用 Ubuntu 24.04.5 LTS 作为基础镜像
+FROM ubuntu:24.04
 
 # 切换时区交互提示，避免一些安装中的时区询问
 ENV DEBIAN_FRONTEND=noninteractive
@@ -24,6 +24,6 @@ WORKDIR /app/dedup/bff
 
 RUN . /root/.cargo/env && cargo build --release
 
-ENTRYPOINT ["cargo", "run", "--release", "bff"]
+ENTRYPOINT ["cargo", "run"]
 
 CMD ["--help"]
