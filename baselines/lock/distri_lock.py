@@ -73,13 +73,13 @@ class RedisLock(DistriLock):
             while True:
                 if self.acquire():
                     return True
-                time.sleep(2)
+                time.sleep(0.1)
         else:
             start_time = time.time()
             while time.time() - start_time < timeout:
                 if self.acquire():
                     return True
-                time.sleep(2)
+                time.sleep(0.1)
         return False
 
     def release(self) -> bool:
