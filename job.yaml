@@ -34,6 +34,8 @@ spec:
           - "oss://si002558te8h/dclm/output"
           - "--config_path"
           - "baselines/baselines_configs/sci.yaml"
+          - "--task_file_path"
+          - "oss://si002558te8h/dclm/pool/dclm_process_tasks.jsonl"		  
           - "--oss_temp_dir"
           - "oss://si002558te8h/dclm/pool/temp_dir_300/"
           - "--source_name"
