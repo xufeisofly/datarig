@@ -2,9 +2,10 @@
 import os
 import time
 import redis
-from abc import ABC, abstractmethod
-from typing import Optional
 import socket
+from baselines.oss.lock import DEFAULT_LOCK_FILE, SimpleOSSLock
+from abc import ABC, abstractmethod
+
 
 def get_local_ip():
     """获取本机局域网 IP 地址，避免返回 127.0.0.1"""
@@ -98,3 +99,12 @@ class RedisLock(DistriLock):
             return False    
 
     
+
+class LockFactory:
+    def __init__(self, mode='redis'):
+        self._mode = mode
+
+    def create(self, redis_client: redis.Redis, lock_key: str, lock_timeout: int=60, lock_file=DEFAULT_LOCK_FILE):
+        if self._mode == 'redis':
+            return RedisLock(redis_client, lock_key, lock_timeout)
+        return SimpleOSSLock(lock_file)
