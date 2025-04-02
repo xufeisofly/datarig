@@ -1,7 +1,7 @@
-import time
+from baselines.core.file_utils import write_jsonl
 import redis
 import json
-from task_asigning.asign_task import TaskItem
+from baselines.task_queue.task import TaskItem
 
 TASK_QUEUE_NAME = 'task_queue'
 PROCESSING_QUEUE = 'processing_queue'
@@ -33,10 +33,7 @@ class TaskQueue:
         
 
     def put_task(self, task: TaskItem):
-        self._redis_client.lpush(self._queue_name, json.dumps(task.to_dict()))
-
-    def put_task_dict(self, task: dict):
-        self._redis_client.lpush(self._queue_name, json.dumps(task))        
+        self._redis_client.lpush(self._queue_name, json.dumps(task.to_dict()))        
 
     def complete_task(self, task: TaskItem):
         task_id = task.get_id()
@@ -62,4 +59,12 @@ class TaskQueue:
 
     def size(self):
         self._redis_client.llen(self._queue_name)
+
+    def download_to_jsonl(self, file_path):
+        data = []
+        for task in self._redis_client.lrange(self._queue_name, 0, -1):
+            task = task.decode()
+            data.append(json.loads(task))
+
+        write_jsonl(data, file_path)
         

@@ -18,7 +18,8 @@ from baselines.lock.distri_lock import LockFactory
 from baselines.redis import redis
 from ray_processing import GLOBAL_FUNCTIONS
 from ray_processing.utils import generate_untokenized_dataset_json, get_source_ref, get_source_ref_by_key
-from task_asigning.asign_task import DEFAULT_TASKS_FILE_PATH, TaskItem
+from task_asigning.asign_task import DEFAULT_TASKS_FILE_PATH
+from baselines.task_queue.task import TaskItem
 from baselines.task_queue.task_queue import TaskQueue
 
 import ray
