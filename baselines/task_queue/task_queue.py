@@ -62,8 +62,8 @@ class TaskQueue:
             key = self.get_processing_task_key(task_id)
             if not self._redis_client.exists(key):
                 print(f"Requeuing expired task: {task}")
-                self._redis_client.lrem(self._processing_queue, 0, task.to_json())
-                self._redis_client.lpush(self._queue_name, task.to_json())
+                self._redis_client.lrem(self._processing_queue, 0, task)
+                self._redis_client.lpush(self._queue_name, task)
 
     def get_processing_task_key(self, task_id):
         return f"{self._processing_prefix}{task_id}"
