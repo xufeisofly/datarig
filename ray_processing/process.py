@@ -224,7 +224,7 @@ def list_shard_files(data_dirpath, num_shards=None, shard_list_file=None, shard_
 
 def get_task_item_redis(queue_id='default'):
     queue = TaskQueue(redis.Client, queue_id=queue_id)
-    task, all_finished = queue.acquire_task(), queue.all_finished()
+    task, all_finished = queue.acquire_task(worker=get_worker_key()), queue.all_finished()
     queue.requeue_expired_tasks()
     return task, all_finished
 
@@ -275,14 +275,18 @@ def get_task_item(retry_tasks=False, task_file_path=DEFAULT_TASKS_FILE_PATH, loc
         print(f"Worker {get_worker_key()} could not acquire the lock within timeout.")
         return None, False    
 
-
+def mark_task_item_finished_redis(task_item: TaskItem, queue_id='default'):
+    queue = TaskQueue(redis.Client, queue_id=queue_id)
+    queue.complete_task(task_item)
+    return task_item.to_dict()
+    
+    
 def mark_task_item_finished(shard_dir: str, file_range, task_file_path=DEFAULT_TASKS_FILE_PATH, lock_file=DEFAULT_LOCK_FILE, files=None):
     lock = LockFactory().create(redis.Client, lock_key=lock_file)
     # 分布式锁允许 1 hour 超时时间
     matched_task = None
     if lock.acquire_or_block(timeout=7200):
         # 改写 tasks.json 文件，领取任务
-        ret = ""
         try:
             task_items = list(read_jsonl(task_file_path))
             for i, task_item in enumerate(task_items):
@@ -331,6 +335,9 @@ def mark_task_item_finished(shard_dir: str, file_range, task_file_path=DEFAULT_T
         print(f"Worker {get_worker_key()} could not acquire the lock within timeout.")
     return None
 
+def mark_task_item_failed_redis(task_item: TaskItem, queue_id):
+    queue = TaskQueue(redis.Client, queue_id=queue_id)
+    queue.requeue_task(task_item)
 
 def mark_task_item_failed(shard_dir: str, file_range, task_file_path=DEFAULT_TASKS_FILE_PATH, lock_file=DEFAULT_LOCK_FILE, files=None):
     lock = LockFactory().create(redis.Client, lock_key=lock_file)
@@ -691,15 +698,21 @@ def process_task_item(args, task_item: TaskItem|None, with_init=True):
     if task_item is not None:    
         # 更新：接收返回的任务信息
         if task_success:
-            updated_task = mark_task_item_finished(shard_dir, file_range,
-                                                   task_file_path=args.task_file_path,
-                                                   lock_file=args.oss_lock_file,
-                                                   files=files)
+            if args.use_redis_task:
+                updated_task = mark_task_item_finished_redis(task_item, args.queue_id)
+            else:
+                updated_task = mark_task_item_finished(shard_dir, file_range,
+                                                       task_file_path=args.task_file_path,
+                                                       lock_file=args.oss_lock_file,
+                                                       files=files)
         else:
-            mark_task_item_failed(shard_dir, file_range,
-                                  task_file_path=args.task_file_path,
-                                  lock_file=args.oss_lock_file,
-                                  files=files)
+            if args.use_redis_task:
+                mark_task_item_failed_redis(task_item, args.queue_id)
+            else:
+                mark_task_item_failed(shard_dir, file_range,
+                                      task_file_path=args.task_file_path,
+                                      lock_file=args.oss_lock_file,
+                                      files=files)
             # 失败则不删除临时文件，用于下次重试
             updated_task = False
     

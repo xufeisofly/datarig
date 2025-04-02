@@ -5,6 +5,7 @@ from baselines.task_queue.task import TaskItem
 
 TASK_QUEUE_NAME = 'task_queue'
 PROCESSING_QUEUE = 'processing_queue'
+FINISHED_QUEUE = 'finished_queue'
 PROCESSING_KEY_PREFIX = 'processing:'
 TASK_TIMEOUT = 7200
 
@@ -14,15 +15,16 @@ class TaskQueue:
         self._redis_client = redis_client
         self._queue_name = queue_id + "_" + TASK_QUEUE_NAME
         self._processing_queue = queue_id + "_" + PROCESSING_QUEUE
+        self._finished_queue = queue_id + "_" + FINISHED_QUEUE
         self._processing_prefix = queue_id + "_" + PROCESSING_KEY_PREFIX
 
-    def acquire_task(self, timeout=10) -> TaskItem|None:
+    def acquire_task(self, timeout=10, worker=None) -> TaskItem|None:
         task = self._redis_client.brpoplpush(self._queue_name, self._processing_queue, timeout)
         if task:
             task = task.decode()
             task_id = json.loads(task).get("id")
             if task_id:
-                self._redis_client.setex(self.get_processing_task_key(task_id), TASK_TIMEOUT, task)
+                self._redis_client.setex(self.get_processing_task_key(task_id), TASK_TIMEOUT, worker)
                 job = json.loads(task)
                 return TaskItem(job['shard_dir'],
                                 job['file_range'],
@@ -38,8 +40,17 @@ class TaskQueue:
     def complete_task(self, task: TaskItem):
         task_id = task.get_id()
         if task_id:
-            self._redis_client.lrem(PROCESSING_QUEUE, 0, task)
+            self._redis_client.lrem(self._processing_queue, 0, task)
+            self._redis_client.lpush(self._finished_queue, json.dumps(task.to_dict()))
             self._redis_client.delete(self.get_processing_task_key(task_id))
+
+    def requeue_task(self, task: TaskItem):
+        task_id = task.get_id()
+        key = self.get_processing_task_key(task_id)
+        if not self._redis_client.exists(key):
+            print(f"Requeuing task: {task.to_dict()}")
+            self._redis_client.lrem(self._processing_queue, 0, task)
+            self._redis_client.lpush(self._queue_name, task)        
 
     def all_finished(self) -> bool:
         return self._redis_client.llen(self._processing_queue) == 0
@@ -62,7 +73,7 @@ class TaskQueue:
 
     def download_to_jsonl(self, file_path):
         data = []
-        for task in self._redis_client.lrange(self._queue_name, 0, -1):
+        for task in self._redis_client.rrange(self._queue_name, 0, -1):
             task = task.decode()
             data.append(json.loads(task))
 
@@ -70,7 +81,15 @@ class TaskQueue:
 
     def download_processing_to_jsonl(self, file_path):
         data = []
-        for task in self._redis_client.lrange(self._processing_queue, 0, -1):
+        for task in self._redis_client.rrange(self._processing_queue, 0, -1):
+            task = task.decode()
+            data.append(json.loads(task))
+
+        write_jsonl(data, file_path)
+
+    def download_finished_to_jsonl(self, file_path):
+        data = []
+        for task in self._redis_client.rrange(self._finished_queue, 0, -1):
             task = task.decode()
             data.append(json.loads(task))
 
