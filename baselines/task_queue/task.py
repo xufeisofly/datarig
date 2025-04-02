@@ -20,8 +20,14 @@ class TaskItem:
             "original_shard_dir": self._original_shard_dir
         }
         s = json.dumps(hash_input, sort_keys=True)
-        return hashlib.md5(s.encode()).hexdigest()        
+        return hashlib.md5(s.encode()).hexdigest()
 
+    def set_worker(self, w):
+        self._worker = w
+
+    def get_worker(self):
+        return self._worker
+    
     def get_id(self):
         return self._id
     
