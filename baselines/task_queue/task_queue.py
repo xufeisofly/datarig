@@ -18,6 +18,11 @@ class TaskQueue:
         self._finished_queue = queue_id + "_" + FINISHED_QUEUE
         self._processing_prefix = queue_id + "_" + PROCESSING_KEY_PREFIX
 
+    def clear(self):
+        self._redis_client.delete(self._queue_name)
+        self._redis_client.delete(self._processing_queue)
+        self._redis_client.delete(self._finished_queue)
+
     def acquire_task(self, timeout=10, worker=None) -> TaskItem|None:
         task = self._redis_client.brpoplpush(self._queue_name, self._processing_queue, timeout)
         if task:
