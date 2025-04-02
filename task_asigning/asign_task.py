@@ -115,6 +115,7 @@ def asign_task(parent_dir: str, tasks_file_path: str, mode: str='process', chunk
         oss.Bucket(bucket_name).delete_object(fin_path)
     else:
         queue = TaskQueue(redis.Client, queue_id=queue_id)
+        queue.clear()
         for task in data:
             task_item = TaskItem(
                 shard_dir=task['shard_dir'],
