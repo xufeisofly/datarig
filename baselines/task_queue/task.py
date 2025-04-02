@@ -53,3 +53,6 @@ class TaskItem:
             "files": self._files,
             "original_shard_dir": self._original_shard_dir,
         }
+
+    def to_json(self):
+        return json.dumps(self.to_dict())

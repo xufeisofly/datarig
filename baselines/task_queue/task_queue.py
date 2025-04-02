@@ -35,13 +35,13 @@ class TaskQueue:
         
 
     def put_task(self, task: TaskItem):
-        self._redis_client.lpush(self._queue_name, json.dumps(task.to_dict()))        
+        self._redis_client.lpush(self._queue_name, task.to_json())        
 
     def complete_task(self, task: TaskItem):
         task_id = task.get_id()
         if task_id:
-            self._redis_client.lrem(self._processing_queue, 0, task)
-            self._redis_client.lpush(self._finished_queue, json.dumps(task.to_dict()))
+            self._redis_client.lrem(self._processing_queue, 0, task.to_json())
+            self._redis_client.lpush(self._finished_queue, task.to_json())
             self._redis_client.delete(self.get_processing_task_key(task_id))
 
     def requeue_task(self, task: TaskItem):
@@ -49,8 +49,8 @@ class TaskQueue:
         key = self.get_processing_task_key(task_id)
         if not self._redis_client.exists(key):
             print(f"Requeuing task: {task.to_dict()}")
-            self._redis_client.lrem(self._processing_queue, 0, task)
-            self._redis_client.lpush(self._queue_name, task)        
+            self._redis_client.lrem(self._processing_queue, 0, task.to_json())
+            self._redis_client.lpush(self._queue_name, task.to_json())        
 
     def all_finished(self) -> bool:
         return self._redis_client.llen(self._processing_queue) == 0
@@ -62,8 +62,8 @@ class TaskQueue:
             key = self.get_processing_task_key(task_id)
             if not self._redis_client.exists(key):
                 print(f"Requeuing expired task: {task}")
-                self._redis_client.lrem(self._processing_queue, 0, task)
-                self._redis_client.lpush(self._queue_name, task)
+                self._redis_client.lrem(self._processing_queue, 0, task.to_json())
+                self._redis_client.lpush(self._queue_name, task.to_json())
 
     def get_processing_task_key(self, task_id):
         return f"{self._processing_prefix}{task_id}"
