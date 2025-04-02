@@ -73,7 +73,7 @@ class TaskQueue:
 
     def download_to_jsonl(self, file_path):
         data = []
-        for task in self._redis_client.rrange(self._queue_name, 0, -1):
+        for task in self._redis_client.lrange(self._queue_name, 0, -1):
             task = task.decode()
             data.append(json.loads(task))
 
@@ -81,7 +81,7 @@ class TaskQueue:
 
     def download_processing_to_jsonl(self, file_path):
         data = []
-        for task in self._redis_client.rrange(self._processing_queue, 0, -1):
+        for task in self._redis_client.lrange(self._processing_queue, 0, -1):
             task = task.decode()
             data.append(json.loads(task))
 
@@ -89,7 +89,7 @@ class TaskQueue:
 
     def download_finished_to_jsonl(self, file_path):
         data = []
-        for task in self._redis_client.rrange(self._finished_queue, 0, -1):
+        for task in self._redis_client.lrange(self._finished_queue, 0, -1):
             task = task.decode()
             data.append(json.loads(task))
 
