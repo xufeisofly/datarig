@@ -11,5 +11,5 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s: %(mes
 
 if __name__ == '__main__':
     queue = TaskQueue(redis.Client, queue_id='default')
-    file_path = './task_queue.jsonl'
-    queue.download_to_jsonl(file_path)
+    queue.download_to_jsonl('./task_queue.jsonl')
+    queue.download_processing_to_jsonl('./processing_task_queue.jsonl')

@@ -67,4 +67,12 @@ class TaskQueue:
             data.append(json.loads(task))
 
         write_jsonl(data, file_path)
+
+    def download_processing_to_jsonl(self, file_path):
+        data = []
+        for task in self._redis_client.lrange(self._processing_queue, 0, -1):
+            task = task.decode()
+            data.append(json.loads(task))
+
+        write_jsonl(data, file_path)        
         
