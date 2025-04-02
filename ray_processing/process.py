@@ -225,7 +225,7 @@ def list_shard_files(data_dirpath, num_shards=None, shard_list_file=None, shard_
 def get_task_item_redis(queue_id='default'):
     queue = TaskQueue(redis.Client, queue_id=queue_id)
     task, all_finished = queue.acquire_task(worker=get_worker_key()), queue.all_finished()
-    queue.requeue_expired_tasks()
+    # queue.requeue_expired_tasks()
     return task, all_finished
 
 
