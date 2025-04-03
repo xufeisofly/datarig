@@ -31,16 +31,20 @@ class TaskQueue:
             if task_id:
                 self._redis_client.setex(self.get_processing_task_key(task_id), TASK_TIMEOUT, worker)
                 job = json.loads(task)
-                return TaskItem(job['shard_dir'],
-                                job['file_range'],
-                                job['is_temp'],
-                                job['files'],
-                                job.get('original_shard_dir', None))
+                return TaskItem(shard_dir=job['shard_dir'],
+                                file_range=job['file_range'],
+                                worker=job.get('worker', None),
+                                is_temp=job['is_temp'],
+                                files=job['files'],
+                                original_shard_dir=job.get('original_shard_dir', None))
         return None
         
 
     def put_task(self, task: TaskItem):
-        self._redis_client.lpush(self._queue_name, task.to_json())        
+        self._redis_client.lpush(self._queue_name, task.to_json())
+
+    def put_task_to_head(self, task: TaskItem):
+        self._redis_client.rpush(self._queue_name, task.to_json())
 
     def complete_task(self, task: TaskItem):
         task_id = task.get_id()

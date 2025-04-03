@@ -447,7 +447,7 @@ def add_task_to_queue(tasks: List[dict], task_file_path=DEFAULT_TASKS_FILE_PATH,
 def add_task_to_queue_redis(tasks: List[TaskItem], queue_id='default') -> bool:
     queue = TaskQueue(redis.Client, queue_id=queue_id)
     for task in tasks:
-        queue.put_task(task)
+        queue.put_task_to_head(task)
     return True
     
 
