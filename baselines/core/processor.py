@@ -139,45 +139,46 @@ def split_large_file(input_path: str, max_size_mb: int = 1024, temp_dir: str = "
     executor = concurrent.futures.ThreadPoolExecutor(max_workers=workers)
     futures = []
 
-    if cache_local_file:
-        bucket_name, oss_path = split_file_path(input_path)
-        bucket = Bucket(bucket_name)
-        local_filepath = download_file(oss_path, '/tmp/', bucket)
-        input_path = local_filepath
+    try:
+        if cache_local_file:
+            bucket_name, oss_path = split_file_path(input_path)
+            bucket = Bucket(bucket_name)
+            local_filepath = download_file(oss_path, '/tmp/', bucket)
+            input_path = local_filepath
 
-    # 使用 read_jsonl 读取文件，无论是本地、S3 还是 OSS 都能正确读取
-    for line in read_jsonl(input_path):
-        # 将读取的行添加到缓冲区
-        line_buffer.append(line)
-        # 估算当前缓冲区的大小
-        buffer_size_bytes += len(json.dumps(line).encode('utf-8')) if isinstance(line, dict) else 1024
-    
-        # 当缓冲区大小接近最大限制，写入临时文件
-        if buffer_size_bytes >= max_size_bytes - (max_size_bytes * 0.01):
-            chunk_path = os.path.join(temp_dir, f"p{chunk_idx}_{file_name}{file_ext}")
-            print(f"写入切分文件 {chunk_idx+1}: {chunk_path}")
-            if is_oss(temp_dir):
-                # 异步提交上传任务
-                # future = executor.submit(upload_chunk, line_buffer, chunk_idx, file_name, file_ext, base_filename, temp_dir)
-                local_filename = f"/tmp/p{chunk_idx}_{base_filename}"
+        # 使用 read_jsonl 读取文件，无论是本地、S3 还是 OSS 都能正确读取
+        for line in read_jsonl(input_path):
+            # 将读取的行添加到缓冲区
+            line_buffer.append(line)
+            # 估算当前缓冲区的大小
+            buffer_size_bytes += len(json.dumps(line).encode('utf-8')) if isinstance(line, dict) else 1024
+
+            # 当缓冲区大小接近最大限制，写入临时文件
+            if buffer_size_bytes >= max_size_bytes - (max_size_bytes * 0.01):
                 chunk_path = os.path.join(temp_dir, f"p{chunk_idx}_{file_name}{file_ext}")
-                write_jsonl(line_buffer, local_filename)
-                future = executor.submit(upload_chunk_v2, local_filename, chunk_path, temp_dir)
-                
-                futures.append(future)
-            else:
-                with open(chunk_path, 'w', encoding='utf-8') as outfile:
-                    for l in line_buffer:
-                        json_str = json.dumps(l) if isinstance(l, dict) else str(l)
-                        outfile.write(json_str + "\n")
-                temp_files.append(chunk_path)
-            
-            chunk_idx += 1
-            line_buffer = []
-            buffer_size_bytes = 0
+                print(f"写入切分文件 {chunk_idx+1}: {chunk_path}")
+                if is_oss(temp_dir):
+                    # 异步提交上传任务
+                    # future = executor.submit(upload_chunk, line_buffer, chunk_idx, file_name, file_ext, base_filename, temp_dir)
+                    local_filename = f"/tmp/p{chunk_idx}_{base_filename}"
+                    chunk_path = os.path.join(temp_dir, f"p{chunk_idx}_{file_name}{file_ext}")
+                    write_jsonl(line_buffer, local_filename)
+                    future = executor.submit(upload_chunk_v2, local_filename, chunk_path, temp_dir)
 
-    if cache_local_file:
-        delete_file(input_path)
+                    futures.append(future)
+                else:
+                    with open(chunk_path, 'w', encoding='utf-8') as outfile:
+                        for l in line_buffer:
+                            json_str = json.dumps(l) if isinstance(l, dict) else str(l)
+                            outfile.write(json_str + "\n")
+                    temp_files.append(chunk_path)
+
+                chunk_idx += 1
+                line_buffer = []
+                buffer_size_bytes = 0
+    finally:
+        if cache_local_file:
+            delete_file(input_path)
 
     # 处理剩余数据
     if line_buffer:
