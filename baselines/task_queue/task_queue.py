@@ -20,7 +20,12 @@ class TaskQueue:
 
     def clear(self):
         self._redis_client.delete(self._queue_name)
-        self._redis_client.delete(self._processing_queue)
+        for task in self._redis_client.lrange(self._processing_queue, 0, -1):
+            task = task.decode()
+            task_id = json.loads(task).get("id")
+            key = self.get_processing_task_key(task_id)
+            self._redis_client.delete(key)
+        self._redis_client.delete(self._processing_queue)                
         self._redis_client.delete(self._finished_queue)
 
     def acquire_task(self, timeout=10, worker=None) -> TaskItem|None:
