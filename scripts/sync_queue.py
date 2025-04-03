@@ -24,7 +24,5 @@ if __name__ == '__main__':
         queue.download_to_jsonl('./task_queue.jsonl')
         queue.download_processing_to_jsonl('./processing_task_queue.jsonl')
         queue.download_finished_to_jsonl('./finished_task_queue.jsonl')
-        logging.info(f"pending: {queue.sizeof(queue.queue)}")
-        logging.info(f"processing: {queue.sizeof(queue.processing_queue)}")
-        logging.info(f"finished: {queue.sizeof(queue.finished_queue)}")
+        logging.info(f"pending: {queue.sizeof(queue.queue)} | processing: {queue.sizeof(queue.processing_queue)} | finished: {queue.sizeof(queue.finished_queue)}")
         time.sleep(10)
