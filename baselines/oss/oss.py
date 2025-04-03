@@ -6,8 +6,6 @@ import logging
 import os
 from io import BytesIO
 
-from baselines.core.file_utils import is_exists
-
 # 配置日志
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -234,7 +232,7 @@ def download_file(oss_path, to_dir, bucket) -> str:
     print("==== start download file: {}".format(oss_path))
     file_name = os.path.basename(oss_path)
     local_file_path = os.path.join(to_dir, file_name)
-    if is_exists(local_file_path):
+    if os.path.isfile(local_file_path):
         print("==== download file already exists: {}".format(local_file_path))
         return local_file_path
     bucket.get_object_to_file(oss_path, local_file_path)
