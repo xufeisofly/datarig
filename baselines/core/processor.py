@@ -72,7 +72,7 @@ def _is_step_stats(line):
     return line['name'] not in {PROCESS_SETUP_KEY_NAME, PROCESS_END_KEY_NAME, COMMIT_KEY_NAME}
 
 
-def split_large_file(input_path: str, max_size_mb: int = 1024, temp_dir: str = "oss://si002558te8h/dclm/temp_files") -> List[str]:
+def split_large_file(input_path: str, max_size_mb: int = 1024, temp_dir: str = "oss://si002558te8h/dclm/temp_files", workers=1) -> List[str]:
     """
     将大文件切分成多个小文件，每个不超过指定大小，并存储到OSS临时目录。
     
@@ -119,7 +119,7 @@ def split_large_file(input_path: str, max_size_mb: int = 1024, temp_dir: str = "
             delete_file(local_filename)
         return chunk_path    
     
-    executor = concurrent.futures.ThreadPoolExecutor(max_workers=4)
+    executor = concurrent.futures.ThreadPoolExecutor(max_workers=workers)
     futures = []
     
     # 使用 read_jsonl 读取文件，无论是本地、S3 还是 OSS 都能正确读取
@@ -173,129 +173,6 @@ def split_large_file(input_path: str, max_size_mb: int = 1024, temp_dir: str = "
     print(f"文件已切分为{len(temp_files)}个子文件")
     return temp_files
 
-# def split_large_file(input_path: str, max_size_mb: int = 1024, temp_dir: str = "oss://si002558te8h/dclm/temp_files") -> List[str]:
-#     """
-#     将大文件切分成多个小文件，每个不超过指定大小，并存储到OSS临时目录。
-    
-#     :param input_path: 输入文件路径
-#     :param max_size_mb: 最大文件大小（MB）
-#     :param temp_dir: OSS临时目录路径
-#     :return: 切分后的临时文件路径列表
-#     """
-#     import json  # 添加json模块用于序列化字典
-    
-#     max_size_bytes = max_size_mb * 1024 * 1024
-#     file_size = get_file_size(input_path)
-    
-#     if file_size <= max_size_bytes:
-#         return [input_path]  # 文件不需要切分
-    
-#     print(f"文件大小({file_size/1024/1024:.2f}MB)超过{max_size_mb}MB，进行切分处理")
-    
-#     # 确保临时目录存在
-#     if not is_oss(temp_dir):
-#         makedirs_if_missing(temp_dir)
-
-#     print(f"使用临时目录: {temp_dir}")
-    
-#     base_filename = os.path.basename(input_path)
-#     file_name, file_ext = os.path.splitext(base_filename)
-    
-#     temp_files = []
-#     chunk_idx = 0
-#     line_buffer = []
-#     buffer_size_bytes = 0
-
-#     def upload_chunk(line_buffer, chunk_idx, file_name, file_ext, base_filename, temp_dir):
-#         local_filename = f"/tmp/p{chunk_idx}_{base_filename}"
-#         chunk_path = os.path.join(temp_dir, f"p{chunk_idx}_{file_name}{file_ext}")
-#         try:
-#             write_jsonl(line_buffer, local_filename)
-#             print(f"开始上传切分文件到OSS: {chunk_path}")
-#             bucket_name, _ = split_file_path(temp_dir)
-#             bucket = Bucket(bucket_name)
-#             upload_file_to_oss(local_filename, temp_dir, bucket)
-#             print(f"成功上传切分文件到OSS: {chunk_path}")
-#         finally:
-#             delete_file(local_filename)
-#         return chunk_path    
-
-#     executor = concurrent.futures.ThreadPoolExecutor(max_workers=4)
-#     futures = []
-#     # 使用 read_jsonl 读取文件，无论是本地、S3 还是 OSS 都能正确读取
-#     for line in read_jsonl(input_path):
-#         # 将读取的行添加到缓冲区
-#         line_buffer.append(line)
-#         # 估算当前缓冲区的大小
-#         buffer_size_bytes += len(json.dumps(line).encode('utf-8')) if isinstance(line, dict) else 1024
-
-#         # 当缓冲区大小接近最大限制，写入临时文件
-#         if buffer_size_bytes >= max_size_bytes - (max_size_bytes*0.01):
-#             chunk_path = os.path.join(temp_dir, f"p{chunk_idx}_{file_name}{file_ext}")
-#             print(f"写入切分文件 {chunk_idx+1}: {chunk_path}")
-            
-#             # 修改：先将内容写入本地临时文件，然后一次性上传
-#             if is_oss(temp_dir):
-#                 # 创建本地临时文件
-#                 future = executor.submit(upload_chunk, line_buffer, chunk_idx, file_name, file_ext, base_filename, temp_dir)
-#                 futures.append(future)                
-#                 # local_filename = f"/tmp/p{chunk_idx}_{base_filename}" 
-#                 # print("=========={}".format(local_filename))
-#                 # try:
-#                 #     write_jsonl(line_buffer, local_filename)
-
-#                 #     print(f"开始上传切分文件到OSS: {chunk_path}")
-#                 #     bucket_name, _ = split_file_path(temp_dir)
-#                 #     bucket = Bucket(bucket_name)
-#                 #     upload_file_to_oss(local_filename, temp_dir, bucket)
-#                 #     print(f"成功上传切分文件到OSS: {chunk_path}")
-#                 # finally:
-#                 #     delete_file(local_filename)
-#             else:
-#                 with open(chunk_path, 'w', encoding='utf-8') as outfile:
-#                     for l in line_buffer:
-#                         json_str = json.dumps(l) if isinstance(l, dict) else str(l)
-#                         outfile.write(json_str + "\n")
-                        
-#             temp_files.append(chunk_path)
-#             chunk_idx += 1
-#             line_buffer = []
-#             buffer_size_bytes = 0
-#     # 写入最后剩余的内容
-#     if line_buffer:
-#         chunk_path = os.path.join(temp_dir, f"p{chunk_idx}_{file_name}{file_ext}")
-#         print(f"写入最后一个切分文件: {chunk_path}")
-        
-#         # 修改：对最后一个文件也使用相同的方法一次性上传
-#         if is_oss(temp_dir):
-#             # 创建本地临时文件
-#             future = executor.submit(upload_chunk, line_buffer, chunk_idx, file_name, file_ext, base_filename, temp_dir)
-#             futures.append(future)            
-#             # local_filename = f"/tmp/p{chunk_idx}_{base_filename}" 
-#             # try:
-#             #     write_jsonl(line_buffer, local_filename)
-
-#             #     print(f"开始上传最后一个切分文件到OSS: {chunk_path}")
-#             #     bucket_name, _ = split_file_path(temp_dir)
-#             #     bucket = Bucket(bucket_name)
-#             #     upload_file_to_oss(local_filename, temp_dir, bucket)                
-#             #     print(f"成功上传最后一个切分文件到OSS: {chunk_path}")
-#             # finally:
-#             #     delete_file(local_filename)
-#         else:
-#             with open(chunk_path, 'w', encoding='utf-8') as outfile:
-#                 for l in line_buffer:
-#                     json_str = json.dumps(l) if isinstance(l, dict) else str(l)
-#                     outfile.write(json_str + "\n")
-                    
-#         temp_files.append(chunk_path)
-
-#     for future in concurrent.futures.as_completed(futures):
-#         temp_files.append(future.result())        
-
-#     print(f"文件已切分为{len(temp_files)}个子文件")
-#     return temp_files
-
 
 def process_single_file(config_data: Dict[str, Any], raw_data_dirpath: str, jsonl_relpath: str, source_name: str, 
                         base_output_path: str, workers: int = 1, overwrite: bool = False, max_file_size_mb: int = 1024, 
@@ -338,7 +215,7 @@ def process_single_file(config_data: Dict[str, Any], raw_data_dirpath: str, json
     if file_size_mb > max_file_size_mb and not is_temp_file:
         print(f"文件大小为 {file_size_mb:.2f}MB，超过 {max_file_size_mb}MB，将进行文件切分处理")
         # 切分文件并保存到OSS临时目录
-        temp_files = split_large_file(input_path, max_file_size_mb, temp_dir)
+        temp_files = split_large_file(input_path, max_file_size_mb, temp_dir, workers=workers)
         print(f"文件已切分为{len(temp_files)}个子文件，临时存储在{temp_dir}")
         
         # 返回空结果和临时文件列表，让上层函数处理这些拆分的文件
