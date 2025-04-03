@@ -2,9 +2,13 @@
 import os
 import argparse
 import json
+import hashlib
 from baselines.core.file_utils import write_jsonl
 from baselines.oss import oss
 from typing import List
+from baselines.task_queue.task import TaskItem
+from baselines.task_queue.task_queue import TaskQueue
+from baselines.redis import redis
 
 """
 可以用这个脚本生成 task 用于分片，也可以自己写 tasks.json 文件
@@ -27,35 +31,7 @@ for all the ray_process.py to accept.
 }
 """
 
-class TaskItem:
-    def __init__(self, shard_dir, file_range: List[int], worker=None, is_temp=False, files=None, original_shard_dir=None) -> None:
-        self._shard_dir = shard_dir
-        self._file_range = file_range
-        self._worker = worker
-        self.is_temp = is_temp  # 添加 is_temp 属性
-        self._files = files or []  # 添加 files 属性，默认为空列表
-        self._original_shard_dir = original_shard_dir
 
-    def get_shard_dir(self):
-        return self._shard_dir
-
-    def get_original_shard_dir(self):
-        return self._original_shard_dir
-
-    def get_file_range(self):
-        return self._file_range
-        
-    def get_files(self):
-        return self._files
-
-    def to_dict(self) -> dict:
-        return {
-            "shard_dir": self._shard_dir,
-            "file_range": self._file_range,
-            "worker": self._worker,
-            "is_temp": self.is_temp,  # 在字典中包含 is_temp
-            "files": self._files  # 在字典中包含 files
-        }
 
 def create_task_items(shard_dir: str, mode: str, chunk_size: int) -> List[dict]:
     tasks = []
@@ -120,22 +96,35 @@ def create_task_items(shard_dir: str, mode: str, chunk_size: int) -> List[dict]:
     return tasks
 
     
-def asign_task(parent_dir: str, tasks_file_path: str, mode: str='process', chunk_size=-1):
+def asign_task(parent_dir: str, tasks_file_path: str, mode: str='process', chunk_size=-1, use_redis_task=False, queue_id='default'):
     all_task_items = create_task_items(parent_dir, mode, chunk_size)
         
     data = all_task_items
-    write_jsonl(data, tasks_file_path)
-        
-    task_bucket_name, task_file = oss.split_file_path(tasks_file_path)
-    existed = oss.Bucket(task_bucket_name).object_exists(task_file)
 
-    if existed:
-        print(f"Success: {len(all_task_items)} tasks generated")
+    if not use_redis_task:
+        write_jsonl(data, tasks_file_path)    
+        task_bucket_name, task_file = oss.split_file_path(tasks_file_path)
+        existed = oss.Bucket(task_bucket_name).object_exists(task_file)
+
+        if existed:
+            print(f"Success: {len(all_task_items)} tasks generated")
+        else:
+            print(f"Failed")
+
+        bucket_name, fin_path = oss.split_file_path(oss.finished_task_file(tasks_file_path)) 
+        oss.Bucket(bucket_name).delete_object(fin_path)
     else:
-        print(f"Failed")
-
-    bucket_name, fin_path = oss.split_file_path(oss.finished_task_file(tasks_file_path)) 
-    oss.Bucket(bucket_name).delete_object(fin_path)
+        queue = TaskQueue(redis.Client, queue_id=queue_id)
+        queue.clear()
+        for task in data:
+            task_item = TaskItem(
+                shard_dir=task['shard_dir'],
+                is_temp=False,
+                file_range=task['file_range'],
+                files=task['files'],
+            )
+            queue.put_task(task_item)
+        print(f"Success: {len(data)} tasks generated")
 
         
 DEFAULT_TASKS_FILE_PATH = "oss://si002558te8h/dclm/process_tasks.jsonl"
@@ -148,5 +137,7 @@ if __name__ == '__main__':
     parser.add_argument("--tasks_file_path", help="", type=str, default=DEFAULT_TASKS_FILE_PATH)
     parser.add_argument("--chunk_size", help="", type=int, default=-1)
     parser.add_argument("--mode", help="process/dedup", type=str, default='process')
+    parser.add_argument("--queue_id", help="redis task queue id", type=str, default='default')
+    parser.add_argument("--use_redis_task", action="store_true", help="use task 为 true 时，use_redis_task 会使用 redis 作为消息队列，否则使用 oss 文件.")    
     args = parser.parse_args()    
-    asign_task(args.parent_dir, args.tasks_file_path, args.mode, args.chunk_size)
+    asign_task(args.parent_dir, args.tasks_file_path, args.mode, args.chunk_size, args.use_redis_task, args.queue_id)

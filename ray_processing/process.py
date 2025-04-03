@@ -18,7 +18,9 @@ from baselines.lock.distri_lock import LockFactory
 from baselines.redis import redis
 from ray_processing import GLOBAL_FUNCTIONS
 from ray_processing.utils import generate_untokenized_dataset_json, get_source_ref, get_source_ref_by_key
-from task_asigning.asign_task import DEFAULT_TASKS_FILE_PATH, TaskItem
+from task_asigning.asign_task import DEFAULT_TASKS_FILE_PATH
+from baselines.task_queue.task import TaskItem
+from baselines.task_queue.task_queue import TaskQueue
 
 import ray
 import traceback
@@ -45,6 +47,12 @@ def parse_args():
         default=DEFAULT_TASKS_FILE_PATH,
         help="task json file path",
     )
+    parser.add_argument(
+        "--queue_id",
+        type=str,
+        default="default",
+        help="task queue id",
+    )    
     parser.add_argument(
         "--oss_lock_file",
         type=str,
@@ -84,6 +92,7 @@ def parse_args():
     )
     parser.add_argument("--overwrite", action="store_true", help="If set to true, will overwrite results.")
     parser.add_argument("--use_task", action="store_true", help="使用 task json 文件分配任务，否则直接使用 raw_data_dirpath.")
+    parser.add_argument("--use_redis_task", action="store_true", help="use task 为 true 时，use_redis_task 会使用 redis 作为消息队列，否则使用 oss 文件.")    
     parser.add_argument("--retry_tasks", action="store_true", help="是否重新运行之前运行过的 tasks json")
     parser.add_argument("--output_has_dataset_name", action="store_true", help="output 目录中携带 dataset 名称")
     parser.add_argument("--ray_address", type=str, default="localhost:6379")
@@ -101,7 +110,7 @@ def parse_args():
 # Right now, this is just how I get clear space in /tmp which quickly gets filled by s3 reads
 @ray.remote(max_calls=3)
 def process_local_chunk(
-        config_data, raw_data_dirpath, jsonl_relpath, source_name, base_output_path, workers, overwrite, max_file_size_mb=1024, shard_dir=None, oss_temp_dir=None, task_file_path=None, lock_file=None, chunk_size=1
+        config_data, raw_data_dirpath, jsonl_relpath, source_name, base_output_path, workers, overwrite, max_file_size_mb=1024, shard_dir=None, oss_temp_dir=None, task_file_path=None, lock_file=None, chunk_size=1, use_redis_task=True, queue_id='default'
 ):
     try: 
         # 先检查是否为大文件需要拆分
@@ -116,19 +125,33 @@ def process_local_chunk(
             
             # 创建新任务添加到队列
             tasks_to_add = []
-            
-            for i in range(0, len(temp_files), chunk_size):
-                batch_files = temp_files[i:i+chunk_size]
-                tasks_to_add.append({
-                    "is_temp": True,
-                    "shard_dir": oss_temp_dir, 
-                    "file_range": [0,-1],
-                    "worker": None,
-                    "original_shard_dir": shard_dir, 
-                    "files": batch_files,
-                })
-            
-            add_task_to_queue(tasks_to_add, task_file_path=task_file_path, lock_file=lock_file)
+
+            if use_redis_task:
+                for i in range(0, len(temp_files), chunk_size):
+                    batch_files = temp_files[i:i+chunk_size]
+                    task = TaskItem(
+                        shard_dir=oss_temp_dir,
+                        file_range=[0,-1],
+                        is_temp=True,
+                        worker=None,
+                        original_shard_dir=shard_dir,
+                        files=batch_files,
+                    )
+                    tasks_to_add.append(task)
+                add_task_to_queue_redis(tasks_to_add, queue_id=queue_id)
+            else:
+                for i in range(0, len(temp_files), chunk_size):
+                    batch_files = temp_files[i:i+chunk_size]
+                    tasks_to_add.append({
+                        "is_temp": True,
+                        "shard_dir": oss_temp_dir, 
+                        "file_range": [0,-1],
+                        "worker": None,
+                        "original_shard_dir": shard_dir, 
+                        "files": batch_files,
+                    })
+                
+                add_task_to_queue(tasks_to_add, task_file_path=task_file_path, lock_file=lock_file)
             print(f"已添加 {len(tasks_to_add)} 个临时文件任务到队列")
             return RAY_CHUNK_SUCCESS, 0, 0
         
@@ -199,6 +222,12 @@ def list_shard_files(data_dirpath, num_shards=None, shard_list_file=None, shard_
     return shard_files
 
 
+def get_task_item_redis(queue_id='default'):
+    queue = TaskQueue(redis.Client, queue_id=queue_id)
+    task, all_finished = queue.acquire_task(worker=get_worker_key()), queue.all_finished()
+    return task, all_finished
+
+
 def get_task_item(retry_tasks=False, task_file_path=DEFAULT_TASKS_FILE_PATH, lock_file=DEFAULT_LOCK_FILE):
     asigned_task = None
     lock = LockFactory().create(redis.Client, lock_key=lock_file)
@@ -232,8 +261,8 @@ def get_task_item(retry_tasks=False, task_file_path=DEFAULT_TASKS_FILE_PATH, loc
 
             write_jsonl(task_items, task_file_path)
             lock.release()
-            return TaskItem(asigned_task['shard_dir'],
-                            asigned_task['file_range'],
+            return TaskItem(shard_dir=asigned_task['shard_dir'],
+                            file_range=asigned_task['file_range'],
                             is_temp=asigned_task['is_temp'],
                             files=asigned_task['files'],
                             original_shard_dir=asigned_task.get('original_shard_dir', None)), False
@@ -245,14 +274,18 @@ def get_task_item(retry_tasks=False, task_file_path=DEFAULT_TASKS_FILE_PATH, loc
         print(f"Worker {get_worker_key()} could not acquire the lock within timeout.")
         return None, False    
 
-
+def mark_task_item_finished_redis(task_item: TaskItem, queue_id='default'):
+    queue = TaskQueue(redis.Client, queue_id=queue_id)
+    queue.complete_task(task_item)
+    return task_item.to_dict()
+    
+    
 def mark_task_item_finished(shard_dir: str, file_range, task_file_path=DEFAULT_TASKS_FILE_PATH, lock_file=DEFAULT_LOCK_FILE, files=None):
     lock = LockFactory().create(redis.Client, lock_key=lock_file)
     # 分布式锁允许 1 hour 超时时间
     matched_task = None
     if lock.acquire_or_block(timeout=7200):
         # 改写 tasks.json 文件，领取任务
-        ret = ""
         try:
             task_items = list(read_jsonl(task_file_path))
             for i, task_item in enumerate(task_items):
@@ -301,6 +334,9 @@ def mark_task_item_finished(shard_dir: str, file_range, task_file_path=DEFAULT_T
         print(f"Worker {get_worker_key()} could not acquire the lock within timeout.")
     return None
 
+def mark_task_item_failed_redis(task_item: TaskItem, queue_id):
+    queue = TaskQueue(redis.Client, queue_id=queue_id)
+    queue.requeue_task(task_item)
 
 def mark_task_item_failed(shard_dir: str, file_range, task_file_path=DEFAULT_TASKS_FILE_PATH, lock_file=DEFAULT_LOCK_FILE, files=None):
     lock = LockFactory().create(redis.Client, lock_key=lock_file)
@@ -353,11 +389,15 @@ def process_all():
     
     with_init = True 
     while args.use_task:
-        task_item, all_finished = get_task_item(args.retry_tasks,
-                                                task_file_path=args.task_file_path,
-                                                lock_file=args.oss_lock_file)
+        if args.use_redis_task:
+            task_item, all_finished = get_task_item_redis(args.queue_id)
+        else:
+            task_item, all_finished = get_task_item(args.retry_tasks,
+                                                    task_file_path=args.task_file_path,
+                                                    lock_file=args.oss_lock_file)
         if task_item is None:
             if not all_finished:
+                print("acquiring task...")
                 time.sleep(10)
                 continue
             else:
@@ -404,6 +444,14 @@ def add_task_to_queue(tasks: List[dict], task_file_path=DEFAULT_TASKS_FILE_PATH,
         print(f"添加任务到队列时发生未知错误: {e}")
         lock.release()
         return False
+
+def add_task_to_queue_redis(tasks: List[TaskItem], queue_id='default') -> bool:
+    queue = TaskQueue(redis.Client, queue_id=queue_id)
+    for task in tasks:
+        print("====== put task to head {}".format(task.to_dict()))
+        queue.put_task_to_head(task)
+    return True
+    
 
 def process_task_item(args, task_item: TaskItem|None, with_init=True):
     print("======== task: {}".format(task_item))
@@ -570,6 +618,8 @@ def process_task_item(args, task_item: TaskItem|None, with_init=True):
                         task_file_path=args.task_file_path,
                         lock_file=args.oss_lock_file,
                         chunk_size=args.chunk_size,
+                        use_redis_task=args.use_redis_task,
+                        queue_id=args.queue_id,
                     )
                 )
             
@@ -649,15 +699,21 @@ def process_task_item(args, task_item: TaskItem|None, with_init=True):
     if task_item is not None:    
         # 更新：接收返回的任务信息
         if task_success:
-            updated_task = mark_task_item_finished(shard_dir, file_range,
-                                                   task_file_path=args.task_file_path,
-                                                   lock_file=args.oss_lock_file,
-                                                   files=files)
+            if args.use_redis_task:
+                updated_task = mark_task_item_finished_redis(task_item, args.queue_id)
+            else:
+                updated_task = mark_task_item_finished(shard_dir, file_range,
+                                                       task_file_path=args.task_file_path,
+                                                       lock_file=args.oss_lock_file,
+                                                       files=files)
         else:
-            mark_task_item_failed(shard_dir, file_range,
-                                  task_file_path=args.task_file_path,
-                                  lock_file=args.oss_lock_file,
-                                  files=files)
+            if args.use_redis_task:
+                mark_task_item_failed_redis(task_item, args.queue_id)
+            else:
+                mark_task_item_failed(shard_dir, file_range,
+                                      task_file_path=args.task_file_path,
+                                      lock_file=args.oss_lock_file,
+                                      files=files)
             # 失败则不删除临时文件，用于下次重试
             updated_task = False
     
