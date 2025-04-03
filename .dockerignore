@@ -1,5 +1,6 @@
 dedup
 rust_processing
+baselines/mappers/enrichers/quality_prediction_enrichment_models
 .vscode
 venv
 .git
