@@ -83,7 +83,7 @@ class DownloadAssetsCommand(install):
             # Download the models
             print("\n\nReached model downloads\n\n")
             self._download_fasttext_model()
-            self._download_quality_models()
+            # self._download_quality_models() 为了缩小镜像体积，临时删除
 
         # Download the RefinedWeb banlists
         # if not self.skip_banlist_downloads:
