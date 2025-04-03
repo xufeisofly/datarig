@@ -25,6 +25,7 @@ def is_compressed(file_path: str):
 def delete_file(file_path: str):
     """Deletes the file at the given path (local or S3). If the file does not exist, raises an error.
     May also raise if this is a directory rather than a file"""
+    print(f"==== delete file: {file_path}")
     if is_s3(file_path):
         s3_path = S3Path(file_path)
         if s3_path.exists():
