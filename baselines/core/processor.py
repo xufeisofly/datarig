@@ -4,6 +4,7 @@ import os
 import os.path
 import time
 from datetime import datetime
+import subprocess
 from typing import Any, Dict, Tuple, List
 
 from yaml import safe_load
@@ -70,6 +71,12 @@ def _is_step_stats(line):
     True iff this is a step stats line (and not a general info one)
     """
     return line['name'] not in {PROCESS_SETUP_KEY_NAME, PROCESS_END_KEY_NAME, COMMIT_KEY_NAME}
+
+
+def split_with_system(input_file, output_prefix, lines_per_file, suffix):
+    # 构造命令，将文件每 lines_per_file 行切分一次
+    cmd = f"split -l {lines_per_file} -d --additional-suffix={suffix} {input_file} {output_prefix}_"
+    subprocess.run(cmd, shell=True, check=True)
 
 
 def split_large_file(input_path: str, max_size_mb: int = 1024, temp_dir: str = "oss://si002558te8h/dclm/temp_files", workers=1, cache_local_file=True) -> List[str]:
