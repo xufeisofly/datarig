@@ -45,7 +45,7 @@ class TaskQueue:
         return None
 
     @property
-    def queue(self):
+    def pending_queue(self):
         return self._queue_name
 
     @property
@@ -92,31 +92,12 @@ class TaskQueue:
     def get_processing_task_key(self, task_id):
         return f"{self._processing_prefix}{task_id}"
 
-    def size(self):
-        return self._redis_client.llen(self._queue_name)
-
     def sizeof(self, queue):
         return self._redis_client.llen(queue)        
 
-    def download_to_jsonl(self, file_path):
+    def download_to_jsonl(self, queue, file_path):
         data = []
-        for task in self._redis_client.lrange(self._queue_name, 0, -1):
-            task = task.decode()
-            data.append(json.loads(task))
-
-        write_jsonl(data, file_path)
-
-    def download_processing_to_jsonl(self, file_path):
-        data = []
-        for task in self._redis_client.lrange(self._processing_queue, 0, -1):
-            task = task.decode()
-            data.append(json.loads(task))
-
-        write_jsonl(data, file_path)
-
-    def download_finished_to_jsonl(self, file_path):
-        data = []
-        for task in self._redis_client.lrange(self._finished_queue, 0, -1):
+        for task in self._redis_client.lrange(queue, 0, -1):
             task = task.decode()
             data.append(json.loads(task))
 

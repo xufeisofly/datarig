@@ -19,10 +19,9 @@ if __name__ == '__main__':
         files = oss.get_sub_files(bucket, path)
         logging.info("==============")
         logging.info("temp files: {}".format(len(files)))
-
         
-        queue.download_to_jsonl('./task_queue.jsonl')
-        queue.download_processing_to_jsonl('./processing_task_queue.jsonl')
-        queue.download_finished_to_jsonl('./finished_task_queue.jsonl')
-        logging.info(f"pending: {queue.sizeof(queue.queue)} | processing: {queue.sizeof(queue.processing_queue)} | finished: {queue.sizeof(queue.finished_queue)}")
+        queue.download_to_jsonl(queue.pending_queue, './task_queue.jsonl')
+        queue.download_to_jsonl(queue.processing_queue, './processing_task_queue.jsonl')
+        queue.download_to_jsonl(queue.finished_queue, './finished_task_queue.jsonl')
+        logging.info(f"pending: {queue.sizeof(queue.pending_queue)} | processing: {queue.sizeof(queue.processing_queue)} | finished: {queue.sizeof(queue.finished_queue)}")
         time.sleep(10)
