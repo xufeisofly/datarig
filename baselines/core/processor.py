@@ -117,16 +117,22 @@ def split_large_file(input_path: str, max_size_mb: int = 1024, temp_dir: str = "
             print(f"成功上传切分文件到OSS: {chunk_path}")
         finally:
             delete_file(local_filename)
+        return chunk_path
+
+    def upload_chunk_v2(local_filename, chunk_path, temp_dir):
+        try:
+            print(f"开始上传切分文件到OSS: {chunk_path}")
+            bucket_name, _ = split_file_path(temp_dir)
+            bucket = Bucket(bucket_name)
+            upload_file_to_oss(local_filename, temp_dir, bucket)
+            print(f"成功上传切分文件到OSS: {chunk_path}")
+        finally:
+            delete_file(local_filename)
         return chunk_path    
     
     executor = concurrent.futures.ThreadPoolExecutor(max_workers=workers)
     futures = []
 
-    if gen_local_file:
-        local_file_path = os.path.join('/tmp', base_filename)
-        write_jsonl(read_jsonl(input_path), local_file_path)
-        input_path = local_file_path
-    
     # 使用 read_jsonl 读取文件，无论是本地、S3 还是 OSS 都能正确读取
     for line in read_jsonl(input_path):
         # 将读取的行添加到缓冲区
@@ -138,10 +144,14 @@ def split_large_file(input_path: str, max_size_mb: int = 1024, temp_dir: str = "
         if buffer_size_bytes >= max_size_bytes - (max_size_bytes * 0.01):
             chunk_path = os.path.join(temp_dir, f"p{chunk_idx}_{file_name}{file_ext}")
             print(f"写入切分文件 {chunk_idx+1}: {chunk_path}")
-            
             if is_oss(temp_dir):
                 # 异步提交上传任务
-                future = executor.submit(upload_chunk, line_buffer, chunk_idx, file_name, file_ext, base_filename, temp_dir)
+                # future = executor.submit(upload_chunk, line_buffer, chunk_idx, file_name, file_ext, base_filename, temp_dir)
+                local_filename = f"/tmp/p{chunk_idx}_{base_filename}"
+                chunk_path = os.path.join(temp_dir, f"p{chunk_idx}_{file_name}{file_ext}")
+                write_jsonl(line_buffer, local_filename)
+                future = executor.submit(upload_chunk_v2, local_filename, chunk_path, temp_dir)
+                
                 futures.append(future)
             else:
                 with open(chunk_path, 'w', encoding='utf-8') as outfile:
@@ -153,14 +163,19 @@ def split_large_file(input_path: str, max_size_mb: int = 1024, temp_dir: str = "
             chunk_idx += 1
             line_buffer = []
             buffer_size_bytes = 0
-    
+
     # 处理剩余数据
     if line_buffer:
         chunk_path = os.path.join(temp_dir, f"p{chunk_idx}_{file_name}{file_ext}")
         print(f"写入最后一个切分文件: {chunk_path}")
         
         if is_oss(temp_dir):
-            future = executor.submit(upload_chunk, line_buffer, chunk_idx, file_name, file_ext, base_filename, temp_dir)
+            # future = executor.submit(upload_chunk, line_buffer, chunk_idx, file_name, file_ext, base_filename, temp_dir)
+            
+            local_filename = f"/tmp/p{chunk_idx}_{base_filename}"
+            chunk_path = os.path.join(temp_dir, f"p{chunk_idx}_{file_name}{file_ext}")
+            write_jsonl(line_buffer, local_filename)
+            future = executor.submit(upload_chunk_v2, local_filename, chunk_path, temp_dir)
             futures.append(future)
         else:
             with open(chunk_path, 'w', encoding='utf-8') as outfile:
@@ -174,9 +189,6 @@ def split_large_file(input_path: str, max_size_mb: int = 1024, temp_dir: str = "
         temp_files.append(future.result())
     
     executor.shutdown()
-
-    if gen_local_file:
-        delete_file(input_path)
     
     print(f"文件已切分为{len(temp_files)}个子文件")
     return temp_files
