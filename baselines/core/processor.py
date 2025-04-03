@@ -12,7 +12,7 @@ import concurrent.futures
 from baselines.core.factories import get_mapper, get_aggregator, get_transform
 from baselines.core.file_utils import is_oss, read_jsonl, write_jsonl, makedirs_if_missing, delete_file, is_exists, get_file_size, add_suffix_to_file
 from baselines.core.constants import PROCESS_SETUP_KEY_NAME, PROCESS_END_KEY_NAME, COMMIT_KEY_NAME, GLOBAL_FUNCTIONS
-from baselines.oss.oss import OSSPath, upload_file_to_oss, split_file_path, Bucket
+from baselines.oss.oss import OSSPath, upload_file_to_oss, split_file_path, Bucket, download_file
 
 logger = logging.getLogger(__name__)
 
@@ -72,7 +72,7 @@ def _is_step_stats(line):
     return line['name'] not in {PROCESS_SETUP_KEY_NAME, PROCESS_END_KEY_NAME, COMMIT_KEY_NAME}
 
 
-def split_large_file(input_path: str, max_size_mb: int = 1024, temp_dir: str = "oss://si002558te8h/dclm/temp_files", workers=1) -> List[str]:
+def split_large_file(input_path: str, max_size_mb: int = 1024, temp_dir: str = "oss://si002558te8h/dclm/temp_files", workers=1, cache_local_file=True) -> List[str]:
     """
     将大文件切分成多个小文件，每个不超过指定大小，并存储到OSS临时目录。
     
@@ -139,6 +139,12 @@ def split_large_file(input_path: str, max_size_mb: int = 1024, temp_dir: str = "
     executor = concurrent.futures.ThreadPoolExecutor(max_workers=workers)
     futures = []
 
+    if cache_local_file:
+        bucket_name, oss_path = split_file_path(input_path)
+        bucket = Bucket(bucket_name)
+        local_filepath = download_file(oss_path, '/tmp/', bucket)
+        input_path = local_filepath
+
     # 使用 read_jsonl 读取文件，无论是本地、S3 还是 OSS 都能正确读取
     for line in read_jsonl(input_path):
         # 将读取的行添加到缓冲区
@@ -152,11 +158,11 @@ def split_large_file(input_path: str, max_size_mb: int = 1024, temp_dir: str = "
             print(f"写入切分文件 {chunk_idx+1}: {chunk_path}")
             if is_oss(temp_dir):
                 # 异步提交上传任务
-                # future = executor.submit(upload_chunk, line_buffer, chunk_idx, file_name, file_ext, base_filename, temp_dir)
-                local_filename = f"/tmp/p{chunk_idx}_{base_filename}"
-                chunk_path = os.path.join(temp_dir, f"p{chunk_idx}_{file_name}{file_ext}")
-                write_jsonl(line_buffer, local_filename)
-                future = executor.submit(upload_chunk_v2, local_filename, chunk_path, temp_dir)
+                future = executor.submit(upload_chunk, line_buffer, chunk_idx, file_name, file_ext, base_filename, temp_dir)
+                # local_filename = f"/tmp/p{chunk_idx}_{base_filename}"
+                # chunk_path = os.path.join(temp_dir, f"p{chunk_idx}_{file_name}{file_ext}")
+                # write_jsonl(line_buffer, local_filename)
+                # future = executor.submit(upload_chunk_v2, local_filename, chunk_path, temp_dir)
                 
                 futures.append(future)
             else:
@@ -170,18 +176,21 @@ def split_large_file(input_path: str, max_size_mb: int = 1024, temp_dir: str = "
             line_buffer = []
             buffer_size_bytes = 0
 
+    if cache_local_file:
+        delete_file(input_path)
+
     # 处理剩余数据
     if line_buffer:
         chunk_path = os.path.join(temp_dir, f"p{chunk_idx}_{file_name}{file_ext}")
         print(f"写入最后一个切分文件: {chunk_path}")
         
         if is_oss(temp_dir):
-            # future = executor.submit(upload_chunk, line_buffer, chunk_idx, file_name, file_ext, base_filename, temp_dir)
+            future = executor.submit(upload_chunk, line_buffer, chunk_idx, file_name, file_ext, base_filename, temp_dir)
             
-            local_filename = f"/tmp/p{chunk_idx}_{base_filename}"
-            chunk_path = os.path.join(temp_dir, f"p{chunk_idx}_{file_name}{file_ext}")
-            write_jsonl(line_buffer, local_filename)
-            future = executor.submit(upload_chunk_v2, local_filename, chunk_path, temp_dir)
+            # local_filename = f"/tmp/p{chunk_idx}_{base_filename}"
+            # chunk_path = os.path.join(temp_dir, f"p{chunk_idx}_{file_name}{file_ext}")
+            # write_jsonl(line_buffer, local_filename)
+            # future = executor.submit(upload_chunk_v2, local_filename, chunk_path, temp_dir)
             futures.append(future)
         else:
             with open(chunk_path, 'w', encoding='utf-8') as outfile:
