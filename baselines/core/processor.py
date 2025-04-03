@@ -72,7 +72,7 @@ def _is_step_stats(line):
     return line['name'] not in {PROCESS_SETUP_KEY_NAME, PROCESS_END_KEY_NAME, COMMIT_KEY_NAME}
 
 
-def split_large_file(input_path: str, max_size_mb: int = 1024, temp_dir: str = "oss://si002558te8h/dclm/temp_files", workers=1) -> List[str]:
+def split_large_file(input_path: str, max_size_mb: int = 1024, temp_dir: str = "oss://si002558te8h/dclm/temp_files", workers=1, gen_local_file=True) -> List[str]:
     """
     将大文件切分成多个小文件，每个不超过指定大小，并存储到OSS临时目录。
     
@@ -121,6 +121,11 @@ def split_large_file(input_path: str, max_size_mb: int = 1024, temp_dir: str = "
     
     executor = concurrent.futures.ThreadPoolExecutor(max_workers=workers)
     futures = []
+
+    if gen_local_file:
+        local_file_path = os.path.join('/tmp', base_filename)
+        write_jsonl(read_jsonl(input_path), local_file_path)
+        input_path = local_file_path
     
     # 使用 read_jsonl 读取文件，无论是本地、S3 还是 OSS 都能正确读取
     for line in read_jsonl(input_path):
@@ -169,6 +174,9 @@ def split_large_file(input_path: str, max_size_mb: int = 1024, temp_dir: str = "
         temp_files.append(future.result())
     
     executor.shutdown()
+
+    if gen_local_file:
+        delete_file(input_path)
     
     print(f"文件已切分为{len(temp_files)}个子文件")
     return temp_files
