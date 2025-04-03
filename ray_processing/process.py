@@ -261,8 +261,8 @@ def get_task_item(retry_tasks=False, task_file_path=DEFAULT_TASKS_FILE_PATH, loc
 
             write_jsonl(task_items, task_file_path)
             lock.release()
-            return TaskItem(asigned_task['shard_dir'],
-                            asigned_task['file_range'],
+            return TaskItem(shard_dir=asigned_task['shard_dir'],
+                            file_range=asigned_task['file_range'],
                             is_temp=asigned_task['is_temp'],
                             files=asigned_task['files'],
                             original_shard_dir=asigned_task.get('original_shard_dir', None)), False
@@ -447,6 +447,7 @@ def add_task_to_queue(tasks: List[dict], task_file_path=DEFAULT_TASKS_FILE_PATH,
 def add_task_to_queue_redis(tasks: List[TaskItem], queue_id='default') -> bool:
     queue = TaskQueue(redis.Client, queue_id=queue_id)
     for task in tasks:
+        print("====== put task to head {}".format(task.to_dict()))
         queue.put_task_to_head(task)
     return True
     
