@@ -72,7 +72,7 @@ def _is_step_stats(line):
     return line['name'] not in {PROCESS_SETUP_KEY_NAME, PROCESS_END_KEY_NAME, COMMIT_KEY_NAME}
 
 
-def split_large_file(input_path: str, max_size_mb: int = 1024, temp_dir: str = "oss://si002558te8h/dclm/temp_files", workers=1, gen_local_file=True) -> List[str]:
+def split_large_file(input_path: str, max_size_mb: int = 1024, temp_dir: str = "oss://si002558te8h/dclm/temp_files", workers=1) -> List[str]:
     """
     将大文件切分成多个小文件，每个不超过指定大小，并存储到OSS临时目录。
     
@@ -106,6 +106,9 @@ def split_large_file(input_path: str, max_size_mb: int = 1024, temp_dir: str = "
     buffer_size_bytes = 0
 
     def upload_chunk(line_buffer, chunk_idx, file_name, file_ext, base_filename, temp_dir):
+        """
+        写本地文件和上传都是异步的，由于多线程，会导致更多的占用内存
+        """
         local_filename = f"/tmp/p{chunk_idx}_{base_filename}"
         chunk_path = os.path.join(temp_dir, f"p{chunk_idx}_{file_name}{file_ext}")
         try:
@@ -120,6 +123,9 @@ def split_large_file(input_path: str, max_size_mb: int = 1024, temp_dir: str = "
         return chunk_path
 
     def upload_chunk_v2(local_filename, chunk_path, temp_dir):
+        """
+        仅上传是多线程异步的，写本地文件是单线程的，更多的节约内存
+        """
         try:
             print(f"开始上传切分文件到OSS: {chunk_path}")
             bucket_name, _ = split_file_path(temp_dir)
