@@ -52,6 +52,7 @@ class TaskQueue:
         self._redis_client.rpush(self._queue_name, task.to_json())
 
     def complete_task(self, task: TaskItem):
+        print(f"=====1 task: {task.to_dict()}")
         task_id = task.get_id()
         removed_count = self._redis_client.lrem(self._processing_queue, 0, task.to_json())
         if removed_count > 0:
