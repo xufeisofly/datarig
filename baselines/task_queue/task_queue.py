@@ -43,7 +43,18 @@ class TaskQueue:
                                 files=job['files'],
                                 original_shard_dir=job.get('original_shard_dir', None))
         return None
-        
+
+    @property
+    def queue(self):
+        return self._queue_name
+
+    @property
+    def processing_queue(self):
+        return self._processing_queue
+
+    @property
+    def finished_queue(self):
+        return self._finished_queue
 
     def put_task(self, task: TaskItem):
         self._redis_client.lpush(self._queue_name, task.to_json())
@@ -83,6 +94,9 @@ class TaskQueue:
 
     def size(self):
         self._redis_client.llen(self._queue_name)
+
+    def sizeof(self, queue):
+        self._redis_client.llen(queue)        
 
     def download_to_jsonl(self, file_path):
         data = []
