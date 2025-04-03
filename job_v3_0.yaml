@@ -51,7 +51,7 @@ spec:
           - "--workers"
           - "1"
           - "--split_workers"
-          - "4"		  
+          - "1"		  
           - "--chunk_size"
           - "3"
           - "--output_has_dataset_name"
