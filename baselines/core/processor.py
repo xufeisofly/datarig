@@ -13,7 +13,7 @@ import concurrent.futures
 from baselines.core.factories import get_mapper, get_aggregator, get_transform
 from baselines.core.file_utils import is_oss, read_jsonl, write_jsonl, makedirs_if_missing, delete_file, is_exists, get_file_size, add_suffix_to_file
 from baselines.core.constants import PROCESS_SETUP_KEY_NAME, PROCESS_END_KEY_NAME, COMMIT_KEY_NAME, GLOBAL_FUNCTIONS
-from baselines.oss.oss import OSSPath, upload_file_to_oss, split_file_path, Bucket, download_file
+from baselines.oss.oss import OSSPath, upload_file_to_oss, split_file_path, Bucket, download_file_resumable, download_file_resumable_with_retry
 
 logger = logging.getLogger(__name__)
 
@@ -150,7 +150,8 @@ def split_large_file(input_path: str, max_size_mb: int = 1024, temp_dir: str = "
         if cache_local_file:
             bucket_name, oss_path = split_file_path(input_path)
             bucket = Bucket(bucket_name)
-            local_filepath = download_file(oss_path, '/tmp/', bucket)
+            local_filepath = download_file_resumable_with_retry(oss_path, '/tmp/', bucket)
+            # local_filepath = download_file_resumable(oss_path, '/tmp/', bucket)
             input_path = local_filepath
             
         # 使用 read_jsonl 读取文件，无论是本地、S3 还是 OSS 都能正确读取

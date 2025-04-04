@@ -2,10 +2,12 @@
 from typing import Union
 import oss2
 import oss2.resumable
+import time
 
 import logging
 import os
 from io import BytesIO
+from requests.exceptions import ChunkedEncodingError
 
 # 配置日志
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -240,19 +242,25 @@ def download_file(oss_path, to_dir, bucket) -> str:
     print("==== finish download file: {}".format(local_file_path))
     return local_file_path
 
-def download_file_resumable(bucket, oss_path, to_dir):
+def download_file_resumable(oss_path, to_dir, bucket):
     print("==== start download file: {}".format(oss_path))
     file_name = os.path.basename(oss_path)
     local_file_path = os.path.join(to_dir, file_name)
     if os.path.isfile(local_file_path):
         print("==== download file already exists: {}".format(local_file_path))
         return local_file_path    
-    options = oss2.resumable.ResumableDownloadOptions(part_size=50 * 1024 * 1024)
-    downloader = oss2.resumable.ResumableDownloader(bucket, oss_path, local_file_path, options=options)
-    downloader.download()
+    oss2.resumable_download(bucket, oss_path, local_file_path)
     print("==== finish download file: {}".format(local_file_path))
     return local_file_path
 
+def download_file_resumable_with_retry(oss_path, to_dir, bucket, retries=5, delay=5):
+    for attempt in range(1, retries+1):
+        try:
+            return download_file_resumable(oss_path, to_dir, bucket)
+        except ChunkedEncodingError as e:
+            print(f"下载出错，尝试 {attempt}/{retries} 次重试，错误：{e}")
+            time.sleep(delay)
+    raise Exception("重试多次后仍无法成功下载。")
 
 def finished_task_file(task_file_path):
     filename = os.path.basename(task_file_path)
