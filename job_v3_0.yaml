@@ -1,10 +1,10 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: datarig1-v3-30
+  name: datarig1-v3-400
 spec:
-  parallelism: 30 # 5x(4-5)C=20C-25C 5x(10-12)G=50-60G per node, (20C-25C)x89 = 1780C-2225C max: 445pod
-  completions: 30
+  parallelism: 400 # 5x(4-5)C=20C-25C 5x(10-12)G=50-60G per node, (20C-25C)x89 = 1780C-2225C max: 445pod
+  completions: 400
   backoffLimit: 5  # 如果任务失败后不希望重试，则设置为 0；否则设置为需要的重试次数
   template:
     metadata:
@@ -33,7 +33,7 @@ spec:
             value: "6380"			
         args:
           - "--readable_name"
-          - "v3_1_test"
+          - "v3_r2_test"
           - "--output_dir"
           - "oss://si002558te8h/dclm/output"
           - "--config_path"
