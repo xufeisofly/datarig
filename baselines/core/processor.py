@@ -145,14 +145,14 @@ def split_large_file(input_path: str, max_size_mb: int = 1024, temp_dir: str = "
     executor = concurrent.futures.ThreadPoolExecutor(max_workers=workers)
     futures = []
 
-    
-    if cache_local_file:
-        bucket_name, oss_path = split_file_path(input_path)
-        bucket = Bucket(bucket_name)
-        local_filepath = download_file(oss_path, '/tmp/', bucket)
-        input_path = local_filepath
-
-    try:            
+    local_filepath = None
+    try:
+        if cache_local_file:
+            bucket_name, oss_path = split_file_path(input_path)
+            bucket = Bucket(bucket_name)
+            local_filepath = download_file(oss_path, '/tmp/', bucket)
+            input_path = local_filepath
+            
         # 使用 read_jsonl 读取文件，无论是本地、S3 还是 OSS 都能正确读取
         for line in read_jsonl(input_path):
             # 将读取的行添加到缓冲区
@@ -184,8 +184,8 @@ def split_large_file(input_path: str, max_size_mb: int = 1024, temp_dir: str = "
                 line_buffer = []
                 buffer_size_bytes = 0
     finally:
-        if cache_local_file:
-            delete_file(input_path)
+        if cache_local_file and local_filepath is not None:
+            delete_file(local_filepath)
 
     # 处理剩余数据
     if line_buffer:

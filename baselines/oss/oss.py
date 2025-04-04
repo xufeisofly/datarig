@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from typing import Union
 import oss2
+import oss2.resumable
 
 import logging
 import os
@@ -236,6 +237,19 @@ def download_file(oss_path, to_dir, bucket) -> str:
         print("==== download file already exists: {}".format(local_file_path))
         return local_file_path
     bucket.get_object_to_file(oss_path, local_file_path)
+    print("==== finish download file: {}".format(local_file_path))
+    return local_file_path
+
+def download_file_resumable(bucket, oss_path, to_dir):
+    print("==== start download file: {}".format(oss_path))
+    file_name = os.path.basename(oss_path)
+    local_file_path = os.path.join(to_dir, file_name)
+    if os.path.isfile(local_file_path):
+        print("==== download file already exists: {}".format(local_file_path))
+        return local_file_path    
+    options = oss2.resumable.ResumableDownloadOptions(part_size=50 * 1024 * 1024)
+    downloader = oss2.resumable.ResumableDownloader(bucket, oss_path, local_file_path, options=options)
+    downloader.download()
     print("==== finish download file: {}".format(local_file_path))
     return local_file_path
 
