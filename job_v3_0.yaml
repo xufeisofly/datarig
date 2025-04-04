@@ -53,7 +53,7 @@ spec:
           - "--split_workers"
           - "4"		  
           - "--chunk_size"
-          - "3"
+          - "4"
           - "--output_has_dataset_name"
           - "--overwrite"
           - "--use_task"
