@@ -13,7 +13,7 @@ import concurrent.futures
 from baselines.core.factories import get_mapper, get_aggregator, get_transform
 from baselines.core.file_utils import is_oss, read_jsonl, write_jsonl, makedirs_if_missing, delete_file, is_exists, get_file_size, add_suffix_to_file
 from baselines.core.constants import PROCESS_SETUP_KEY_NAME, PROCESS_END_KEY_NAME, COMMIT_KEY_NAME, GLOBAL_FUNCTIONS
-from baselines.oss.oss import OSSPath, upload_file_to_oss, split_file_path, Bucket, download_file_resumable, download_file_resumable_with_retry
+from baselines.oss.oss import OSSPath, upload_file_resumable, split_file_path, Bucket, download_file_resumable, download_file_resumable_with_retry
 
 logger = logging.getLogger(__name__)
 
@@ -122,7 +122,7 @@ def split_large_file(input_path: str, max_size_mb: int = 1024, temp_dir: str = "
             print(f"开始上传切分文件到OSS: {chunk_path}")
             bucket_name, _ = split_file_path(temp_dir)
             bucket = Bucket(bucket_name)
-            upload_file_to_oss(local_filename, temp_dir, bucket)
+            upload_file_resumable(local_filename, temp_dir, bucket)
             print(f"成功上传切分文件到OSS: {chunk_path}")
         finally:
             delete_file(local_filename)

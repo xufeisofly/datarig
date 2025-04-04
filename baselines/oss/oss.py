@@ -231,6 +231,18 @@ def upload_file_to_oss(file_path, to_dir, bucket):
     print("==== finish upload file: {}".format(oss_file_path))
 
 
+def upload_file_resumable(file_path, to_dir, bucket):
+    print("==== start upload file: {}".format(file_path))
+    file_name = os.path.basename(file_path)
+    oss_file_path = os.path.join(to_dir, file_name)
+    _, oss_file_path = split_file_path(oss_file_path)
+    if is_object_exist(bucket, oss_file_path):
+        print("==== upload file already exists: {}".format(oss_file_path))
+        return
+    oss2.resumable_upload(bucket, oss_file_path, file_path)
+    print("==== finish upload file: {}".format(oss_file_path))    
+
+
 def download_file(oss_path, to_dir, bucket) -> str:
     print("==== start download file: {}".format(oss_path))
     file_name = os.path.basename(oss_path)
