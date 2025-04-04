@@ -248,7 +248,8 @@ def download_file_resumable(oss_path, to_dir, bucket):
     local_file_path = os.path.join(to_dir, file_name)
     if os.path.isfile(local_file_path):
         print("==== download file already exists: {}".format(local_file_path))
-        return local_file_path    
+        return local_file_path
+    
     oss2.resumable_download(bucket, oss_path, local_file_path)
     print("==== finish download file: {}".format(local_file_path))
     return local_file_path
@@ -259,6 +260,9 @@ def download_file_resumable_with_retry(oss_path, to_dir, bucket, retries=5, dela
             return download_file_resumable(oss_path, to_dir, bucket)
         except ChunkedEncodingError as e:
             print(f"下载出错，尝试 {attempt}/{retries} 次重试，错误：{e}")
+            local_file_path = os.path.join(to_dir, os.path.basename(oss_path))
+            if os.path.exists(local_file_path):
+                os.remove(local_file_path)
             time.sleep(delay)
     raise Exception("重试多次后仍无法成功下载。")
 
