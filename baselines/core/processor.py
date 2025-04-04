@@ -136,7 +136,7 @@ def split_large_file(input_path: str, max_size_mb: int = 1024, temp_dir: str = "
             print(f"开始上传切分文件到OSS: {chunk_path}")
             bucket_name, _ = split_file_path(temp_dir)
             bucket = Bucket(bucket_name)
-            upload_file_to_oss(local_filename, temp_dir, bucket)
+            upload_file_resumable(local_filename, temp_dir, bucket)
             print(f"成功上传切分文件到OSS: {chunk_path}")
         finally:
             delete_file(local_filename)
