@@ -185,7 +185,10 @@ class OSSWriteStream():
         self.output.write(data)
         
     def close(self):
-        self.upload_to_oss()
+        if self.resumable:
+            self.upload_to_oss_resumable()
+        else:
+            self.upload_to_oss()
 
     def flush(self):
         self.output.flush()        
