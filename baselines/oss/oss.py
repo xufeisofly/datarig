@@ -1,10 +1,14 @@
 # -*- coding: utf-8 -*-
 from typing import Union
 import oss2
+import oss2.resumable
+import time
+import tempfile
 
 import logging
 import os
 from io import BytesIO
+from requests.exceptions import ChunkedEncodingError
 
 # 配置日志
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -89,27 +93,20 @@ def get_sub_files(bucket, dir_path):
     
         
 class OSSPath:
-    def __init__(self, file_path):
+    def __init__(self, file_path, resumable_write=True):
         bucket_name, path = split_file_path(file_path)
         bucket = Bucket(bucket_name)
         # 初始化 OSS 配置信息
         self.bucket = bucket
         self.path = path  # OSS 文件路径
+        self.resumable_write = resumable_write
         
     def open(self, mode) -> Union['OSSWriteStream', 'OSSReadStream']:
         if mode in ["rb", "r"]:
             return OSSReadStream(self.bucket, self.path)
         elif mode in ["wb", "w", "a"]:
-            return OSSWriteStream(self.bucket, self.path, BytesIO(), mode=mode)
+            return OSSWriteStream(self.bucket, self.path, BytesIO(), mode=mode, resumable=self.resumable_write)
         raise ValueError(f"invalid mode: {mode}")
-
-
-# class OSSReadStream(BytesIO):
-#     def __init__(self, bucket: oss2.Bucket, path: str):
-#         self.bucket = bucket
-#         self.path = path
-#         obj = self.bucket.get_object(self.path)
-#         super().__init__(obj.read())
 
 
 class OSSReadStream:
@@ -169,11 +166,12 @@ class OSSReadStream:
         
     
 class OSSWriteStream():
-    def __init__(self, bucket, path, output, mode="w"):
+    def __init__(self, bucket, path, output, mode="w", resumable=True):
         self.bucket = bucket
         self.path = path
         self.output = output
         self.mode = mode
+        self.resumable = resumable
 
         if self.mode == "a":
             try:
@@ -188,17 +186,37 @@ class OSSWriteStream():
         self.output.write(data)
         
     def close(self):
-        # 关闭压缩流并上传数据到 OSS
-        self.upload_to_oss()
+        if self.resumable:
+            self.upload_to_oss_resumable()
+        else:
+            self.upload_to_oss()
 
     def flush(self):
-        # 提供一个 flush 方法来确保数据写入
         self.output.flush()        
 
     def upload_to_oss(self):
         # 将缓冲区的内容上传到 OSS
         self.output.seek(0)  # 重置读取位置
         self.bucket.put_object(self.path, self.output.read())  # 上传数据
+
+    def upload_to_oss_resumable(self):
+        self.output.seek(0)
+        data = self.output.read()
+        
+        # 写入临时文件
+        with tempfile.NamedTemporaryFile(delete=False) as tmp:
+            tmp.write(data)
+            tmp_file_path = tmp.name
+
+        try:
+            to_dir = os.path.dirname(self.path)
+            upload_file_resumable(tmp_file_path, to_dir, self.bucket,
+                                  new_filename=os.path.basename(self.path))
+        except Exception as e:
+            raise e
+        finally:
+            if os.path.exists(tmp_file_path):
+                os.remove(tmp_file_path)        
 
     def __enter__(self):
         return self
@@ -225,8 +243,58 @@ def upload_file_to_oss(file_path, to_dir, bucket):
         print("==== upload file already exists: {}".format(oss_file_path))
         return
     bucket.put_object_from_file(oss_file_path, file_path)
+    print("==== finish upload file: {}".format(oss_file_path))
+
+
+def upload_file_resumable(file_path, to_dir, bucket, new_filename=None):
+    print("==== start upload file: {}".format(file_path))
+    if new_filename is None:
+        file_name = os.path.basename(file_path)
+    else:
+        file_name = new_filename
+    oss_file_path = os.path.join(to_dir, file_name)
+    _, oss_file_path = split_file_path(oss_file_path)
+    if is_object_exist(bucket, oss_file_path):
+        print("==== upload file already exists: {}".format(oss_file_path))
+        return
+    oss2.resumable_upload(bucket, oss_file_path, file_path)
     print("==== finish upload file: {}".format(oss_file_path))    
 
+
+def download_file(oss_path, to_dir, bucket) -> str:
+    print("==== start download file: {}".format(oss_path))
+    file_name = os.path.basename(oss_path)
+    local_file_path = os.path.join(to_dir, file_name)
+    if os.path.isfile(local_file_path):
+        print("==== download file already exists: {}".format(local_file_path))
+        return local_file_path
+    bucket.get_object_to_file(oss_path, local_file_path)
+    print("==== finish download file: {}".format(local_file_path))
+    return local_file_path
+
+def download_file_resumable(oss_path, to_dir, bucket):
+    print("==== start download file: {}".format(oss_path))
+    file_name = os.path.basename(oss_path)
+    local_file_path = os.path.join(to_dir, file_name)
+    if os.path.isfile(local_file_path):
+        print("==== download file already exists: {}".format(local_file_path))
+        return local_file_path
+    
+    oss2.resumable_download(bucket, oss_path, local_file_path)
+    print("==== finish download file: {}".format(local_file_path))
+    return local_file_path
+
+def download_file_resumable_with_retry(oss_path, to_dir, bucket, retries=5, delay=5):
+    for attempt in range(1, retries+1):
+        try:
+            return download_file_resumable(oss_path, to_dir, bucket)
+        except ChunkedEncodingError as e:
+            print(f"下载出错，尝试 {attempt}/{retries} 次重试，错误：{e}")
+            local_file_path = os.path.join(to_dir, os.path.basename(oss_path))
+            if os.path.exists(local_file_path):
+                os.remove(local_file_path)
+            time.sleep(delay)
+    raise Exception("重试多次后仍无法成功下载。")
 
 def finished_task_file(task_file_path):
     filename = os.path.basename(task_file_path)

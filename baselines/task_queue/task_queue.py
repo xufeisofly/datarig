@@ -43,7 +43,18 @@ class TaskQueue:
                                 files=job['files'],
                                 original_shard_dir=job.get('original_shard_dir', None))
         return None
-        
+
+    @property
+    def pending_queue(self):
+        return self._queue_name
+
+    @property
+    def processing_queue(self):
+        return self._processing_queue
+
+    @property
+    def finished_queue(self):
+        return self._finished_queue
 
     def put_task(self, task: TaskItem):
         self._redis_client.lpush(self._queue_name, task.to_json())
@@ -81,28 +92,17 @@ class TaskQueue:
     def get_processing_task_key(self, task_id):
         return f"{self._processing_prefix}{task_id}"
 
-    def size(self):
-        self._redis_client.llen(self._queue_name)
+    def sizeof(self, queue):
+        return self._redis_client.llen(queue)
 
-    def download_to_jsonl(self, file_path):
-        data = []
-        for task in self._redis_client.lrange(self._queue_name, 0, -1):
+    def iterator(self, queue):
+        for task in self._redis_client.lrange(queue, 0, -1):
             task = task.decode()
-            data.append(json.loads(task))
+            yield json.loads(task)
 
-        write_jsonl(data, file_path)
-
-    def download_processing_to_jsonl(self, file_path):
+    def download_to_jsonl(self, queue, file_path):
         data = []
-        for task in self._redis_client.lrange(self._processing_queue, 0, -1):
-            task = task.decode()
-            data.append(json.loads(task))
-
-        write_jsonl(data, file_path)
-
-    def download_finished_to_jsonl(self, file_path):
-        data = []
-        for task in self._redis_client.lrange(self._finished_queue, 0, -1):
+        for task in self._redis_client.lrange(queue, 0, -1):
             task = task.decode()
             data.append(json.loads(task))
 

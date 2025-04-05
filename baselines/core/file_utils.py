@@ -25,6 +25,7 @@ def is_compressed(file_path: str):
 def delete_file(file_path: str):
     """Deletes the file at the given path (local or S3). If the file does not exist, raises an error.
     May also raise if this is a directory rather than a file"""
+    print(f"==== delete file: {file_path}")
     if is_s3(file_path):
         s3_path = S3Path(file_path)
         if s3_path.exists():
@@ -88,12 +89,12 @@ def read_jsonl(file_path: str):
                 yield line
 
                 
-def write_jsonl(data, file_path: str, mode: str = "w"):
+def write_jsonl(data, file_path: str, mode: str = "w", resumable_write=False):
     """Write data to a JSONL file at a given path (local or S3)."""
     if is_s3(file_path):
         path = S3Path(file_path)
     elif is_oss(file_path):
-        path = OSSPath(file_path) # xufeisoflyishere
+        path = OSSPath(file_path, resumable_write=resumable_write) # xufeisoflyishere
     else:
         path = LocalPath(file_path)
 
