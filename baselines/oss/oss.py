@@ -207,6 +207,8 @@ class OSSWriteStream():
         try:
             to_dir = os.path.dirname(self.path)
             upload_file_resumable(tmp_file_path, to_dir, self.bucket)
+        except Exception as e:
+            raise e
         finally:
             if os.path.exists(tmp_file_path):
                 os.remove(tmp_file_path)        
