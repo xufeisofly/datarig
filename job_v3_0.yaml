@@ -1,7 +1,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: datarig1-v3-200-2
+  name: datarig1-v3-200
 spec:
   parallelism: 200 # 5x(4-5)C=20C-25C 5x(10-12)G=50-60G per node, (20C-25C)x89 = 1780C-2225C max: 445pod
   completions: 200
@@ -15,7 +15,7 @@ spec:
         - name: cr-docker-registry
       containers:
       - name: dclm-sci
-        image: cr.registry.res.cloud.zhejianglab.com/dataprocess/datarig:v3.2
+        image: cr.registry.res.cloud.zhejianglab.com/dataprocess/datarig:v3.3
         resources:
           requests:
             cpu: "4"
@@ -53,7 +53,7 @@ spec:
           - "--split_workers"
           - "4"		  
           - "--chunk_size"
-          - "4"
+          - "3"
           - "--output_has_dataset_name"
           - "--overwrite"
           - "--use_task"
