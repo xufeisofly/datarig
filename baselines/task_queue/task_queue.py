@@ -97,7 +97,8 @@ class TaskQueue:
 
     def iterator(self, queue):
         for task in self._redis_client.lrange(queue, 0, -1):
-            yield task
+            task = task.decode()
+            yield json.loads(task)
 
     def download_to_jsonl(self, queue, file_path):
         data = []
