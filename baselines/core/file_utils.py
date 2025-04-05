@@ -89,7 +89,7 @@ def read_jsonl(file_path: str):
                 yield line
 
                 
-def write_jsonl(data, file_path: str, mode: str = "w", resumable_write=True):
+def write_jsonl(data, file_path: str, mode: str = "w", resumable_write=False):
     """Write data to a JSONL file at a given path (local or S3)."""
     if is_s3(file_path):
         path = S3Path(file_path)

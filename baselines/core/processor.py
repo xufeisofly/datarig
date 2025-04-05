@@ -43,7 +43,7 @@ SPLIT_INDEX = 2
 def commit(pages, stats, output_path, stats_output_path):
     print(f"committing pages to {output_path} (and stats to {stats_output_path})")
     t = time.time()
-    write_jsonl(pages, output_path)
+    write_jsonl(pages, output_path, resumable_write=True)
 
     stats.append({'name': COMMIT_KEY_NAME, 'secs': time.time() - t})
     write_jsonl(stats, stats_output_path, 'a')
