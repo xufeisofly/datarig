@@ -3,6 +3,7 @@ from typing import Union
 import oss2
 import oss2.resumable
 import time
+import tempfile
 
 import logging
 import os
@@ -99,20 +100,12 @@ class OSSPath:
         self.bucket = bucket
         self.path = path  # OSS 文件路径
         
-    def open(self, mode) -> Union['OSSWriteStream', 'OSSReadStream']:
+    def open(self, mode, resumable_write=True) -> Union['OSSWriteStream', 'OSSReadStream']:
         if mode in ["rb", "r"]:
             return OSSReadStream(self.bucket, self.path)
         elif mode in ["wb", "w", "a"]:
-            return OSSWriteStream(self.bucket, self.path, BytesIO(), mode=mode)
+            return OSSWriteStream(self.bucket, self.path, BytesIO(), mode=mode, resumable=resumable_write)
         raise ValueError(f"invalid mode: {mode}")
-
-
-# class OSSReadStream(BytesIO):
-#     def __init__(self, bucket: oss2.Bucket, path: str):
-#         self.bucket = bucket
-#         self.path = path
-#         obj = self.bucket.get_object(self.path)
-#         super().__init__(obj.read())
 
 
 class OSSReadStream:
@@ -172,11 +165,12 @@ class OSSReadStream:
         
     
 class OSSWriteStream():
-    def __init__(self, bucket, path, output, mode="w"):
+    def __init__(self, bucket, path, output, mode="w", resumable=True):
         self.bucket = bucket
         self.path = path
         self.output = output
         self.mode = mode
+        self.resumable = resumable
 
         if self.mode == "a":
             try:
@@ -191,17 +185,31 @@ class OSSWriteStream():
         self.output.write(data)
         
     def close(self):
-        # 关闭压缩流并上传数据到 OSS
         self.upload_to_oss()
 
     def flush(self):
-        # 提供一个 flush 方法来确保数据写入
         self.output.flush()        
 
     def upload_to_oss(self):
         # 将缓冲区的内容上传到 OSS
         self.output.seek(0)  # 重置读取位置
         self.bucket.put_object(self.path, self.output.read())  # 上传数据
+
+    def upload_to_oss_resumable(self):
+        self.output.seek(0)
+        data = self.output.read()
+        
+        # 写入临时文件
+        with tempfile.NamedTemporaryFile(delete=False) as tmp:
+            tmp.write(data)
+            tmp_file_path = tmp.name
+
+        try:
+            to_dir = os.path.dirname(self.path)
+            upload_file_resumable(tmp_file_path, to_dir, self.bucket)
+        finally:
+            if os.path.exists(tmp_file_path):
+                os.remove(tmp_file_path)        
 
     def __enter__(self):
         return self
