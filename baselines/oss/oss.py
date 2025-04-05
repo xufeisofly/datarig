@@ -93,18 +93,19 @@ def get_sub_files(bucket, dir_path):
     
         
 class OSSPath:
-    def __init__(self, file_path):
+    def __init__(self, file_path, resumable_write=True):
         bucket_name, path = split_file_path(file_path)
         bucket = Bucket(bucket_name)
         # 初始化 OSS 配置信息
         self.bucket = bucket
         self.path = path  # OSS 文件路径
+        self.resumable_write = resumable_write
         
-    def open(self, mode, resumable_write=True) -> Union['OSSWriteStream', 'OSSReadStream']:
+    def open(self, mode) -> Union['OSSWriteStream', 'OSSReadStream']:
         if mode in ["rb", "r"]:
             return OSSReadStream(self.bucket, self.path)
         elif mode in ["wb", "w", "a"]:
-            return OSSWriteStream(self.bucket, self.path, BytesIO(), mode=mode, resumable=resumable_write)
+            return OSSWriteStream(self.bucket, self.path, BytesIO(), mode=mode, resumable=self.resumable_write)
         raise ValueError(f"invalid mode: {mode}")
 
 
@@ -209,7 +210,8 @@ class OSSWriteStream():
 
         try:
             to_dir = os.path.dirname(self.path)
-            upload_file_resumable(tmp_file_path, to_dir, self.bucket)
+            upload_file_resumable(tmp_file_path, to_dir, self.bucket,
+                                  new_filename=os.path.basename(self.path))
         except Exception as e:
             raise e
         finally:
@@ -244,9 +246,12 @@ def upload_file_to_oss(file_path, to_dir, bucket):
     print("==== finish upload file: {}".format(oss_file_path))
 
 
-def upload_file_resumable(file_path, to_dir, bucket):
+def upload_file_resumable(file_path, to_dir, bucket, new_filename=None):
     print("==== start upload file: {}".format(file_path))
-    file_name = os.path.basename(file_path)
+    if new_filename is None:
+        file_name = os.path.basename(file_path)
+    else:
+        file_name = new_filename
     oss_file_path = os.path.join(to_dir, file_name)
     _, oss_file_path = split_file_path(oss_file_path)
     if is_object_exist(bucket, oss_file_path):

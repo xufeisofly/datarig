@@ -2,6 +2,7 @@ import boto3
 import time
 import os
 import argparse
+from oss2 import resumable
 from tqdm import tqdm
 from yaml import safe_load
 import glob
@@ -98,6 +99,7 @@ def parse_args():
     parser.add_argument("--use_redis_task", action="store_true", help="use task 为 true 时，use_redis_task 会使用 redis 作为消息队列，否则使用 oss 文件.")    
     parser.add_argument("--retry_tasks", action="store_true", help="是否重新运行之前运行过的 tasks json")
     parser.add_argument("--output_has_dataset_name", action="store_true", help="output 目录中携带 dataset 名称")
+    parser.add_argument("--oss_resumable_write", action="store_true", help="oss write 时使用 resumable")    
     parser.add_argument("--ray_address", type=str, default="localhost:6379")
     parser.add_argument("--num_shards", type=int, default=None, help="Run on the first number of shards (for debugging)")
     parser.add_argument(

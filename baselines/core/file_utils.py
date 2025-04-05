@@ -89,12 +89,12 @@ def read_jsonl(file_path: str):
                 yield line
 
                 
-def write_jsonl(data, file_path: str, mode: str = "w"):
+def write_jsonl(data, file_path: str, mode: str = "w", resumable_write=True):
     """Write data to a JSONL file at a given path (local or S3)."""
     if is_s3(file_path):
         path = S3Path(file_path)
     elif is_oss(file_path):
-        path = OSSPath(file_path) # xufeisoflyishere
+        path = OSSPath(file_path, resumable_write=resumable_write) # xufeisoflyishere
     else:
         path = LocalPath(file_path)
 
