@@ -1,10 +1,10 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: datarig1-v3-200
+  name: datarig1-v3-100
 spec:
-  parallelism: 200 # 5x(4-5)C=20C-25C 5x(10-12)G=50-60G per node, (20C-25C)x89 = 1780C-2225C max: 445pod
-  completions: 200
+  parallelism: 100 # 5x(4-5)C=20C-25C 5x(10-12)G=50-60G per node, (20C-25C)x89 = 1780C-2225C max: 445pod
+  completions: 100
   backoffLimit: 5  # 如果任务失败后不希望重试，则设置为 0；否则设置为需要的重试次数
   template:
     metadata:
@@ -18,11 +18,11 @@ spec:
         image: cr.registry.res.cloud.zhejianglab.com/dataprocess/datarig:v3.3
         resources:
           requests:
-            cpu: "4"
-            memory: "10Gi"
+            cpu: "8"
+            memory: "20Gi"
           limits:
-            cpu: "5"
-            memory: "12Gi"
+            cpu: "10"
+            memory: "24Gi"
         command: ["/app/dclm-sci/start.sh"]
         env:
           - name: RAY_DEDUP_LOGS
@@ -33,7 +33,7 @@ spec:
             value: "6380"			
         args:
           - "--readable_name"
-          - "v3_r2_test2"
+          - "v3_r2_test3"
           - "--output_dir"
           - "oss://si002558te8h/dclm/output"
           - "--config_path"
@@ -53,7 +53,7 @@ spec:
           - "--split_workers"
           - "4"		  
           - "--chunk_size"
-          - "3"
+          - "6"
           - "--output_has_dataset_name"
           - "--overwrite"
           - "--use_task"
