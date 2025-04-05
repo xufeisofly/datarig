@@ -31,6 +31,5 @@ if __name__ == '__main__':
         
         logging.info(f"pending: {queue.sizeof(queue.pending_queue)} | processing: {queue.sizeof(queue.processing_queue)} | finished: {queue.sizeof(queue.finished_queue)} | non_tmp_finished: {non_temp_task_num}")
 
-
-        time.sleep(10)
+        time.sleep(30)
         
