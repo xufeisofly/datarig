@@ -27,6 +27,8 @@ spec:
         env:
           - name: RAY_DEDUP_LOGS
             value: "0"
+          - name: RAY_BACKEND_LOG_LEVEL
+            value: "error"		
           - name: REDIS_HOST
             value: "10.200.48.152"
           - name: REDIS_PORT
