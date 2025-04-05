@@ -23,5 +23,14 @@ if __name__ == '__main__':
         queue.download_to_jsonl(queue.pending_queue, './task_queue.jsonl')
         queue.download_to_jsonl(queue.processing_queue, './processing_task_queue.jsonl')
         queue.download_to_jsonl(queue.finished_queue, './finished_task_queue.jsonl')
-        logging.info(f"pending: {queue.sizeof(queue.pending_queue)} | processing: {queue.sizeof(queue.processing_queue)} | finished: {queue.sizeof(queue.finished_queue)}")
+        
+        non_temp_task_num = 0
+        for task in queue.iterator(queue.finished_queue):
+            if not task['is_temp']:
+                non_temp_task_num += 1
+        
+        logging.info(f"pending: {queue.sizeof(queue.pending_queue)} | processing: {queue.sizeof(queue.processing_queue)} | finished: {queue.sizeof(queue.finished_queue)} | non_tmp_finished: {non_temp_task_num}")
+
+
         time.sleep(10)
+        

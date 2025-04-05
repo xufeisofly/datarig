@@ -93,7 +93,11 @@ class TaskQueue:
         return f"{self._processing_prefix}{task_id}"
 
     def sizeof(self, queue):
-        return self._redis_client.llen(queue)        
+        return self._redis_client.llen(queue)
+
+    def iterator(self, queue):
+        for task in self._redis_client.lrange(queue, 0, -1):
+            yield task
 
     def download_to_jsonl(self, queue, file_path):
         data = []
