@@ -132,7 +132,7 @@ class OSSReadStream:
 
     def readable(self) -> bool:
         return True
-
+    
     def writable(self) -> bool:
         return False
 
@@ -238,7 +238,6 @@ def upload_file_to_oss(file_path, to_dir, bucket):
     print("==== start upload file: {}".format(file_path))
     file_name = os.path.basename(file_path)
     oss_file_path = os.path.join(to_dir, file_name)
-    _, oss_file_path = split_file_path(oss_file_path)
     if is_object_exist(bucket, oss_file_path):
         print("==== upload file already exists: {}".format(oss_file_path))
         return
@@ -253,7 +252,6 @@ def upload_file_resumable(file_path, to_dir, bucket, new_filename=None):
     else:
         file_name = new_filename
     oss_file_path = os.path.join(to_dir, file_name)
-    _, oss_file_path = split_file_path(oss_file_path)
     if is_object_exist(bucket, oss_file_path):
         print("==== upload file already exists: {}".format(oss_file_path))
         return
