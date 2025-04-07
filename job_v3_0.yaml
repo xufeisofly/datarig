@@ -35,7 +35,7 @@ spec:
             value: "6380"			
         args:
           - "--readable_name"
-          - "v3_r2_test3"
+          - "v3_r2_test_0407"
           - "--output_dir"
           - "oss://si002558te8h/dclm/output"
           - "--config_path"
