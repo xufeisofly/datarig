@@ -1,10 +1,10 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: datarig1-v3-100
+  name: datarig1-v3-200
 spec:
-  parallelism: 100 # 5x(4-5)C=20C-25C 5x(10-12)G=50-60G per node, (20C-25C)x89 = 1780C-2225C max: 445pod
-  completions: 100
+  parallelism: 200 # 5x(4-5)C=20C-25C 5x(10-12)G=50-60G per node, (20C-25C)x89 = 1780C-2225C max: 445pod
+  completions: 200
   backoffLimit: 5  # 如果任务失败后不希望重试，则设置为 0；否则设置为需要的重试次数
   template:
     metadata:
