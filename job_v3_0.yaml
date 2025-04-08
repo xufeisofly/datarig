@@ -22,7 +22,7 @@ spec:
             memory: "20Gi"
           limits:
             cpu: "10"
-            memory: "24Gi"
+            memory: "20Gi"
         command: ["/app/dclm-sci/start.sh"]
         env:
           - name: RAY_DEDUP_LOGS
@@ -55,7 +55,7 @@ spec:
           - "--split_workers"
           - "4"		  
           - "--chunk_size"
-          - "6"
+          - "5"
           - "--output_has_dataset_name"
           - "--overwrite"
           - "--use_task"
