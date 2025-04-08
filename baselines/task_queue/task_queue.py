@@ -7,7 +7,7 @@ TASK_QUEUE_NAME = 'task_queue'
 PROCESSING_QUEUE = 'processing_queue'
 FINISHED_QUEUE = 'finished_queue'
 PROCESSING_KEY_PREFIX = 'processing:'
-TASK_TIMEOUT = 7200
+TASK_TIMEOUT = 3600
 
 
 class TaskQueue:

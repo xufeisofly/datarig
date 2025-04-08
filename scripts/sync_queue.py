@@ -8,7 +8,6 @@ from baselines.core.file_utils import is_exists, read_jsonl, write_jsonl
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s: %(message)s")
 
-    
 
 if __name__ == '__main__':
     queue = TaskQueue(redis.Client, queue_id='default')
