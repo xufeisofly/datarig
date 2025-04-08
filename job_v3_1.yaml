@@ -61,5 +61,9 @@ spec:
           - "--use_task"
           - "--use_redis_task"
           - "--ignore_failures"
+        volumeMounts:
+          - name: dclm-config-volume
+            mountPath: "/app/dclm-sci/baselines/baselines_configs/dclm_no_lang.yaml"
+            subPath: "dclm_no_lang.yaml"		  
         imagePullPolicy: IfNotPresent
       restartPolicy: OnFailure
