@@ -22,7 +22,7 @@ spec:
             memory: "26Gi"
           limits:
             cpu: "15"
-            memory: "30Gi"
+            memory: "28Gi"
         command: ["/app/dclm-sci/start.sh"]
         env:
           - name: RAY_DEDUP_LOGS
