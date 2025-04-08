@@ -363,8 +363,15 @@ def stackexchange_qa_formatter(page: Dict, remove_qa=False) -> List[Dict]:
     return [page]
 
 def move_url_modifier(page: Dict) -> List[Dict]:
-    page[URL] = page['metadata']['WARC-Target-URI']
+    if page.get('metadata', None) is not None:
+        if page['metadata'].get('WARC-Target-URI', None) is not None:
+            page[URL] = page['metadata']['WARC-Target-URI']
+    if page.get('WARC-Target-URI', None) is not None:
+        page[URL] = page['WARC-Target-URI']
+    if page.get('warc_target_uri', None) is not None:
+        page[URL] = page['warc_target_uri']
     return [page]
+        
 
 def key_name_modifier(page: Dict, old_key='content', new_key='text', allow_overwrite=False) -> List[Dict]:
     """
