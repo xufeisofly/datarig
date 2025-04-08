@@ -79,6 +79,15 @@ class TaskQueue:
     def all_finished(self) -> bool:
         return self._redis_client.llen(self._processing_queue) == 0
 
+    def requeue_tasks(self):
+        for task in self._redis_client.lrange(self._processing_queue, 0, -1):
+            task = task.decode()
+            task_id = json.loads(task).get("id")
+            removed_count = self._redis_client.lrem(self._processing_queue, 0, task)
+            if removed_count > 0:
+                self._redis_client.lpush(self._queue_name, task)
+                self._redis_client.delete(self.get_processing_task_key(task_id))
+
     def requeue_expired_tasks(self):
         for task in self._redis_client.lrange(self._processing_queue, 0, -1):
             task = task.decode()
