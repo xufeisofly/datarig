@@ -7,6 +7,11 @@ from baselines.core.file_utils import is_exists, write_jsonl, read_jsonl
 import concurrent.futures
 import argparse
 
+"""
+对处理后数据的 stats.jsonl 进行汇总，使用方式
+python3 scripts/gen_all_stats.py --base_dir 'oss://si002558te8h/dclm/output/r2_formal/' --output_csv './stats.csv' 
+"""
+
 # 设置日志
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s: %(message)s")
 
