@@ -60,7 +60,7 @@ def generate_csv(subjects_stats, output_csv):
         
         # 写入每个 subject_dir 的数据
         for subject in subjects_stats:
-            subject_dir = subject['subject_dir']
+            subject_dir = subject['subject']
             steps_data = subject['steps']
             
             # 初始化每个字段的数据
