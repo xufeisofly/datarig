@@ -112,13 +112,12 @@ def main():
                                 
             print(f"==== {subject_folder} done ====")
             subjects_stats.append({
-                'subject_dir': subject_folder,
+                'subject': subject_folder.split('/')[-2],
                 'steps': cur_step_stats,
             })
 
     output_csv = 'subjects_stats.csv'        
-    generate_csv(subjects_stats, output_csv)
-        
+    generate_csv(subjects_stats, output_csv)        
 
 
 if __name__ == '__main__':
