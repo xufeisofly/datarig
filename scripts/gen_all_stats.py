@@ -16,10 +16,14 @@ python3 scripts/gen_all_stats.py --base_dir 'oss://si002558te8h/dclm/output/r2_f
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s: %(message)s")
 
 
+def get_step_name(name, i):
+    return name + "_" + str(i)
+
+
 def get_stats_of_file(oss_stat_file):
     file_stat = []
     
-    for line in read_jsonl(oss_stat_file):
+    for i, line in enumerate(read_jsonl(oss_stat_file)):
         if not line.get('pages_in', None):
             continue
         name = line.get('name', None)
@@ -28,7 +32,7 @@ def get_stats_of_file(oss_stat_file):
         removed = line.get('removed', None)
         
         file_stat.append({
-            'name': name,
+            'name': get_step_name(name, i),
             'pages_in': pages_in,
             'pages_out': pages_out,
             'removed': removed,
@@ -49,7 +53,7 @@ def generate_csv(subjects_stats, output_csv):
         headers.append(f'{step["name"]}.removed')
 
     # 添加总和的字段
-    headers += ['total_pages_in', 'total_pages_out', 'total_removed']
+    headers += ['total_removed']
     
     # 打开文件并写入数据
     with open(output_csv, mode='w', newline='') as file:
@@ -65,8 +69,6 @@ def generate_csv(subjects_stats, output_csv):
             
             # 初始化每个字段的数据
             row = [subject_dir]
-            total_pages_in = 0
-            total_pages_out = 0
             total_removed = 0
             
             for step in steps_data:
@@ -74,13 +76,9 @@ def generate_csv(subjects_stats, output_csv):
                 row.append(step['pages_out'])
                 row.append(step['removed'])
                 
-                total_pages_in += step['pages_in']
-                total_pages_out += step['pages_out']
                 total_removed += step['removed']
             
             # 添加总和
-            row.append(total_pages_in)
-            row.append(total_pages_out)
             row.append(total_removed)
             
             # 写入数据行
