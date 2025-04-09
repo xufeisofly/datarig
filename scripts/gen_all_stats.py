@@ -6,6 +6,7 @@ from baselines.oss import oss
 from baselines.core.file_utils import is_exists, write_jsonl, read_jsonl
 from typing import List, Dict
 from collections import defaultdict
+import concurrent.futures
 
 # 设置日志
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s: %(message)s")
@@ -81,43 +82,59 @@ def generate_csv(subjects_stats, output_csv):
             # 写入数据行
             writer.writerow(row)
 
+def process_subject(subject_folder, base_path, bucket):
+    cur_step_stats = []
+    stat_subject_folder = os.path.join(subject_folder, 'stats')
+    stat_files = oss.get_sub_files(bucket, stat_subject_folder)
+    
+    for stat_file in stat_files:
+        oss_stat_file = oss.join_file_path(bucket_name, stat_file)
+        file_step_stats = get_stats_of_file(oss_stat_file)
+        
+        if len(cur_step_stats) == 0:
+            cur_step_stats = file_step_stats
+        else:
+            for step_stat in file_step_stats:
+                for cur_step_stat in cur_step_stats:
+                    if cur_step_stat['name'] == step_stat['name']:
+                        cur_step_stat['pages_in'] += step_stat['pages_in']
+                        cur_step_stat['pages_out'] += step_stat['pages_out']
+                        cur_step_stat['removed'] += step_stat['removed']
+    
+    return {
+        'subject': subject_folder.split('/')[-2],
+        'steps': cur_step_stats,
+    }
+
+
 def main():
     processed_base_dir = "oss://si002558te8h/dclm/output/r2_formal/"
     bucket_name, base_path = oss.split_file_path(processed_base_dir)
     bucket = oss.Bucket(bucket_name)        
 
     subjects_stats = []
-    for sub_dir in ["dclm"]:
-        dir_path = f"{base_path}{sub_dir}/"
-        subject_folders = oss.get_sub_folders(bucket, dir_path)
+
+    # 用线程池来处理每个 subject_dir
+    with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
+        futures = []
         
-        for subject_folder in subject_folders:
-            cur_step_stats = []
-            stat_subject_folder = os.path.join(subject_folder, 'stats')
-            stat_files = oss.get_sub_files(bucket, stat_subject_folder)
+        for sub_dir in ["dclm"]:
+            dir_path = f"{base_path}{sub_dir}/"
+            subject_folders = oss.get_sub_folders(bucket, dir_path)
+            
+            for subject_folder in subject_folders:
+                # 每个线程处理一个 subject_folder
+                futures.append(executor.submit(process_subject, subject_folder, base_path, bucket))
 
-            for stat_file in stat_files:
-                oss_stat_file = oss.join_file_path(bucket_name, stat_file)
-                file_step_stats = get_stats_of_file(oss_stat_file)
-                
-                if len(cur_step_stats) == 0:
-                    cur_step_stats = file_step_stats
-                else:
-                    for step_stat in file_step_stats:
-                        for cur_step_stat in cur_step_stats:
-                            if cur_step_stat['name'] == step_stat['name']:
-                                cur_step_stat['pages_in'] += step_stat['pages_in']
-                                cur_step_stat['pages_out'] += step_stat['pages_out']
-                                cur_step_stat['removed'] += step_stat['removed']
-                                
-            print(f"==== {subject_folder} done ====")
-            subjects_stats.append({
-                'subject': subject_folder.split('/')[-2],
-                'steps': cur_step_stats,
-            })
-
+        # 获取线程池中的所有任务的结果
+        for future in concurrent.futures.as_completed(futures):
+            subject_stats = future.result()
+            subjects_stats.append(subject_stats)
+            print(f"==== {subject_stats['subject']} done ====")
+    
     output_csv = 'subjects_stats.csv'        
-    generate_csv(subjects_stats, output_csv)        
+    generate_csv(subjects_stats, output_csv)
+        
 
 
 if __name__ == '__main__':
