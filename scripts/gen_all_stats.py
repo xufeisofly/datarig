@@ -119,7 +119,7 @@ def main():
     subjects_stats = []
 
     # 用线程池来处理每个 subject_dir
-    with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
         futures = []
         
         for sub_dir in ["dclm"]:
