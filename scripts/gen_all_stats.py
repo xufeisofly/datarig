@@ -4,9 +4,8 @@ import os
 import logging
 from baselines.oss import oss
 from baselines.core.file_utils import is_exists, write_jsonl, read_jsonl
-from typing import List, Dict
-from collections import defaultdict
 import concurrent.futures
+import argparse
 
 # 设置日志
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s: %(message)s")
@@ -108,7 +107,12 @@ def process_subject(subject_folder, bucket_name, bucket):
 
 
 def main():
-    processed_base_dir = "oss://si002558te8h/dclm/output/r2_formal/"
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--base_dir", help="", type=str, default="oss://si002558te8h/dclm/output/r2_formal/")
+    parser.add_argument("--output_csv", help="", type=str, default="./subjects_stats.csv")
+    args = parser.parse_args()
+    
+    processed_base_dir = args.base_dir
     bucket_name, base_path = oss.split_file_path(processed_base_dir)
     bucket = oss.Bucket(bucket_name)        
 
@@ -132,7 +136,7 @@ def main():
             subjects_stats.append(subject_stats)
             print(f"==== {subject_stats['subject']} done ====")
     
-    output_csv = 'subjects_stats.csv'        
+    output_csv = args.output_csv        
     generate_csv(subjects_stats, output_csv)
         
 
