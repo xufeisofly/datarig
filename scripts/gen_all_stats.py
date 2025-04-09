@@ -110,7 +110,7 @@ def main():
                                 cur_step_stat['pages_out'] += step_stat['pages_out']
                                 cur_step_stat['removed'] += step_stat['removed']
                                 
-            logging.info(f"==== {subject_folder} done ====")
+            print(f"==== {subject_folder} done ====")
             subjects_stats.append({
                 'subject_dir': subject_folder,
                 'steps': cur_step_stats,
