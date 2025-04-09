@@ -82,7 +82,7 @@ def generate_csv(subjects_stats, output_csv):
             # 写入数据行
             writer.writerow(row)
 
-def process_subject(subject_folder, base_path, bucket):
+def process_subject(subject_folder, bucket_name, bucket):
     cur_step_stats = []
     stat_subject_folder = os.path.join(subject_folder, 'stats')
     stat_files = oss.get_sub_files(bucket, stat_subject_folder)
@@ -124,7 +124,7 @@ def main():
             
             for subject_folder in subject_folders:
                 # 每个线程处理一个 subject_folder
-                futures.append(executor.submit(process_subject, subject_folder, base_path, bucket))
+                futures.append(executor.submit(process_subject, subject_folder, bucket_name, bucket))
 
         # 获取线程池中的所有任务的结果
         for future in concurrent.futures.as_completed(futures):
