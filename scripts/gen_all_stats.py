@@ -141,8 +141,9 @@ def main():
     
     output_csv = args.output_csv        
     generate_csv(subjects_stats, output_csv)
-        
-
+    
 
 if __name__ == '__main__':
-    main()    
+    main()
+
+    
