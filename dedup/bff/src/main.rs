@@ -173,6 +173,9 @@ enum Commands {
 
         #[arg(long, default_value_t = 1)]
         total_shards: usize,
+
+        #[arg(long, default_value_t = 0)]
+        remain_file_path_suffix_level: usize,
     },
 
     Sysreq {
@@ -522,6 +525,7 @@ async fn process_tasks(
     shard_num: &usize,
     total_shards: &usize,
     retry_tasks: bool,
+    remain_file_path_suffix_level: &usize,
 ) -> Result<()> {
     let lock_file = "oss://si002558te8h/dclm/dedupe_lockfile";
     let mut processed_any = false;
@@ -603,6 +607,7 @@ async fn process_tasks(
             no_progress_bar,
             shard_num,
             total_shards,
+            remain_file_path_suffix_level,
         )
         .await;
 
@@ -2261,6 +2266,7 @@ fn get_output_filename(
     inputs: &[PathBuf],
     input_filename: &PathBuf,
     output_directory: &PathBuf,
+    remain_file_path_suffix_level: &usize,
 ) -> PathBuf {
     // 检查 inputs 是否包含目录
     if inputs
@@ -2275,9 +2281,22 @@ fn get_output_filename(
         let relative_path = input_filename.strip_prefix(matching_prefix).unwrap();
         output_directory.clone().join(relative_path)
     } else {
+        let path_str = input_filename.to_str().unwrap();
+        let path_parts: Vec<&str> = path_str.split('/').collect();
+
+        // 检查路径中至少有 remain_file_path_suffix_level + 1 个部分
+        if path_parts.len() > remain_file_path_suffix_level.clone() {
+            let relative_path =
+                path_parts[path_parts.len() - remain_file_path_suffix_level..].join("/");
+            output_directory.clone().join(relative_path)
+        } else {
+            // 如果路径层级不足 remain_file_path_suffix_level，则返回文件名
+            let file_name = input_filename.file_name().unwrap();
+            output_directory.clone().join(file_name)
+        }
         // 新逻辑：inputs 是文件列表时，只取文件名
-        let file_name = input_filename.file_name().unwrap();
-        output_directory.clone().join(file_name)
+        // let file_name = input_filename.file_name().unwrap();
+        // output_directory.clone().join(file_name);
     }
 }
 
@@ -2363,6 +2382,7 @@ async fn main() -> Result<()> {
             no_progress_bar,
             shard_num,
             total_shards,
+            remain_file_path_suffix_level,
         } => {
             assert!(shard_num < total_shards, "Shard num must be < total shards");
 
@@ -2396,6 +2416,7 @@ async fn main() -> Result<()> {
                     shard_num,
                     total_shards,
                     false, // 不重试失败任务
+                    remain_file_path_suffix_level,
                 )
                 .await?;
             } else if !inputs.is_empty() {
@@ -2428,6 +2449,7 @@ async fn main() -> Result<()> {
                         shard_num,
                         total_shards,
                         false, // 不重试失败任务
+                        remain_file_path_suffix_level,
                     )
                     .await?;
                 } else {
@@ -2451,6 +2473,7 @@ async fn main() -> Result<()> {
                         no_progress_bar,
                         shard_num,
                         total_shards,
+                        remain_file_path_suffix_level,
                     )
                     .await?;
                 }
@@ -2495,6 +2518,7 @@ async fn bff(
     no_progress_bar: &bool,
     shard_num: &usize,
     total_shards: &usize,
+    remain_file_path_suffix_level: &usize,
 ) -> Result<()> {
     // SETUP PHASE:
     // Set up {output_location, filter, inputs, threading, progress bar}
@@ -2547,7 +2571,12 @@ async fn bff(
     let threadpool = ThreadPool::new(threads);
     for input in shard {
         //let output = output_directory.clone().join(input.file_name().unwrap());
-        let output = get_output_filename(inputs, &input, output_directory);
+        let output = get_output_filename(
+            inputs,
+            &input,
+            output_directory,
+            &remain_file_path_suffix_level,
+        );
         let bloom_filter = bloom_filter.clone();
         let pbar_option: Option<Arc<Mutex<ProgressBar>>> = if *no_progress_bar {
             None

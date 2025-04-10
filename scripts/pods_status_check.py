@@ -4,6 +4,7 @@ import json
 import time
 import requests,json,hmac,urllib,time,base64,hashlib,sys
 import logging
+import argparse
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s: %(message)s")
 
@@ -42,7 +43,7 @@ def DingMessage(Title, Content, People):
     requests.post(url=Post_Url,data=json.dumps(message),headers=header)
 
 
-def check_pods_status():
+def check_pods_status(pod_num):
     try:
         # 获取 pods 的 JSON 格式输出
         output = subprocess.check_output(["kubectl", "get", "pods", "-o", "json"], universal_newlines=True)
@@ -54,7 +55,7 @@ def check_pods_status():
         abnormal = [pod for pod in pods if pod.get("status", {}).get("phase") != "Running"]
         abnormal_count = len(abnormal)
         
-        if abnormal_count > 0 or total < 200:
+        if abnormal_count > 0 or total < pod_num:
             logging.warning(f"WARNING: {abnormal_count} out of {total} pods are not Running.")
             # send ding message
             msgstr = f"[ERROR] DCLM pods 状态异常 @许飞 \n\n"
@@ -79,10 +80,13 @@ def check_pods_status():
 
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--pod_num", help="", type=int, default=10)   
+    args = parser.parse_args()
     interval_seconds = 60  # 每60秒检测一次
     while True:
         print(f"检测时间: {time.strftime('%Y-%m-%d %H:%M:%S')}")
-        if not check_pods_status():
+        if not check_pods_status(args.pod_num):
             break
         time.sleep(interval_seconds)
 

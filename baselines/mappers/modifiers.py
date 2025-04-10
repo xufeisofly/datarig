@@ -362,9 +362,26 @@ def stackexchange_qa_formatter(page: Dict, remove_qa=False) -> List[Dict]:
 
     return [page]
 
+
 def move_url_modifier(page: Dict) -> List[Dict]:
-    page[URL] = page['metadata']['WARC-Target-URI']
+    uri_candidates = [
+        page.get("metadata", {}).get("WARC-Target-URI"),
+        page.get("metadata", {}).get("WARC_Target_URI"),
+        page.get("metadata", {}).get("warc-target-uri"),
+        page.get("metadata", {}).get("warc_target_uri"),
+        page.get("WARC-Target-URI"),
+        page.get("WARC_Target_URI"),
+        page.get("warc-target-uri"),
+        page.get("warc_target_uri"),
+    ]
+
+    for uri in uri_candidates:
+        if uri:
+            page[URL] = uri
+            break
+
     return [page]
+        
 
 def key_name_modifier(page: Dict, old_key='content', new_key='text', allow_overwrite=False) -> List[Dict]:
     """
