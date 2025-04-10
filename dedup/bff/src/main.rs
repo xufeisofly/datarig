@@ -2286,7 +2286,7 @@ fn get_output_filename(
 
         // 检查路径中至少有 level_count + 1 个部分
         if path_parts.len() > level_count.clone() {
-            let relative_path = path_parts[1..=level_count.clone()].join("/"); // 获取前 level_count 级目录和文件名
+            let relative_path = path_parts[path_parts.len() - level_count..].join("/");
             output_directory.clone().join(relative_path)
         } else {
             // 如果路径层级不足 level_count，则返回文件名
