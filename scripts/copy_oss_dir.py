@@ -2,7 +2,7 @@ from baselines.oss import oss
 import os
 
 def main():
-    oss_target_dir = "oss://si002558te8h/dclm/dedup/"
+    oss_target_dir = "oss://train1/basemodel-subjet-data-processed/r2_processed/dclm/"
     oss_source_dir = "oss://si002558te8h/dclm/output/r2_formal/dclm/"
     bucket_name, target_dir = oss.split_file_path(oss_target_dir)
     target_bucket = oss.Bucket(bucket_name)
@@ -21,5 +21,6 @@ def main():
             print(f"{subject} ==== {i}/{len(files)}")
         
         
-        
+if __name__ == '__main__':
+    main()
     
