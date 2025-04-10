@@ -2,6 +2,10 @@ from baselines.oss import oss
 import os
 import concurrent.futures
 
+"""
+在两个 oss bucket 之间拷贝文件
+"""
+
 def main():
     oss_target_dir = "oss://train1/basemodel-subjet-data-processed/r2_processed/dclm/"
     oss_source_dir = "oss://si002558te8h/dclm/output/r2_formal/dclm/"
