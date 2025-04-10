@@ -15,7 +15,7 @@ def main():
         return target_key
 
 
-    for subject in ['subject=AppliedMathematics', 'subject=AppliedPhysics', 'subject=OrganicChemistry']:
+    for subject in ['subject=AppliedPhysics', 'subject=OrganicChemistry']:
         oss_source_path = os.path.join(oss_source_dir, subject, "processed_data")
         source_bucket_name, source_dir = oss.split_file_path(oss_source_path)
         source_bucket = oss.Bucket(source_bucket_name) 
