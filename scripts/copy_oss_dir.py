@@ -11,7 +11,8 @@ def main():
 
     def process(f, target_key, source_bucket_name):
         filename = os.path.basename(f)
-        target_bucket.copy_object(source_bucket_name, f, os.path.join(target_key, filename))
+        target_key = os.path.join(target_key, filename)
+        target_bucket.copy_object(source_bucket_name, f, target_key)
         return target_key
 
 
