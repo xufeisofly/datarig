@@ -1277,7 +1277,7 @@ async fn process_file(
             let _ = client
                 .put_object(data, output_key.clone(), headers, None)
                 .await;
-            // println!("Put file to oss: {}", output_key);
+            println!("Put file to oss: {}", output_key);
         } else {
             let mut output_file = OpenOptions::new()
                 .read(false)
@@ -2571,6 +2571,7 @@ async fn bff(
     for input in shard {
         //let output = output_directory.clone().join(input.file_name().unwrap());
         let output = get_output_filename(inputs, &input, output_directory, &level_count);
+        println!("========== {:?}", output);
         let bloom_filter = bloom_filter.clone();
         let pbar_option: Option<Arc<Mutex<ProgressBar>>> = if *no_progress_bar {
             None
