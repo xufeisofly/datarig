@@ -51,7 +51,7 @@ def parse_args():
     parser.add_argument(
         "--queue_id",
         type=str,
-        default="default",
+        default="dclm",
         help="task queue id",
     )    
     parser.add_argument(
