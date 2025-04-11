@@ -119,7 +119,7 @@ def main():
 
     # 获取processed数据
     processed_data = []
-    processed_base_dir = "oss://si002558te8h/dclm/output/r2_formal_v2/"
+    processed_base_dir = "oss://si002558te8h/dclm/output/r2_formal/"
     bucket_name, _ = oss.split_file_path(processed_base_dir)
     bucket = oss.Bucket(bucket_name)
     
@@ -142,7 +142,7 @@ def main():
     merged_data = merge_stat_data(stat_data, processed_data, deduped_data)
 
     # 写入最终的 JSONL 文件
-    write_jsonl(merged_data, "./statistic_v2.jsonl")
+    write_jsonl(merged_data, "./statistic.jsonl")
     
 
 if __name__ == '__main__':
