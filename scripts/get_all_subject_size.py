@@ -112,7 +112,7 @@ def main():
 
     # 获取stat数据
     stat_data = []
-    for sub_dir in ["dclm", "fineweb"]:
+    for sub_dir in ["dclm"]:
         dir_path = f"{base_dir}{sub_dir}/"
         data = get_subject_data(bucket, dir_path, None)
         stat_data.extend(data)
@@ -123,7 +123,7 @@ def main():
     bucket_name, _ = oss.split_file_path(processed_base_dir)
     bucket = oss.Bucket(bucket_name)
     
-    for sub_dir in ["dclm", "fineweb"]:
+    for sub_dir in ["dclm"]:
         dir_path = f"{processed_base_dir}{sub_dir}/"
         data = get_subject_data(bucket, dir_path, "processed_data")
         processed_data.extend(data)
@@ -133,7 +133,7 @@ def main():
     deduped_base_dir = "oss://train1/basemodel-subjet-data-processed/r2/"
     bucket_name, _ = oss.split_file_path(deduped_base_dir)
     bucket = oss.Bucket(bucket_name)    
-    for sub_dir in ["dclm", "fineweb"]:
+    for sub_dir in ["dclm"]:
         dir_path = f"{deduped_base_dir}{sub_dir}/"
         data = get_subject_data(bucket, dir_path, None)
         deduped_data.extend(data)
