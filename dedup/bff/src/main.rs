@@ -66,6 +66,7 @@ struct TaskItem {
     is_temp: Option<bool>,
     files: Option<Vec<String>>,
     original_shard_dir: Option<String>,
+    expected_ngram_count: Option<usize>,
 }
 
 #[derive(Parser)]
@@ -585,14 +586,21 @@ async fn process_tasks(
             }
         }
 
-        // println!("处理文件：{:?}", files_to_process);
+        let mut final_expected_ngram_count: usize = expected_ngram_count.clone();
+        if let Some(ngram_count) = task.expected_ngram_count {
+            final_expected_ngram_count = ngram_count;
+        }
+        println!(
+            "====== args: expected_ngram_count is {}",
+            final_expected_ngram_count
+        );
 
         // 执行处理
         let result = bff(
             &files_to_process,
             &task_output_dir, // 修改为使用特定任务的输出目录
             bloom_filter_file,
-            expected_ngram_count,
+            &final_expected_ngram_count,
             fp_rate,
             min_ngram_size,
             max_ngram_size,
