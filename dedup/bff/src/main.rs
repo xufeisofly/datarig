@@ -48,25 +48,28 @@ use oss_rust_sdk::async_object::*;
 use oss_rust_sdk::errors::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+mod task_queue;
+use task_queue::{TaskItem, TaskQueue, TaskWorker};
 use tokio_util::io::StreamReader;
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
-struct TaskWorker {
-    key: Option<String>,
-    status: Option<String>,
-    process_time: Option<String>,
-    finish_time: Option<String>,
-}
+// #[derive(Serialize, Deserialize, Debug, Clone)]
+// struct TaskWorker {
+//     key: Option<String>,
+//     status: Option<String>,
+//     process_time: Option<String>,
+//     finish_time: Option<String>,
+// }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
-struct TaskItem {
-    shard_dir: String,
-    file_range: Vec<i32>,
-    worker: Option<TaskWorker>,
-    is_temp: Option<bool>,
-    files: Option<Vec<String>>,
-    original_shard_dir: Option<String>,
-}
+// #[derive(Serialize, Deserialize, Debug, Clone)]
+// struct TaskItem {
+//     shard_dir: String,
+//     file_range: Vec<i32>,
+//     worker: Option<TaskWorker>,
+//     is_temp: Option<bool>,
+//     files: Option<Vec<String>>,
+//     original_shard_dir: Option<String>,
+//     expected_ngram_count: Option<usize>,
+// }
 
 #[derive(Parser)]
 #[clap(author, version, about, long_about = None)]
@@ -176,6 +179,12 @@ enum Commands {
 
         #[arg(long, default_value_t = 0)]
         remain_file_path_suffix_level: usize,
+
+        #[arg(long)]
+        queue_id: Option<String>,
+
+        #[arg(long, default_value_t = false)]
+        use_redis_task: bool,
     },
 
     Sysreq {
@@ -229,6 +238,15 @@ async fn is_exists(path: &PathBuf) -> bool {
     } else {
         path.exists()
     }
+}
+
+async fn get_task_item_redis(queue_id: &str) -> Result<(Option<TaskItem>, bool), anyhow::Error> {
+    let mut queue = TaskQueue::new(queue_id);
+    let worker_key = oss::get_worker_key();
+    let task = queue.acquire_task(10, Some(worker_key.as_str()))?;
+
+    let all_finished = queue.all_finished()?;
+    Ok((task, all_finished))
 }
 
 async fn get_task_item(
@@ -315,6 +333,15 @@ async fn get_task_item(
         println!("Worker {} 无法在超时时间内获取锁", oss::get_worker_key());
         Ok((None, false))
     }
+}
+
+async fn mark_task_item_finished_redis(
+    task_item: &TaskItem,
+    queue_id: &str,
+) -> Result<(), anyhow::Error> {
+    let mut queue = TaskQueue::new(queue_id);
+    queue.complete_task(task_item)?;
+    Ok(())
 }
 
 async fn mark_task_item_finished(
@@ -427,6 +454,15 @@ async fn mark_task_item_finished(
     }
 }
 
+async fn mark_task_item_failed_redis(
+    task_item: &TaskItem,
+    queue_id: &str,
+) -> Result<(), anyhow::Error> {
+    let mut queue = TaskQueue::new(queue_id);
+    queue.requeue_task(task_item)?;
+    Ok(())
+}
+
 async fn mark_task_item_failed(
     task_item: &TaskItem,
     tasks_file: &PathBuf,
@@ -526,13 +562,18 @@ async fn process_tasks(
     total_shards: &usize,
     retry_tasks: bool,
     remain_file_path_suffix_level: &usize,
+    queue_id: &str,
+    use_redis_task: &bool,
 ) -> Result<()> {
     let lock_file = "oss://si002558te8h/dclm/dedupe_lockfile";
     let mut processed_any = false;
 
     loop {
-        // 获取任务
-        let (task_item, all_finished) = get_task_item(tasks_file, retry_tasks, lock_file).await?;
+        let (task_item, all_finished) = if *use_redis_task {
+            get_task_item_redis(queue_id).await?
+        } else {
+            get_task_item(tasks_file, retry_tasks, lock_file).await?
+        };
 
         if task_item.is_none() {
             if !all_finished && !processed_any {
@@ -585,14 +626,21 @@ async fn process_tasks(
             }
         }
 
-        // println!("处理文件：{:?}", files_to_process);
+        let mut final_expected_ngram_count: usize = expected_ngram_count.clone();
+        if let Some(ngram_count) = task.expected_ngram_count {
+            final_expected_ngram_count = ngram_count;
+        }
+        println!(
+            "====== args: expected_ngram_count is {}",
+            final_expected_ngram_count
+        );
 
         // 执行处理
         let result = bff(
             &files_to_process,
             &task_output_dir, // 修改为使用特定任务的输出目录
             bloom_filter_file,
-            expected_ngram_count,
+            &final_expected_ngram_count,
             fp_rate,
             min_ngram_size,
             max_ngram_size,
@@ -621,11 +669,19 @@ async fn process_tasks(
                 //         println!("Output file not found: {:?}", output);
                 //     }
                 // }
-                mark_task_item_finished(&task, tasks_file, lock_file).await?;
+                if *use_redis_task {
+                    mark_task_item_finished_redis(&task, queue_id).await?;
+                } else {
+                    mark_task_item_finished(&task, tasks_file, lock_file).await?;
+                }
             }
             Err(e) => {
                 println!("处理任务失败: {}", e);
-                mark_task_item_failed(&task, tasks_file, lock_file).await?;
+                if *use_redis_task {
+                    mark_task_item_failed_redis(&task, queue_id).await?;
+                } else {
+                    mark_task_item_failed(&task, tasks_file, lock_file).await?;
+                }
             }
         }
 
@@ -2383,6 +2439,8 @@ async fn main() -> Result<()> {
             shard_num,
             total_shards,
             remain_file_path_suffix_level,
+            queue_id,
+            use_redis_task,
         } => {
             assert!(shard_num < total_shards, "Shard num must be < total shards");
 
@@ -2392,12 +2450,13 @@ async fn main() -> Result<()> {
             } else {
                 PathBuf::from("./output")
             };
+            let queue: &str = queue_id.as_deref().unwrap_or("dedup");
 
-            // 检查是否使用任务文件
-            if let Some(task_file) = tasks_file {
-                println!("从任务文件处理：{:?}", task_file);
+            if *use_redis_task {
+                println!("从 redis 队列中处理: {:?}", queue_id);
+                let empty_buf = PathBuf::new();
                 process_tasks(
-                    task_file,
+                    &empty_buf,
                     &output_dir,
                     bloom_filter_file,
                     expected_ngram_count,
@@ -2417,20 +2476,16 @@ async fn main() -> Result<()> {
                     total_shards,
                     false, // 不重试失败任务
                     remain_file_path_suffix_level,
+                    queue,
+                    use_redis_task,
                 )
                 .await?;
-            } else if !inputs.is_empty() {
-                // 检查输入是否为单个任务文件
-                let is_task_file = inputs.len() == 1
-                    && inputs[0]
-                        .to_str()
-                        .map(|s| s.ends_with(".jsonl"))
-                        .unwrap_or(false);
-
-                if is_task_file {
-                    println!("从输入文件处理任务：{:?}", inputs[0]);
+            } else {
+                // 检查是否使用任务文件
+                if let Some(task_file) = tasks_file {
+                    println!("从任务文件处理：{:?}", task_file);
                     process_tasks(
-                        &inputs[0],
+                        task_file,
                         &output_dir,
                         bloom_filter_file,
                         expected_ngram_count,
@@ -2450,35 +2505,73 @@ async fn main() -> Result<()> {
                         total_shards,
                         false, // 不重试失败任务
                         remain_file_path_suffix_level,
+                        queue,
+                        use_redis_task,
                     )
                     .await?;
+                } else if !inputs.is_empty() {
+                    // 检查输入是否为单个任务文件
+                    let is_task_file = inputs.len() == 1
+                        && inputs[0]
+                            .to_str()
+                            .map(|s| s.ends_with(".jsonl"))
+                            .unwrap_or(false);
+
+                    if is_task_file {
+                        println!("从输入文件处理任务：{:?}", inputs[0]);
+                        process_tasks(
+                            &inputs[0],
+                            &output_dir,
+                            bloom_filter_file,
+                            expected_ngram_count,
+                            fp_rate,
+                            min_ngram_size,
+                            max_ngram_size,
+                            substr_seqlen,
+                            filtering_threshold,
+                            remove_type,
+                            num_hashers,
+                            no_update_bloom_filter,
+                            annotate,
+                            threads,
+                            no_save_bloom_filter,
+                            no_progress_bar,
+                            shard_num,
+                            total_shards,
+                            false, // 不重试失败任务
+                            remain_file_path_suffix_level,
+                            queue,
+                            use_redis_task,
+                        )
+                        .await?;
+                    } else {
+                        // 原有的处理逻辑
+                        bff(
+                            inputs,
+                            &output_dir,
+                            bloom_filter_file,
+                            expected_ngram_count,
+                            fp_rate,
+                            min_ngram_size,
+                            max_ngram_size,
+                            substr_seqlen,
+                            filtering_threshold,
+                            remove_type,
+                            num_hashers,
+                            no_update_bloom_filter,
+                            annotate,
+                            threads,
+                            no_save_bloom_filter,
+                            no_progress_bar,
+                            shard_num,
+                            total_shards,
+                            remain_file_path_suffix_level,
+                        )
+                        .await?;
+                    }
                 } else {
-                    // 原有的处理逻辑
-                    bff(
-                        inputs,
-                        &output_dir,
-                        bloom_filter_file,
-                        expected_ngram_count,
-                        fp_rate,
-                        min_ngram_size,
-                        max_ngram_size,
-                        substr_seqlen,
-                        filtering_threshold,
-                        remove_type,
-                        num_hashers,
-                        no_update_bloom_filter,
-                        annotate,
-                        threads,
-                        no_save_bloom_filter,
-                        no_progress_bar,
-                        shard_num,
-                        total_shards,
-                        remain_file_path_suffix_level,
-                    )
-                    .await?;
+                    return Err(anyhow!("必须提供输入文件或任务文件"));
                 }
-            } else {
-                return Err(anyhow!("必须提供输入文件或任务文件"));
             }
         }
         Commands::Sysreq {

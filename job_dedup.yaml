@@ -15,7 +15,7 @@ spec:
         - name: cr-docker-registry
       containers:
       - name: dedup-bff
-        image: cr.registry.res.cloud.zhejianglab.com/dataprocess/dedup-bff:v1.2
+        image: cr.registry.res.cloud.zhejianglab.com/dataprocess/dedup-bff:v1.4
         resources:
           requests:
             cpu: "28"
@@ -29,13 +29,15 @@ spec:
             value: "D3XdW8uT66mdJ3TO"
           - name: OSS_ACCESS_KEY_SECRET
             value: "LpBPv841EkOhqNV8tiaknQfWJJm1uP"
+          - name: REDIS_HOST
+            value: "10.200.48.152"
+          - name: REDIS_PORT
+            value: "6380"			
         args:
           - "--release"
           - "bff"
-          - "--tasks-file"
-          - "oss://si002558te8h/dclm/dedup_tasks_v3.jsonl"
           - "--output-directory"
-          - "oss://si002558te8h/dclm/output/deduped/r2_formal_dclm_baseline_fasttext/dclm"
+          - "oss://si002558te8h/dclm/output/deduped/test"
           - "--expected-ngram-count"
           - "1000000000"
           - "--fp-rate"
@@ -48,5 +50,9 @@ spec:
           - "0.8"
           - "--remove-type"
           - "old-both"
+          - "--queue-id"
+          - "dedup"
+          - "--use-redis-task"
+          - "--no-progress-bar"		  
         imagePullPolicy: IfNotPresent
       restartPolicy: OnFailure
