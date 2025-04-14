@@ -5,8 +5,6 @@ use redis::{Commands, RedisResult};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::env;
-use std::error::Error;
-use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::sync::{Arc, Mutex};
 

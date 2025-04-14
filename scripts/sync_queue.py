@@ -4,13 +4,19 @@ from baselines.task_queue.task_queue import TaskQueue
 from baselines.redis import redis
 from baselines.oss import oss
 from baselines.core.file_utils import is_exists, read_jsonl, write_jsonl
+import argparse
 
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s: %(message)s")
 
 
 if __name__ == '__main__':
-    queue = TaskQueue(redis.Client, queue_id='default')
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--queue_id", help="", type=str, default="default")
+    parser.add_argument("--temp_dir", help="", type=str, default="oss://si002558te8h/dclm/temp_dir_500/")
+    args = parser.parse_args()
+    
+    queue = TaskQueue(redis.Client, queue_id=args.queue_id)
     while True:
         tmp_folder = "oss://si002558te8h/dclm/temp_dir_500/"
         bucket_name, path = oss.split_file_path(tmp_folder)

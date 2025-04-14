@@ -2452,11 +2452,11 @@ async fn main() -> Result<()> {
             };
             let queue: &str = queue_id.as_deref().unwrap_or("dedup");
 
-            // 检查是否使用任务文件
-            if let Some(task_file) = tasks_file {
-                println!("从任务文件处理：{:?}", task_file);
+            if *use_redis_task {
+                println!("从 redis 队列中处理: {:?}", queue_id);
+                let empty_buf = PathBuf::new();
                 process_tasks(
-                    task_file,
+                    &empty_buf,
                     &output_dir,
                     bloom_filter_file,
                     expected_ngram_count,
@@ -2480,18 +2480,12 @@ async fn main() -> Result<()> {
                     use_redis_task,
                 )
                 .await?;
-            } else if !inputs.is_empty() {
-                // 检查输入是否为单个任务文件
-                let is_task_file = inputs.len() == 1
-                    && inputs[0]
-                        .to_str()
-                        .map(|s| s.ends_with(".jsonl"))
-                        .unwrap_or(false);
-
-                if is_task_file {
-                    println!("从输入文件处理任务：{:?}", inputs[0]);
+            } else {
+                // 检查是否使用任务文件
+                if let Some(task_file) = tasks_file {
+                    println!("从任务文件处理：{:?}", task_file);
                     process_tasks(
-                        &inputs[0],
+                        task_file,
                         &output_dir,
                         bloom_filter_file,
                         expected_ngram_count,
@@ -2515,33 +2509,69 @@ async fn main() -> Result<()> {
                         use_redis_task,
                     )
                     .await?;
+                } else if !inputs.is_empty() {
+                    // 检查输入是否为单个任务文件
+                    let is_task_file = inputs.len() == 1
+                        && inputs[0]
+                            .to_str()
+                            .map(|s| s.ends_with(".jsonl"))
+                            .unwrap_or(false);
+
+                    if is_task_file {
+                        println!("从输入文件处理任务：{:?}", inputs[0]);
+                        process_tasks(
+                            &inputs[0],
+                            &output_dir,
+                            bloom_filter_file,
+                            expected_ngram_count,
+                            fp_rate,
+                            min_ngram_size,
+                            max_ngram_size,
+                            substr_seqlen,
+                            filtering_threshold,
+                            remove_type,
+                            num_hashers,
+                            no_update_bloom_filter,
+                            annotate,
+                            threads,
+                            no_save_bloom_filter,
+                            no_progress_bar,
+                            shard_num,
+                            total_shards,
+                            false, // 不重试失败任务
+                            remain_file_path_suffix_level,
+                            queue,
+                            use_redis_task,
+                        )
+                        .await?;
+                    } else {
+                        // 原有的处理逻辑
+                        bff(
+                            inputs,
+                            &output_dir,
+                            bloom_filter_file,
+                            expected_ngram_count,
+                            fp_rate,
+                            min_ngram_size,
+                            max_ngram_size,
+                            substr_seqlen,
+                            filtering_threshold,
+                            remove_type,
+                            num_hashers,
+                            no_update_bloom_filter,
+                            annotate,
+                            threads,
+                            no_save_bloom_filter,
+                            no_progress_bar,
+                            shard_num,
+                            total_shards,
+                            remain_file_path_suffix_level,
+                        )
+                        .await?;
+                    }
                 } else {
-                    // 原有的处理逻辑
-                    bff(
-                        inputs,
-                        &output_dir,
-                        bloom_filter_file,
-                        expected_ngram_count,
-                        fp_rate,
-                        min_ngram_size,
-                        max_ngram_size,
-                        substr_seqlen,
-                        filtering_threshold,
-                        remove_type,
-                        num_hashers,
-                        no_update_bloom_filter,
-                        annotate,
-                        threads,
-                        no_save_bloom_filter,
-                        no_progress_bar,
-                        shard_num,
-                        total_shards,
-                        remain_file_path_suffix_level,
-                    )
-                    .await?;
+                    return Err(anyhow!("必须提供输入文件或任务文件"));
                 }
-            } else {
-                return Err(anyhow!("必须提供输入文件或任务文件"));
             }
         }
         Commands::Sysreq {
