@@ -3,8 +3,8 @@ kind: Job
 metadata:
   name: dedup-bff-dclm
 spec:
-  parallelism: 42 # 5x(4-5)C=20C-25C 5x(10-12)G=50-60G per node, (20C-25C)x89 = 1780C-2225C max: 445pod
-  completions: 42
+  parallelism: 80 # 5x(4-5)C=20C-25C 5x(10-12)G=50-60G per node, (20C-25C)x89 = 1780C-2225C max: 445pod
+  completions: 80
   backoffLimit: 0  # 如果任务失败后不希望重试，则设置为 0；否则设置为需要的重试次数
   template:
     metadata:
@@ -33,9 +33,9 @@ spec:
           - "--release"
           - "bff"
           - "--tasks-file"
-          - "oss://si002558te8h/dclm/dclm_dedup_tasks.jsonl"
+          - "oss://si002558te8h/dclm/dedup_tasks_v3.jsonl"
           - "--output-directory"
-          - "oss://train1/basemodel-subjet-data-processed/r2/dclm"
+          - "oss://si002558te8h/dclm/output/deduped/r2_formal_dclm_baseline_fasttext/dclm"
           - "--expected-ngram-count"
           - "1000000000"
           - "--fp-rate"

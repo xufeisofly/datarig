@@ -33,7 +33,7 @@ spec:
           - "--release"
           - "bff"
           - "--tasks-file"
-          - "oss://si002558te8h/dclm/fineweb_dedup_tasks.jsonl"
+          - "oss://si002558te8h/dclm/dedup_tasks_v3.jsonl"
           - "--output-directory"
           - "oss://train1/basemodel-subjet-data-processed/r2/fineweb"
           - "--expected-ngram-count"
