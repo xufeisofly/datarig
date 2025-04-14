@@ -185,46 +185,61 @@ impl TaskQueue {
         Ok(())
     }
 
-    /// 完成任务：在处理中队列中移除任务，
-    /// 若移除成功则将任务推入已完成队列，并删除对应的 processing 键。
     pub fn complete_task(&mut self, task: &TaskItem) -> RedisResult<()> {
-        let task_json = task.to_json();
         let task_id = task.get_id();
-        let removed_count: isize =
-            self.conn
-                .lock()
-                .unwrap()
-                .lrem(&self.processing_queue, 0, &task_json)?;
-        if removed_count > 0 {
-            let _: () = self
-                .conn
-                .lock()
-                .unwrap()
-                .lpush(&self.finished_queue, &task_json)?;
-            let key = self.get_processing_task_key(task_id);
-            let _: () = self.conn.lock().unwrap().del(key)?;
+        // 获取 Redis 连接
+        let mut conn = self.conn.lock().unwrap();
+        // 读取 processing 队列中的所有任务
+        let tasks: Vec<String> = conn.lrange(&self.processing_queue, 0, -1)?;
+        // 遍历任务列表，查找 id 与指定 task_id 匹配的任务
+        for task_str in tasks {
+            if let Ok(task_json) = serde_json::from_str::<serde_json::Value>(&task_str) {
+                if let Some(id) = task_json.get("id").and_then(|v| v.as_str()) {
+                    if id == task_id {
+                        // 找到匹配任务后，删除它（LREM 删除与 task_str 完全匹配的项）
+                        let removed_count: isize =
+                            conn.lrem(&self.processing_queue, 0, &task_str)?;
+                        if removed_count > 0 {
+                            // 将删除的任务推入 finished 队列
+                            let _: () = conn.lpush(&self.finished_queue, &task_str)?;
+                            // 删除该任务对应的 processing 键
+                            let key = self.get_processing_task_key(task_id);
+                            let _: () = conn.del(key)?;
+                        }
+                        // 删除找到后终止循环
+                        break;
+                    }
+                }
+            }
         }
         Ok(())
     }
 
-    /// 将任务重新入队：从处理中队列移除该任务，
-    /// 若移除成功则将任务推回待处理队列，并删除 processing 键。
     pub fn requeue_task(&mut self, task: &TaskItem) -> RedisResult<()> {
-        let task_json = task.to_json();
         let task_id = task.get_id();
-        let removed_count: isize =
-            self.conn
-                .lock()
-                .unwrap()
-                .lrem(&self.processing_queue, 0, &task_json)?;
-        if removed_count > 0 {
-            let _: () = self
-                .conn
-                .lock()
-                .unwrap()
-                .lpush(&self.queue_name, &task_json)?;
-            let key = self.get_processing_task_key(task_id);
-            let _: () = self.conn.lock().unwrap().del(key)?;
+        let mut conn = self.conn.lock().unwrap();
+        // 从 processing 队列中获取所有任务
+        let tasks: Vec<String> = conn.lrange(&self.processing_queue, 0, -1)?;
+        // 遍历任务列表，查找 id 与给定 task_id 匹配的任务
+        for task_str in tasks {
+            if let Ok(task_json) = serde_json::from_str::<serde_json::Value>(&task_str) {
+                if let Some(id) = task_json.get("id").and_then(|v| v.as_str()) {
+                    if id == task_id {
+                        // 找到匹配任务，尝试从 processing 队列中删除
+                        let removed_count: isize =
+                            conn.lrem(&self.processing_queue, 0, &task_str)?;
+                        if removed_count > 0 {
+                            // 将该任务重新入队 pending 队列
+                            let _: () = conn.lpush(&self.queue_name, &task_str)?;
+                            // 删除对应的 processing key
+                            let key = self.get_processing_task_key(task_id);
+                            let _: () = conn.del(key)?;
+                        }
+                        // 找到并处理匹配的任务后跳出循环
+                        break;
+                    }
+                }
+            }
         }
         Ok(())
     }
@@ -235,86 +250,8 @@ impl TaskQueue {
         Ok(len == 0)
     }
 
-    /// 将所有正在处理的任务重新入队
-    pub fn requeue_tasks(&mut self) -> RedisResult<()> {
-        let tasks: Vec<String> = self
-            .conn
-            .lock()
-            .unwrap()
-            .lrange(&self.processing_queue, 0, -1)?;
-        for task_str in tasks {
-            if let Ok(task_json) = serde_json::from_str::<Value>(&task_str) {
-                if let Some(task_id) = task_json.get("id").and_then(|v| v.as_str()) {
-                    let removed_count: isize =
-                        self.conn
-                            .lock()
-                            .unwrap()
-                            .lrem(&self.processing_queue, 0, &task_str)?;
-                    if removed_count > 0 {
-                        let _: () = self
-                            .conn
-                            .lock()
-                            .unwrap()
-                            .lpush(&self.queue_name, &task_str)?;
-                        let key = self.get_processing_task_key(task_id);
-                        let _: () = self.conn.lock().unwrap().del(key)?;
-                    }
-                }
-            }
-        }
-        Ok(())
-    }
-
-    /// 对于过期的任务（processing 键已不存在）重新入队
-    pub fn requeue_expired_tasks(&mut self) -> RedisResult<()> {
-        let tasks: Vec<String> = self
-            .conn
-            .lock()
-            .unwrap()
-            .lrange(&self.processing_queue, 0, -1)?;
-        for task_str in tasks {
-            if let Ok(task_json) = serde_json::from_str::<Value>(&task_str) {
-                if let Some(task_id) = task_json.get("id").and_then(|v| v.as_str()) {
-                    let key = self.get_processing_task_key(task_id);
-                    let exists: bool = self.conn.lock().unwrap().exists(&key)?;
-                    if !exists {
-                        println!("Requeuing expired task: {}", task_str);
-                        let _: () =
-                            self.conn
-                                .lock()
-                                .unwrap()
-                                .lrem(&self.processing_queue, 0, &task_str)?;
-                        let _: () = self
-                            .conn
-                            .lock()
-                            .unwrap()
-                            .lpush(&self.queue_name, &task_str)?;
-                    }
-                }
-            }
-        }
-        Ok(())
-    }
-
     /// 根据 task_id 生成对应的 processing 键
     pub fn get_processing_task_key(&self, task_id: &str) -> String {
         format!("{}{}", self.processing_prefix, task_id)
-    }
-
-    /// 获取指定队列的长度
-    pub fn sizeof(&mut self, queue: &str) -> RedisResult<isize> {
-        self.conn.lock().unwrap().llen(queue)
-    }
-
-    /// 返回队列中所有任务（反序列化为 serde_json::Value）
-    pub fn iterator(&mut self, queue: &str) -> RedisResult<Vec<Value>> {
-        let tasks: Vec<String> = self.conn.lock().unwrap().lrange(queue, 0, -1)?;
-        let mut result = Vec::new();
-        for task_str in tasks {
-            if let Ok(task_json) = serde_json::from_str::<Value>(&task_str) {
-                result.push(task_json);
-            }
-        }
-        Ok(result)
     }
 }
