@@ -42,6 +42,7 @@ use tokio::time::{sleep, Duration};
 use zstd::stream::read::Decoder as ZstDecoder;
 use zstd::stream::write::Encoder as ZstdEncoder;
 mod oss;
+mod task_queue;
 use bytes::Bytes;
 use futures::{pin_mut, stream};
 use oss_rust_sdk::async_object::*;
@@ -58,16 +59,16 @@ struct TaskWorker {
     finish_time: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
-struct TaskItem {
-    shard_dir: String,
-    file_range: Vec<i32>,
-    worker: Option<TaskWorker>,
-    is_temp: Option<bool>,
-    files: Option<Vec<String>>,
-    original_shard_dir: Option<String>,
-    expected_ngram_count: Option<usize>,
-}
+// #[derive(Serialize, Deserialize, Debug, Clone)]
+// struct TaskItem {
+//     shard_dir: String,
+//     file_range: Vec<i32>,
+//     worker: Option<TaskWorker>,
+//     is_temp: Option<bool>,
+//     files: Option<Vec<String>>,
+//     original_shard_dir: Option<String>,
+//     expected_ngram_count: Option<usize>,
+// }
 
 #[derive(Parser)]
 #[clap(author, version, about, long_about = None)]
