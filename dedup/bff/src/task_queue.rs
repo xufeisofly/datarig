@@ -107,7 +107,7 @@ impl TaskQueue {
                     let worker_val = worker.unwrap_or("");
                     let _: () = self.conn.set_ex(key, worker_val, TASK_TIMEOUT)?;
                     // 反序列化为 TaskItem
-                    let task_item: TaskItem = serde_json::from_value(task_json)?;
+                    let task_item: TaskItem = serde_json::from_value(task_json);
                     return Ok(Some(task_item));
                 }
             }
