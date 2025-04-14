@@ -340,7 +340,9 @@ async fn mark_task_item_finished_redis(
     queue_id: &str,
 ) -> Result<(), anyhow::Error> {
     let mut queue = TaskQueue::new(queue_id);
+    println!("complete task ============{:?}", queue_id);
     queue.complete_task(task_item)?;
+    println!("complete task ============{:?}", task_item.id);
     Ok(())
 }
 
