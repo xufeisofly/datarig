@@ -1,0 +1,58 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: dedup-bff-dclm
+spec:
+  parallelism: 80 # 5x(4-5)C=20C-25C 5x(10-12)G=50-60G per node, (20C-25C)x89 = 1780C-2225C max: 445pod
+  completions: 80
+  backoffLimit: 0  # 如果任务失败后不希望重试，则设置为 0；否则设置为需要的重试次数
+  template:
+    metadata:
+      labels:
+        app: dedup-bff
+    spec:
+      imagePullSecrets:
+        - name: cr-docker-registry
+      containers:
+      - name: dedup-bff
+        image: cr.registry.res.cloud.zhejianglab.com/dataprocess/dedup-bff:v1.4
+        resources:
+          requests:
+            cpu: "28"
+            memory: "30Gi"
+          limits:
+            cpu: "30"
+            memory: "32Gi"
+        command: ["cargo","run"]
+        env:
+          - name: OSS_ACCESS_KEY_ID
+            value: "D3XdW8uT66mdJ3TO"
+          - name: OSS_ACCESS_KEY_SECRET
+            value: "LpBPv841EkOhqNV8tiaknQfWJJm1uP"
+          - name: REDIS_HOST
+            value: "10.200.48.152"
+          - name: REDIS_PORT
+            value: "6380"			
+        args:
+          - "--release"
+          - "bff"
+          - "--output-directory"
+          - "oss://si002558te8h/dclm/output/deduped/test"
+          - "--expected-ngram-count"
+          - "1000000000"
+          - "--fp-rate"
+          - "0.01"
+          - "--min-ngram-size"
+          - "13"
+          - "--max-ngram-size"
+          - "13"
+          - "--filtering-threshold"
+          - "0.8"
+          - "--remove-type"
+          - "old-both"
+          - "--queue-id"
+          - "dedup"
+          - "--use-redis-task"
+          - "--no-progress-bar"		  
+        imagePullPolicy: IfNotPresent
+      restartPolicy: OnFailure
