@@ -42,22 +42,23 @@ use tokio::time::{sleep, Duration};
 use zstd::stream::read::Decoder as ZstDecoder;
 use zstd::stream::write::Encoder as ZstdEncoder;
 mod oss;
-mod task_queue;
 use bytes::Bytes;
 use futures::{pin_mut, stream};
 use oss_rust_sdk::async_object::*;
 use oss_rust_sdk::errors::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+mod task_queue;
+use task_queue::{TaskItem, TaskQueue, TaskWorker};
 use tokio_util::io::StreamReader;
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
-struct TaskWorker {
-    key: Option<String>,
-    status: Option<String>,
-    process_time: Option<String>,
-    finish_time: Option<String>,
-}
+// #[derive(Serialize, Deserialize, Debug, Clone)]
+// struct TaskWorker {
+//     key: Option<String>,
+//     status: Option<String>,
+//     process_time: Option<String>,
+//     finish_time: Option<String>,
+// }
 
 // #[derive(Serialize, Deserialize, Debug, Clone)]
 // struct TaskItem {
@@ -178,6 +179,12 @@ enum Commands {
 
         #[arg(long, default_value_t = 0)]
         remain_file_path_suffix_level: usize,
+
+        #[arg(long)]
+        queue_id: Option<String>,
+
+        #[arg(long, default_value_t = false)]
+        use_redis_task: bool,
     },
 
     Sysreq {
@@ -231,6 +238,15 @@ async fn is_exists(path: &PathBuf) -> bool {
     } else {
         path.exists()
     }
+}
+
+async fn get_task_item_redis(queue_id: &str) -> Result<(Option<TaskItem>, bool), anyhow::Error> {
+    let mut queue = TaskQueue::new(queue_id);
+    let worker_key = oss::get_worker_key();
+    let task = queue.acquire_task(10, Some(worker_key.as_str()))?;
+
+    let all_finished = queue.all_finished()?;
+    Ok((task, all_finished))
 }
 
 async fn get_task_item(
@@ -317,6 +333,15 @@ async fn get_task_item(
         println!("Worker {} 无法在超时时间内获取锁", oss::get_worker_key());
         Ok((None, false))
     }
+}
+
+async fn mark_task_item_finished_redis(
+    task_item: &TaskItem,
+    queue_id: &str,
+) -> Result<(), anyhow::Error> {
+    let mut queue = TaskQueue::new(queue_id);
+    queue.complete_task(task_item)?;
+    Ok(())
 }
 
 async fn mark_task_item_finished(
@@ -429,6 +454,15 @@ async fn mark_task_item_finished(
     }
 }
 
+async fn mark_task_item_failed_redis(
+    task_item: &TaskItem,
+    queue_id: &str,
+) -> Result<(), anyhow::Error> {
+    let mut queue = TaskQueue::new(queue_id);
+    queue.requeue_task(task_item)?;
+    Ok(())
+}
+
 async fn mark_task_item_failed(
     task_item: &TaskItem,
     tasks_file: &PathBuf,
@@ -528,13 +562,18 @@ async fn process_tasks(
     total_shards: &usize,
     retry_tasks: bool,
     remain_file_path_suffix_level: &usize,
+    queue_id: &str,
+    use_redis_task: &bool,
 ) -> Result<()> {
     let lock_file = "oss://si002558te8h/dclm/dedupe_lockfile";
     let mut processed_any = false;
 
     loop {
-        // 获取任务
-        let (task_item, all_finished) = get_task_item(tasks_file, retry_tasks, lock_file).await?;
+        let (task_item, all_finished) = if *use_redis_task {
+            get_task_item_redis(queue_id).await?
+        } else {
+            get_task_item(tasks_file, retry_tasks, lock_file).await?
+        };
 
         if task_item.is_none() {
             if !all_finished && !processed_any {
@@ -630,11 +669,19 @@ async fn process_tasks(
                 //         println!("Output file not found: {:?}", output);
                 //     }
                 // }
-                mark_task_item_finished(&task, tasks_file, lock_file).await?;
+                if *use_redis_task {
+                    mark_task_item_finished_redis(&task, queue_id).await?;
+                } else {
+                    mark_task_item_finished(&task, tasks_file, lock_file).await?;
+                }
             }
             Err(e) => {
                 println!("处理任务失败: {}", e);
-                mark_task_item_failed(&task, tasks_file, lock_file).await?;
+                if *use_redis_task {
+                    mark_task_item_failed_redis(&task, queue_id).await?;
+                } else {
+                    mark_task_item_failed(&task, tasks_file, lock_file).await?;
+                }
             }
         }
 
@@ -2392,6 +2439,8 @@ async fn main() -> Result<()> {
             shard_num,
             total_shards,
             remain_file_path_suffix_level,
+            queue_id,
+            use_redis_task,
         } => {
             assert!(shard_num < total_shards, "Shard num must be < total shards");
 
@@ -2401,6 +2450,7 @@ async fn main() -> Result<()> {
             } else {
                 PathBuf::from("./output")
             };
+            let queue: &str = queue_id.as_deref().unwrap_or("dedup");
 
             // 检查是否使用任务文件
             if let Some(task_file) = tasks_file {
@@ -2426,6 +2476,8 @@ async fn main() -> Result<()> {
                     total_shards,
                     false, // 不重试失败任务
                     remain_file_path_suffix_level,
+                    queue,
+                    use_redis_task,
                 )
                 .await?;
             } else if !inputs.is_empty() {
@@ -2459,6 +2511,8 @@ async fn main() -> Result<()> {
                         total_shards,
                         false, // 不重试失败任务
                         remain_file_path_suffix_level,
+                        queue,
+                        use_redis_task,
                     )
                     .await?;
                 } else {
