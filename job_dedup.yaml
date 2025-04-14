@@ -39,7 +39,7 @@ spec:
           - "--output-directory"
           - "oss://si002558te8h/dclm/output/deduped/test"
           - "--expected-ngram-count"
-          - "1000000000"
+          - "50000000000"
           - "--fp-rate"
           - "0.01"
           - "--min-ngram-size"
