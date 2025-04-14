@@ -23,9 +23,13 @@ if __name__ == '__main__':
     files = oss.get_sub_files(bucket, path)
 
     count = 0
+    valid = 0
     for f in files:
         f = oss.join_file_path(bucket_name, f)
-        count += len(list(read_jsonl(f)))
+        for line in read_jsonl(f):
+            count += 1
+            if line.get('text', None):
+                valid += 1
         
-    print("========", count, "========")
+    print("========", count, "========", valid)
     
