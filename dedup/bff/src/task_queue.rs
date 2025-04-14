@@ -86,8 +86,6 @@ impl TaskQueue {
         Ok(())
     }
 
-    /// 阻塞方式尝试获取一个任务（模拟 Python 中 brpoplpush）。
-    /// 若获取到任务，则设置该任务的超时并返回反序列化后的 TaskItem。
     pub fn acquire_task(
         &mut self,
         timeout: usize,
@@ -98,6 +96,7 @@ impl TaskQueue {
             .arg(&self.processing_queue)
             .arg(timeout)
             .query(&mut self.conn)?;
+
         if let Some(task_str) = task_opt {
             if let Ok(task_json) = serde_json::from_str::<Value>(&task_str) {
                 if let Some(task_id) = task_json.get("id").and_then(|v| v.as_str()) {
@@ -106,8 +105,14 @@ impl TaskQueue {
                     // worker 为空则使用空字符串
                     let worker_val = worker.unwrap_or("");
                     let _: () = self.conn.set_ex(key, worker_val, TASK_TIMEOUT)?;
-                    // 反序列化为 TaskItem
-                    let task_item: TaskItem = serde_json::from_value(task_json);
+                    // 反序列化为 TaskItem，并将 serde_json 错误转换为 RedisError
+                    let task_item: TaskItem = serde_json::from_value(task_json).map_err(|e| {
+                        redis::RedisError::from((
+                            redis::ErrorKind::TypeError,
+                            "serde_json deserialization error",
+                            e.to_string(),
+                        ))
+                    })?;
                     return Ok(Some(task_item));
                 }
             }
