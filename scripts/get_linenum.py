@@ -1,5 +1,10 @@
 # subject=Virology
 # subject=DesignPracticeManagement
+# subject=Toxicology
+# subject=GastroenterologyHepatology
+# subject=BehavioralScienceComparativePsychology
+# subject=EmergencyCriticalCareMedicine
+# subject=Accounting
 
 import time
 import logging
