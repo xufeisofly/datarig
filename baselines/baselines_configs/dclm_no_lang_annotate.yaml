@@ -22,7 +22,7 @@
       num_banned_substrs: 2
       match_substrings: False
       annotate: True
-      token: "4"	  
+      token: "4"
     - func: url_removal_modifier
       annotate: True
     - func: newline_removal_modifier         
