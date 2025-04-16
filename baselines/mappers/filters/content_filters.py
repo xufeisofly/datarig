@@ -4,7 +4,7 @@ import re
 
 from baselines.mappers.core_utils import split_paragraphs, split_sentences, split_words
 from core.factory_utils import factory_function
-from core.constants import CONTENT
+from core.constants import CONTENT, set_filter_reason_if_annotate
 
 from typing import Union, Dict, List, Optional, Tuple
 from collections import Counter
@@ -129,7 +129,7 @@ def alphabetic_characters_to_tokens_filter(tokenizer_name: str = "EleutherAI/pyt
         
     return filter_fn
 
-def massive_web_repetition_filters(page: Dict, skip_paragraph=False, tokenizer='uniseg') -> List[Dict]:
+def massive_web_repetition_filters(page: Dict, skip_paragraph=False, tokenizer='uniseg', annotate=False, token="") -> List[Dict]:
     """
     Applies the repetition filters from Gopher (Rae et al., 2021)
     Calls repetition_filter across many different granularities
@@ -148,31 +148,31 @@ def massive_web_repetition_filters(page: Dict, skip_paragraph=False, tokenizer='
 
     cache = {}
     if len(repetition_filter(page, "line", 0.3, count_characters=False, cache=cache, tokenizer=tokenizer)) == 0:
-        return []
+        return set_filter_reason_if_annotate(page, "massive_web_repetition_filters"+token, annotate)
     elif not skip_paragraph and len(repetition_filter(page, "paragraph", 0.3, count_characters=False, cache=cache, tokenizer=tokenizer)) == 0:
-        return []
+        return set_filter_reason_if_annotate(page, "massive_web_repetition_filters"+token, annotate)
     elif len(repetition_filter(page, "line", 0.2, cache=cache, tokenizer=tokenizer)) == 0:
-        return []
+        return set_filter_reason_if_annotate(page, "massive_web_repetition_filters"+token, annotate)
     elif not skip_paragraph and len(repetition_filter(page, "paragraph", 0.2, cache=cache, tokenizer=tokenizer)) == 0:
-        return []
+        return set_filter_reason_if_annotate(page, "massive_web_repetition_filters"+token, annotate)
     elif len(repetition_filter(page, 2, 0.2, cache=cache, tokenizer=tokenizer)) == 0:
-        return []
+        return set_filter_reason_if_annotate(page, "massive_web_repetition_filters"+token, annotate)
     elif len(repetition_filter(page, 3, 0.18, cache=cache, tokenizer=tokenizer)) == 0:
-        return []
+        return set_filter_reason_if_annotate(page, "massive_web_repetition_filters"+token, annotate)
     elif len(repetition_filter(page, 4, 0.16, cache=cache, tokenizer=tokenizer)) == 0:
-        return []
+        return set_filter_reason_if_annotate(page, "massive_web_repetition_filters"+token, annotate)
     elif len(repetition_filter(page, 5, 0.15, cache=cache, tokenizer=tokenizer)) == 0:
-        return []
+        return set_filter_reason_if_annotate(page, "massive_web_repetition_filters"+token, annotate)
     elif len(repetition_filter(page, 6, 0.14, cache=cache, tokenizer=tokenizer)) == 0:
-        return []
+        return set_filter_reason_if_annotate(page, "massive_web_repetition_filters"+token, annotate)
     elif len(repetition_filter(page, 7, 0.13, cache=cache, tokenizer=tokenizer)) == 0:
-        return []
+        return set_filter_reason_if_annotate(page, "massive_web_repetition_filters"+token, annotate)
     elif len(repetition_filter(page, 8, 0.12, cache=cache, tokenizer=tokenizer)) == 0:
-        return []
+        return set_filter_reason_if_annotate(page, "massive_web_repetition_filters"+token, annotate)
     elif len(repetition_filter(page, 9, 0.11, cache=cache, tokenizer=tokenizer)) == 0:
-        return []
+        return set_filter_reason_if_annotate(page, "massive_web_repetition_filters"+token, annotate)
     elif len(repetition_filter(page, 10, 0.10, cache=cache, tokenizer=tokenizer)) == 0:
-        return []
+        return set_filter_reason_if_annotate(page, "massive_web_repetition_filters"+token, annotate)
     else:
         return [page]
 
@@ -307,7 +307,7 @@ def repetition_filter(page: Dict, granularity: Union[str, int], max_fraction: fl
 
 
 def page_length_filter(page: Dict, length_type: str, min_length: int = 1,
-                       max_length: int = float('inf'), **kwargs) -> List[Dict]:
+                       max_length: int = float('inf'), annotate=False, token="", **kwargs) -> List[Dict]:
     """
     Filters the input JSON object based on the length of the CONTENT field.
 
@@ -346,7 +346,7 @@ def page_length_filter(page: Dict, length_type: str, min_length: int = 1,
 
     page_length = len(split_text)
     if page_length < min_length or page_length > max_length:
-        return []
+        return set_filter_reason_if_annotate(page, "page_length_filter"+token, annotate)
     else:
         return [page]
 
@@ -412,7 +412,7 @@ def substring_filter(banlist: Union[str, List] = None, banlist_from_fname: str =
     return filter_fn
 
 
-def bullet_count_filter(page: Dict, max_bullet_start_ratio: float = 0.9) -> List[Dict]:
+def bullet_count_filter(page: Dict, max_bullet_start_ratio: float = 0.9, annotate=False, token="") -> List[Dict]:
     """
     Filters the input JSON object based on the number of lines starting with bullet in the CONTENT field.
 
@@ -436,11 +436,11 @@ def bullet_count_filter(page: Dict, max_bullet_start_ratio: float = 0.9) -> List
     max_bullet_count = max_bullet_start_ratio * len(lines)
 
     if sum([any(line.startswith(bullet) for bullet in ['●', '•', '*', '-']) for line in lines]) > max_bullet_count:
-        return []
+        return set_filter_reason_if_annotate(page, "bullet_count_filter" + token, annotate)
     return [page]
 
 
-def ellipsis_count_filter(page: Dict, max_ellipsis_end_ratio: float = 0.3) -> List[Dict]:
+def ellipsis_count_filter(page: Dict, max_ellipsis_end_ratio: float = 0.3, annotate=False, token="") -> List[Dict]:
     """
     Filters the input JSON object based on the number of lines ending with ellipsis in the CONTENT field.
 
@@ -464,11 +464,11 @@ def ellipsis_count_filter(page: Dict, max_ellipsis_end_ratio: float = 0.3) -> Li
     max_ellipsis_count = max_ellipsis_end_ratio * len(lines)
 
     if sum([any(line.endswith(ell) for ell in ['...', '. . .', '\u2026']) for line in lines]) > max_ellipsis_count:
-        return []
+        return set_filter_reason_if_annotate(page, "ellipsis_count_filter"+token, annotate)
     return [page]
 
 
-def stop_word_filter(page: Dict, count_unique: bool = False, min_stop_word: int = 2) -> List[Dict]:
+def stop_word_filter(page: Dict, count_unique: bool = False, min_stop_word: int = 2, annotate=False, token="") -> List[Dict]:
     """
     Filters the input JSON object based on the number of stop words in the text.
 
@@ -506,10 +506,10 @@ def stop_word_filter(page: Dict, count_unique: bool = False, min_stop_word: int 
                 if count >= min_stop_word:
                     return [page]
 
-    return []
+    return set_filter_reason_if_annotate(page, "stop_word_filter"+token, annotate)
 
 
-def word_length_filter(page: Dict, min_length: int = 0, max_length: int = float('inf')) -> List[Dict]:
+def word_length_filter(page: Dict, min_length: int = 0, max_length: int = float('inf'), annotate=False, token="") -> List[Dict]:
     """
     Filters the input JSON object based on average word length in the CONTENT field.
 
@@ -531,15 +531,15 @@ def word_length_filter(page: Dict, min_length: int = 0, max_length: int = float(
 
     words = page[CONTENT].split()
     if not words:
-        return []
+        return set_filter_reason_if_annotate(page, "word_length_filter"+token, annotate)
 
     average_word_length = sum([len(word) for word in words]) / len(words)
     if average_word_length < min_length or average_word_length > max_length:
-        return []
+        return set_filter_reason_if_annotate(page, "word_length_filter"+token, annotate)
     return [page]
 
 
-def symbol_ratio_filter(page: Dict, max_symbol_to_word_ratio: float = 0.1) -> List[Dict]:
+def symbol_ratio_filter(page: Dict, max_symbol_to_word_ratio: float = 0.1, annotate=False, token="") -> List[Dict]:
     """
     Filters the input JSON object based on the symbol to word ratio according to the CONTENT field.
 
@@ -562,11 +562,11 @@ def symbol_ratio_filter(page: Dict, max_symbol_to_word_ratio: float = 0.1) -> Li
     number_of_symbol = sum(page[CONTENT].count(sym) for sym in SYMBOLS)
     number_of_word = len(page[CONTENT].split())
     if number_of_word == 0 or number_of_symbol / number_of_word > max_symbol_to_word_ratio:
-        return []
+        return set_filter_reason_if_annotate(page, "symbol_ratio_filter"+token, annotate)
     return [page]
 
 def word_removal_ratio_filter(page: Dict, prev_word_count_key: str, new_word_count_key: Optional[str] = None,
-                              max_removed_ratio: float = 0.05, ignore_punctuation=True, **kwargs) -> Optional[Dict]:
+                              max_removed_ratio: float = 0.05, ignore_punctuation=True, annotate=False, token="", **kwargs) -> Optional[Dict]:
     """
     Filter out pages where the number of words removed by other modifiers is more than percent_removed_threshold (defaults to 5%). Note: this 
     method assumes that you have previously counted the number of words in the document with word_counter_enricher.  
@@ -591,7 +591,7 @@ def word_removal_ratio_filter(page: Dict, prev_word_count_key: str, new_word_cou
     prev_word_count = page[prev_word_count_key]
 
     if prev_word_count == 0:
-        return []
+        return set_filter_reason_if_annotate(page, "word_removal_ratio_filter"+token, annotate)
 
     # Compute or retrieve the 'after' words count
     if new_word_count_key and new_word_count_key in page:
@@ -604,11 +604,11 @@ def word_removal_ratio_filter(page: Dict, prev_word_count_key: str, new_word_cou
 
     # Check if more than percent_removed_threshold of words were removed
     if ratio_removed > max_removed_ratio:
-        return []
+        return set_filter_reason_if_annotate(page, "word_removal_ratio_filter"+token, annotate)
 
     return [page]
 
-def alphabetic_word_ratio_filter(page: Dict, max_ratio: float = 0.2) -> List[Dict]:
+def alphabetic_word_ratio_filter(page: Dict, max_ratio: float = 0.2, annotate=False, token="") -> List[Dict]:
     """
     Filters the input JSON object based on the percentage of words that do not contain
     at least one alphabetic character.
@@ -631,9 +631,9 @@ def alphabetic_word_ratio_filter(page: Dict, max_ratio: float = 0.2) -> List[Dic
     total_words = len(words)
 
     if total_words == 0:
-        return [] 
+        return set_filter_reason_if_annotate(page, "alphabetic_word_ratio_filter"+token, annotate) 
 
     non_alpha_word_count = sum(1 for word in words if not any(char.isalpha() for char in word))
     non_alpha_word_ratio = non_alpha_word_count / total_words
         
-    return [page] if non_alpha_word_ratio <= max_ratio else []
+    return [page] if non_alpha_word_ratio <= max_ratio else set_filter_reason_if_annotate(page, "alphabetic_word_ratio_filter"+token, annotate)

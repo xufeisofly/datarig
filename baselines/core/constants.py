@@ -1,5 +1,5 @@
 # JSONL keys
-from typing import Dict
+from typing import Dict, Optional
 
 CONTENT = "text"
 URL = "url"
