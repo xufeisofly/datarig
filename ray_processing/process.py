@@ -96,7 +96,8 @@ def parse_args():
     )    
     parser.add_argument("--overwrite", action="store_true", help="If set to true, will overwrite results.")
     parser.add_argument("--use_task", action="store_true", help="使用 task json 文件分配任务，否则直接使用 raw_data_dirpath.")
-    parser.add_argument("--use_redis_task", action="store_true", help="use task 为 true 时，use_redis_task 会使用 redis 作为消息队列，否则使用 oss 文件.")    
+    parser.add_argument("--use_redis_task", action="store_true", help="use task 为 true 时，use_redis_task 会使用 redis 作为消息队列，否则使用 oss 文件.")
+    parser.add_argument("--annotate", action="store_true", help="不过滤只打标")    
     parser.add_argument("--retry_tasks", action="store_true", help="是否重新运行之前运行过的 tasks json")
     parser.add_argument("--output_has_dataset_name", action="store_true", help="output 目录中携带 dataset 名称")
     parser.add_argument("--oss_resumable_write", action="store_true", help="oss write 时使用 resumable")    
@@ -115,7 +116,7 @@ def parse_args():
 # Right now, this is just how I get clear space in /tmp which quickly gets filled by s3 reads
 @ray.remote(max_calls=3)
 def process_local_chunk(
-        config_data, raw_data_dirpath, jsonl_relpath, source_name, base_output_path, workers, overwrite, max_file_size_mb=1024, shard_dir=None, oss_temp_dir=None, task_file_path=None, lock_file=None, chunk_size=1, use_redis_task=True, queue_id='default', split_workers=1
+        config_data, raw_data_dirpath, jsonl_relpath, source_name, base_output_path, workers, overwrite, max_file_size_mb=1024, shard_dir=None, oss_temp_dir=None, task_file_path=None, lock_file=None, chunk_size=1, use_redis_task=True, queue_id='default', split_workers=1, annotate=False,
 ):
     try: 
         # 先检查是否为大文件需要拆分
@@ -172,6 +173,7 @@ def process_local_chunk(
             max_file_size_mb=max_file_size_mb,  # 传递参数但在process_single_file中不会重复拆分
             is_temp_file=False,  # 由任务中的is_temp决定，而不是在这里传递
             split_workers=split_workers,
+            annotate=annotate,
         )
         return RAY_CHUNK_SUCCESS, pages_in, pages_out
     except Exception as e:
@@ -627,6 +629,7 @@ def process_task_item(args, task_item: TaskItem|None, with_init=True):
                         use_redis_task=args.use_redis_task,
                         queue_id=args.queue_id,
                         split_workers=args.split_workers,
+                        annotate=args.annotate,
                     )
                 )
             
