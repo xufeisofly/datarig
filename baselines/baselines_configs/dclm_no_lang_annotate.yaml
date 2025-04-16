@@ -11,7 +11,7 @@
       banlist_from_fname: baselines/mappers/banlists/refinedweb_banned_words_strict_reverse_engineered.txt
       ignore_chars: ['-', '.']
       annotate: True
-      token: "2"	  
+      token: "2"
     - func: url_substring_filter
       banlist_from_fname: baselines/mappers/banlists/refinedweb_banned_words_hard_reverse_engineered.txt
       match_substrings: False
