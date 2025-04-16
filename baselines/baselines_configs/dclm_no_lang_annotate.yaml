@@ -83,14 +83,14 @@
       location: suffix
       remove_substring_only: True
       annotate: True
-      token: "2"	  
+      token: "2"
     - func: substring_line_modifier
       max_length: 10
       banlist: "Sign-in"
       location: prefix
       remove_substring_only: True
       annotate: True
-      token: "3"	  
+      token: "3"  
     - func: word_removal_ratio_filter
       prev_word_count_key: previous_word_count
       max_removed_ratio: 0.05
