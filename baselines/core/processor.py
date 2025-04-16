@@ -429,8 +429,7 @@ def _parse_func_results(results_gen, counters, execution_times, new_pages):
     for result, profiling_info in results_gen:
         execution_times.append(profiling_info.execution_time)
         if isinstance(result, list):
-            tmp_result = [r for r in result if not r.get(FILTER_REASON)]
-            counters[min(len(tmp_result), 2)] += 1  # 0 is removed, 1 is kept and 2 is split
+            counters[min(len(result), 2)] += 1  # 0 is removed, 1 is kept and 2 is split
             new_pages.extend(result)
         else:
             counters[ERRORS_INDEX] += 1  # error
