@@ -79,7 +79,7 @@ def quality_filter(page: Dict, key: str = 'fasttext_hq_prob', threshold: float=0
 
 @factory_function
 def url_substring_filter(banlist: Union[str, List] = None, banlist_from_fname: str = None, ignore_chars: List[str] = None, 
-                         num_banned_substrs: int = 1, exact_domain_match: bool=False, match_substrings=True, case_sensitive=False) -> List[Dict]:
+                         num_banned_substrs: int = 1, exact_domain_match: bool=False, match_substrings=True, case_sensitive=False, annotate=False) -> List[Dict]:
     """
     Filters the input JSON object by URL
 
@@ -136,10 +136,10 @@ def url_substring_filter(banlist: Union[str, List] = None, banlist_from_fname: s
             url = url.replace(char, "")
             
         if exact_domain_match and url in banlist:
-           return []
+            return set_filter_reason_if_annotate(page, "url_substring_filter", annotate)
         elif not exact_domain_match:
-           banned_subtrs = len(set(pattern.findall(url)))
-           if banned_subtrs >= num_banned_substrs:
+            banned_subtrs = len(set(pattern.findall(url)))
+            if banned_subtrs >= num_banned_substrs:
                 return []
         
         return [page]

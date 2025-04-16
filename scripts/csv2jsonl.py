@@ -24,11 +24,12 @@ import csv
 
 # 设置日志
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s: %(message)s")
-
+import sys
 
 if __name__ == '__main__':
-    file_path = '/root/dataprocess/OrganicChemistry_25073rows.csv'
+    file_path = '/root/dataprocess/OrganicChemistry_12494rows.csv'
     records = []
+    csv.field_size_limit(sys.maxsize)
     with open(file_path, newline='', encoding='utf-8') as csvfile:
         reader = csv.reader(csvfile)
         for row in reader:
@@ -39,12 +40,12 @@ if __name__ == '__main__':
             })
 
     records = records[1:]
-    write_jsonl(records, './OrganicChemistry_25073rows.jsonl')
+    write_jsonl(records, './OrganicChemistry_12494rows.jsonl')
     
-    oss_file = "oss://si002558te8h/dclm/output/deduped/OrganicChemistry/OrganicChemistry_25073rows_processed.jsonl"
+    oss_file = "oss://si002558te8h/dclm/output/deduped/OrganicChemistry2/OrganicChemistry_12494rows_processed.jsonl"
 
     headers = ['id', 'url', 'text']
-    output_csv = './OrganicChemistry_25073rows_deduped.csv'
+    output_csv = './OrganicChemistry_12494rows_deduped.csv'
     with open(output_csv, mode='w', newline='') as file:
         writer = csv.writer(file)
         writer.writerow(headers)

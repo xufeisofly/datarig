@@ -146,15 +146,19 @@ Virology
 Zoology
 """
 
+subjects_str = "AppliedMathematics"
+subjects_str = "AppliedPhysics"
+subjects_str = "OrganicChemistry"
+
 # 设置日志
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s: %(message)s")
 
 if __name__ == '__main__':    
-    oss_dir = "oss://si002558te8h/dclm/output/deduped/r2_formal_dclm_baseline_fasttext/dclm/"
+    oss_dir = "oss://train1/basemodel-subjet-data/r2/dclm/"
     bucket_name, path = oss.split_file_path(oss_dir)
     bucket = oss.Bucket(bucket_name)
 
-    num = 1
+    num = 1000
     lines = []
     subject_paths = oss.get_sub_folders(bucket, path)
     for k, subject_path in enumerate(subject_paths):
@@ -171,5 +175,5 @@ if __name__ == '__main__':
             if i == num-1:
                 break
 
-    write_jsonl(lines, "./sampled_131.jsonl")
+    write_jsonl(lines, "./AppliedMathematics_1000.jsonl")
     
