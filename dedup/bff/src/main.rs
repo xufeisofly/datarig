@@ -177,7 +177,7 @@ enum Commands {
         #[arg(long, default_value_t = 1)]
         total_shards: usize,
 
-        #[arg(long, default_value_t = 0)]
+        #[arg(long, default_value_t = 1)]
         remain_file_path_suffix_level: usize,
 
         #[arg(long)]
@@ -1324,7 +1324,6 @@ async fn process_file(
                 .await;
         } else if is_oss(output_file) {
             // println!("Writing to OSS path: {:?}", output_file);
-            // println!("Writing to OSS path: {:?}", output_file);
             let (output_bucket, output_key) = split_oss_path(output_file);
             let client = oss::get_bucket(output_bucket);
             let mut headers = HashMap::new();
@@ -2325,6 +2324,7 @@ fn get_output_filename(
     remain_file_path_suffix_level: &usize,
 ) -> PathBuf {
     // 检查 inputs 是否包含目录
+
     if inputs
         .iter()
         .any(|p| p.is_dir() || p.to_str().unwrap().ends_with("/"))

@@ -1,92 +1,175 @@
-# -*- coding: utf-8 -*-
-import time
-import sys
-import logging
-from baselines.oss import oss
-from baselines.core.file_utils import is_exists, write_jsonl, read_jsonl, get_file_size
-from typing import List, Dict
-import random
-import os
+# subject=Virology
+# subject=DesignPracticeManagement
+# subject=Toxicology
+# subject=GastroenterologyHepatology
+# subject=BehavioralScienceComparativePsychology
+# subject=EmergencyCriticalCareMedicine
+# subject=Accounting
 
-"""
-验证一下 processed 的文件数量和 deduped 的文件数量是否一致
+import time
+import logging
+import argparse
+from baselines.oss import oss
+from baselines.core.file_utils import is_exists, read_jsonl, write_jsonl  # 如果需要判断是否存在
+
+subjects_str = """
+Acoustics
+AerospaceAeronautics
+AgronomyAgriculture
+Allergy
+AnalyticalChemistry
+AnatomyMorphology
+Anesthesiology
+AppliedMathematics
+AppliedPhysics
+Architecture
+ArthritisRheumatology
+ArtificialIntelligenceImageProcessing
+AstronomyAstrophysics
+AutomobileDesignEngineering
+BehavioralScienceComparativePsychology
+BiochemistryMolecularBiology
+Bioinformatics
+BiomedicalEngineering
+Biophysics
+Biotechnology
+BuildingConstruction
+CardiovascularSystemHematology
+ChemicalEngineering
+ChemicalPhysics
+CivilEngineering
+ClinicalPsychology
+ComplementaryAlternativeMedicine
+ComputationTheoryMathematics
+ComputerHardwareArchitecture
+DairyAnimalScience
+Dentistry
+DermatologyVenerealDiseases
+DesignPracticeManagement
+DevelopmentalBiology
+DevelopmentalChildPsychology
+DistributedComputing
+Ecology
+ElectricalElectronicEngineering
+EmergencyCriticalCareMedicine
+EndocrinologyMetabolism
+Energy
+Entomology
+EnvironmentalEngineering
+EnvironmentalOccupationalHealth
+EnvironmentalSciences
+Epidemiology
+EvolutionaryBiology
+ExperimentalPsychology
+Fisheries
+FluidsPlasmas
+FoodScience
+Forestry
+GastroenterologyHepatology
+GeneralChemistry
+GeneralClinicalMedicine
+GeneralInternalMedicine
+GeneralMathematics
+GeneralPhysics
+GeneralPsychologyCognitiveSciences
+GeneticsHereditary
+GeochemistryGeophysics
+GeologicalGeomaticsEngineering
+Geology
+Geriatrics
+Gerontology
+HealthPolicyServices
+Horticulture
+HumanFactors
+Immunology
+IndustrialEngineeringAutomation
+InformationSystems
+InorganicNuclearChemistry
+LegalForensicMedicine
+MarineBiologyHydrobiology
+Materials
+MathematicalPhysics
+MechanicalEngineeringTransports
+MedicalInformatics
+MedicinalBiomolecularChemistry
+MeteorologyAtmosphericSciences
+Microbiology
+Microscopy
+MiningMetallurgy
+MycologyParasitology
+NanoscienceNanotechnology
+NetworkingTelecommunications
+NeurologyNeurosurgery
+NuclearMedicineMedicalImaging
+NuclearParticlePhysics
+NumericalComputationalMathematics
+Nursing
+NutritionDietetics
+ObstetricsReproductiveMedicine
+Oceanography
+OncologyCarcinogenesis
+OperationsResearch
+OphthalmologyOptometry
+Optics
+OptoelectronicsPhotonics
+OrganicChemistry
+Ornithology
+Orthopedics
+Otorhinolaryngology
+Paleontology
+Pathology
+Pediatrics
+PharmacologyPharmacy
+PhysicalChemistry
+Physiology
+PlantBiologyBotany
+Polymers
+Psychiatry
+Psychoanalysis
+PublicHealth
+Rehabilitation
+RespiratorySystem
+SocialPsychology
+SoftwareEngineering
+SpeechLanguagePathologyAudiology
+SportSciences
+StatisticsProbability
+StrategicDefenceSecurityStudies
+SubstanceAbuse
+Surgery
+Toxicology
+TropicalMedicine
+UrbanRegionalPlanning
+UrologyNephrology
+VeterinarySciences
+Virology
+Zoology
 """
 
 # 设置日志
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s: %(message)s")
 
+if __name__ == '__main__':    
+    oss_dir = "oss://si002558te8h/dclm/output/deduped/r2_formal_dclm_baseline_fasttext/dclm/"
+    bucket_name, path = oss.split_file_path(oss_dir)
+    bucket = oss.Bucket(bucket_name)
 
-def get_sub_files(bucket, dir_path, dir_prefix):
-    if not dir_path.endswith('/'):
-        dir_path += '/'
-    rets = list(oss.get_all_objects_iter(bucket, dir_path))
-    subfolders = oss.get_sub_folders(bucket, dir_path)
-    files = [ret.key for ret in rets if not ret.key.endswith('/') and (dir_prefix is None or dir_prefix in ret.key)]
-
-    all_files = []
-    def belong_to_folders(f, dirs):
-        for folder in dirs:
-            if folder in f:
-                return True
-        return False
-    
-    for f in files:
-        if belong_to_folders(f, subfolders):
+    num = 1
+    lines = []
+    subject_paths = oss.get_sub_folders(bucket, path)
+    for k, subject_path in enumerate(subject_paths):
+        subject_name = subject_path.split("/")[-2].split("=")[-1]
+        if subject_name not in subjects_str:
             continue
-        all_files.append(f)
-    return all_files
 
+        print(k)
+        files = oss.get_sub_files(bucket, subject_path)
+        f = files[0]
+        f = oss.join_file_path(bucket_name, f)
+        for i, line in enumerate(read_jsonl(f)):
+            lines.append(line)
+            if i == num-1:
+                break
 
-def get_subject_data(bucket, path: str) -> List[Dict]:
-    _, path = oss.split_file_path(path)
-    subject_dirs = oss.get_sub_folders(bucket, path)
-    data = []
+    write_jsonl(lines, "./sampled_131.jsonl")
     
-    for subject_dir in subject_dirs:
-        files = oss.get_sub_files(bucket, subject_dir)
-        data.extend(files)
-        print(f"done: {subject_dir} {len(files)}")
-
-    return data
-
-
-def main():
-    deduped_data = []
-    deduped_base_dir = "oss://train1/basemodel-subjet-data-processed/r2/"
-    bucket_name, _ = oss.split_file_path(deduped_base_dir)
-    bucket = oss.Bucket(bucket_name)    
-    # for sub_dir in ["dclm"]:
-    #     path = f"{deduped_base_dir}{sub_dir}/"
-    #     data = get_subject_data(bucket, path)
-    #     deduped_data.extend(data)
-
-    # random.shuffle(deduped_data)
-
-    f = open("../shuffled.txt", mode="rb")
-
-    deduped_data = f.readlines()
-    output_dir = "oss://train1/basemodel-subjet-data-processed/output2/"
-    total_size = 0
-    threshold = 10 * 1024 * 1024 * 1024
-    for file_path in deduped_data:
-        file_path_str = file_path.decode('utf-8')
-        file_path_str = file_path_str.replace('\n', '')
-file_path = file_path_str.encode('utf-8')        
-        file_path = file_path.replace(b'\n', b'')
-        path = oss.join_file_path(bucket_name, file_path)
-        s = get_file_size(path)
-        total_size += s
-
-        if total_size > threshold:
-            break
-
-        filename = os.path.basename(file_path)
-        target_key = os.path.join(output_dir, filename)
-        bucket.copy_object(bucket_name, file_path, target_key)
-        # 读取文件大小
-
-    f.close()
-
-
-if __name__ == '__main__':
-    main()
