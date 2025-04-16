@@ -1323,7 +1323,7 @@ async fn process_file(
                 .send()
                 .await;
         } else if is_oss(output_file) {
-            // println!("Writing to OSS path: {:?}", output_file);
+            println!("Writing to OSS path: {:?}", output_file);
             // println!("Writing to OSS path: {:?}", output_file);
             let (output_bucket, output_key) = split_oss_path(output_file);
             let client = oss::get_bucket(output_bucket);
@@ -1333,7 +1333,7 @@ async fn process_file(
             let _ = client
                 .put_object(data, output_key.clone(), headers, None)
                 .await;
-            // println!("Put file to oss: {}", output_key);
+            println!("Put file to oss: {}", output_key);
         } else {
             let mut output_file = OpenOptions::new()
                 .read(false)
