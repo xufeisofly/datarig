@@ -2325,6 +2325,7 @@ fn get_output_filename(
     remain_file_path_suffix_level: &usize,
 ) -> PathBuf {
     // 检查 inputs 是否包含目录
+
     if inputs
         .iter()
         .any(|p| p.is_dir() || p.to_str().unwrap().ends_with("/"))
@@ -2335,6 +2336,7 @@ fn get_output_filename(
             .find(|pfx| input_filename.starts_with(pfx))
             .expect("No matching prefix found?!?");
         let relative_path = input_filename.strip_prefix(matching_prefix).unwrap();
+        println!("1=========={:?}", relative_path);
         output_directory.clone().join(relative_path)
     } else {
         let path_str = input_filename.to_str().unwrap();
@@ -2344,10 +2346,12 @@ fn get_output_filename(
         if path_parts.len() > remain_file_path_suffix_level.clone() {
             let relative_path =
                 path_parts[path_parts.len() - remain_file_path_suffix_level..].join("/");
+            println!("2=========={:?}", relative_path);
             output_directory.clone().join(relative_path)
         } else {
             // 如果路径层级不足 remain_file_path_suffix_level，则返回文件名
             let file_name = input_filename.file_name().unwrap();
+            println!("3=========={:?}", filename);
             output_directory.clone().join(file_name)
         }
         // 新逻辑：inputs 是文件列表时，只取文件名
