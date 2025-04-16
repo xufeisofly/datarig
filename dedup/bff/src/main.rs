@@ -2346,7 +2346,7 @@ fn get_output_filename(
         if path_parts.len() > remain_file_path_suffix_level.clone() {
             let relative_path =
                 path_parts[path_parts.len() - remain_file_path_suffix_level..].join("/");
-            println!("2=========={:?}", relative_path);
+            println!("2=========={:?} {:?}", relative_path, input_filename);
             output_directory.clone().join(relative_path)
         } else {
             // 如果路径层级不足 remain_file_path_suffix_level，则返回文件名
