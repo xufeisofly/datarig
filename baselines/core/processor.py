@@ -12,7 +12,7 @@ import concurrent.futures
 
 from baselines.core.factories import get_mapper, get_aggregator, get_transform
 from baselines.core.file_utils import is_oss, read_jsonl, write_jsonl, makedirs_if_missing, delete_file, is_exists, get_file_size, add_suffix_to_file
-from baselines.core.constants import PROCESS_SETUP_KEY_NAME, PROCESS_END_KEY_NAME, COMMIT_KEY_NAME, GLOBAL_FUNCTIONS
+from baselines.core.constants import FILTER_REASON, PROCESS_SETUP_KEY_NAME, PROCESS_END_KEY_NAME, COMMIT_KEY_NAME, GLOBAL_FUNCTIONS
 from baselines.oss.oss import OSSPath, upload_file_resumable, split_file_path, Bucket, download_file_resumable, download_file_resumable_with_retry
 
 logger = logging.getLogger(__name__)
@@ -361,8 +361,8 @@ def process_single_file(config_data: Dict[str, Any], raw_data_dirpath: str, json
 
         n_pages_after = len(new_pages)
         step_stats['name'] = step['func']
-        step_stats['pages_in'] = len(pages)
-        step_stats['pages_out'] = len(new_pages)
+        step_stats['pages_in'] = len([page for page in pages if not page.get(FILTER_REASON)])
+        step_stats['pages_out'] = len([page for page in new_pages if not page.get(FILTER_REASON)])
         step_stats['secs'] = sum(execution_times)
         step_stats['secs/page'] = step_stats['secs'] / len(pages)
         step_stats['errors'] = counters[ERRORS_INDEX]
@@ -427,7 +427,8 @@ def _parse_func_results(results_gen, counters, execution_times, new_pages):
     for result, profiling_info in results_gen:
         execution_times.append(profiling_info.execution_time)
         if isinstance(result, list):
-            counters[min(len(result), 2)] += 1  # 0 is removed, 1 is kept and 2 is split
+            tmp_result = [r for r in result if not r.get(FILTER_REASON)]
+            counters[min(len(tmp_result), 2)] += 1  # 0 is removed, 1 is kept and 2 is split
             new_pages.extend(result)
         else:
             counters[ERRORS_INDEX] += 1  # error
