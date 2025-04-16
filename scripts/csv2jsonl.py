@@ -27,7 +27,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s: %(mes
 
 
 if __name__ == '__main__':
-    file_path = '/Users/sofly/projects/dataprocess/data/OrganicChemistry_25073rows.csv'
+    file_path = '/root/dataprocess/OrganicChemistry_25073rows.csv'
     records = []
     with open(file_path, newline='', encoding='utf-8') as csvfile:
         reader = csv.reader(csvfile)
