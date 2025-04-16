@@ -41,3 +41,16 @@ if __name__ == '__main__':
     records = records[1:]
     write_jsonl(records, './OrganicChemistry_25073rows.jsonl')
     
+    oss_file = "oss://si002558te8h/dclm/output/deduped/OrganicChemistry/OrganicChemistry_25073rows_processed.jsonl"
+
+    headers = ['id', 'url', 'text']
+    output_csv = './OrganicChemistry_25073rows_deduped.csv'
+    with open(output_csv, mode='w', newline='') as file:
+        writer = csv.writer(file)
+        writer.writerow(headers)
+        
+        for line in read_jsonl(oss_file):
+            row = [line['id'], line['url'], line['text']]
+            writer.writerow(row)
+            
+        
