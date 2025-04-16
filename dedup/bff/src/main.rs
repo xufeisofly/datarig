@@ -2351,7 +2351,7 @@ fn get_output_filename(
         } else {
             // 如果路径层级不足 remain_file_path_suffix_level，则返回文件名
             let file_name = input_filename.file_name().unwrap();
-            println!("3=========={:?}", filename);
+            println!("3=========={:?}", file_name);
             output_directory.clone().join(file_name)
         }
         // 新逻辑：inputs 是文件列表时，只取文件名
