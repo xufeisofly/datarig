@@ -7,7 +7,7 @@ from lxml.etree import ParserError
 from retrie.retrie import Blacklist
 
 from baselines.mappers.core_utils import split_paragraphs, split_words
-from core.constants import CONTENT, URL
+from core.constants import CONTENT, URL, set_filter_reason_if_annotate
 from core.factory_utils import factory_function
 from bs4 import BeautifulSoup
 import random
@@ -363,7 +363,7 @@ def stackexchange_qa_formatter(page: Dict, remove_qa=False) -> List[Dict]:
     return [page]
 
 
-def move_url_modifier(page: Dict) -> List[Dict]:
+def move_url_modifier(page: Dict, annotate=False, token="") -> List[Dict]:
     uri_candidates = [
         page.get("metadata", {}).get("WARC-Target-URI"),
         page.get("metadata", {}).get("WARC_Target_URI"),
@@ -433,7 +433,7 @@ def html_content_extraction_modifier(page: Dict) -> List[Dict]:
 
 @factory_function
 def substring_line_modifier(banlist: Union[str, List], case_sensitive=False,
-                            location='any', max_length=None, remove_substring_only=False) -> List[Dict]:
+                            location='any', max_length=None, remove_substring_only=False, annotate=False, token="") -> List[Dict]:
     """
     Filters the input JSON object - Remove lines that contain the given substring
 
@@ -484,7 +484,7 @@ def substring_line_modifier(banlist: Union[str, List], case_sensitive=False,
         new_doc = '\n'.join(lines_without_substring).strip()
 
         if new_doc == '':
-            return []
+            return set_filter_reason_if_annotate(page, "substring_line_modifier"+token, annotate)
 
         page[CONTENT] = new_doc
         return [page]
@@ -528,7 +528,7 @@ def punctuation_line_modifier(remove_ellipses=False):
     return modify
 
 
-def line_length_modifier(page: Dict, min_length=0, max_length=float('inf')) -> List[Dict]:
+def line_length_modifier(page: Dict, min_length=0, max_length=float('inf'), annotate=False, token="") -> List[Dict]:
     """
     Filters the input JSON object - Remove lines with word counts outside accepted range
     (ps - Ideally, may want optional argument for prefix/suffix/substring banlist)
@@ -549,7 +549,7 @@ def line_length_modifier(page: Dict, min_length=0, max_length=float('inf')) -> L
     new_doc = '\n'.join(lines_within_range)
 
     if new_doc == '':
-        return []
+        return set_filter_reason_if_annotate(page, "line_length_modifier"+token, annotate)
 
     page[CONTENT] = new_doc
     return [page]
@@ -586,7 +586,7 @@ def word_length_modifier(page: Dict, max_length=1000, **kwargs) -> List[Dict]:
     return [page]
 
 
-def uppercase_ratio_line_modifier(page: Dict, max_ratio=0.5) -> List[Dict]:
+def uppercase_ratio_line_modifier(page: Dict, max_ratio=0.5, annotate=False, token="") -> List[Dict]:
     """
     Filters the input JSON object - Remove lines where uppercase characers exceed a certain ratio
 
@@ -609,13 +609,13 @@ def uppercase_ratio_line_modifier(page: Dict, max_ratio=0.5) -> List[Dict]:
     new_doc = '\n'.join(lines_below_ratio).strip()
 
     if new_doc == '':
-        return []
+        return set_filter_reason_if_annotate(page, "uppercase_ratio_line_modifier"+token, annotate)
 
     page[CONTENT] = new_doc
     return [page]
 
 
-def numeric_ratio_line_modifier(page: Dict, max_ratio=1.0) -> List[Dict]:
+def numeric_ratio_line_modifier(page: Dict, max_ratio=1.0, annotate=False, token="") -> List[Dict]:
     """
     Filters the input JSON object - Remove lines if numerical characters exceed a certain ratio
     (ps - Falcon removes lines which contain 100% numerical characters)
@@ -640,7 +640,7 @@ def numeric_ratio_line_modifier(page: Dict, max_ratio=1.0) -> List[Dict]:
     new_doc = '\n'.join(lines_below_ratio).strip()
 
     if new_doc == '':
-        return []
+        return set_filter_reason_if_annotate(page, "numeric_ratio_line_modifier"+token, annotate)
 
     page[CONTENT] = new_doc
     return [page]
@@ -674,7 +674,7 @@ def citation_removal_modifier() -> List[Dict]:
 
 
 @factory_function
-def url_removal_modifier(tlds_filepath="baselines/mappers/iana_tlds.txt"):
+def url_removal_modifier(tlds_filepath="baselines/mappers/iana_tlds.txt", annotate=False, token=""):
     """
     Modifies the input JSON object - Removes all urls within the content of a page, relying
     on two regexes for finding URLs: one relies upon a "vocab list" of existing top-level domains (TLDs),
@@ -713,7 +713,7 @@ def url_removal_modifier(tlds_filepath="baselines/mappers/iana_tlds.txt"):
         page[CONTENT] = ipv4_regex.sub("", page[CONTENT])
 
         if page[CONTENT] == '':
-            return []
+            return set_filter_reason_if_annotate(page, "url_removal_modifier"+token, annotate)
 
         return [page]
 
@@ -721,7 +721,7 @@ def url_removal_modifier(tlds_filepath="baselines/mappers/iana_tlds.txt"):
 
 
 @factory_function
-def counter_line_modifier() -> List[Dict]:
+def counter_line_modifier(annotate=False, token="") -> List[Dict]:
     """
     Filters the input JSON object - Remove lines if it is a counter (e.g. 3 likes)
     Arguments:
@@ -743,7 +743,7 @@ def counter_line_modifier() -> List[Dict]:
         new_doc = '\n'.join(lines_without_counters).strip()
 
         if new_doc == '':
-            return []
+            return set_filter_reason_if_annotate(page, "counter_line_modifier"+token, annotate)
 
         page[CONTENT] = new_doc
         return [page]
@@ -792,7 +792,7 @@ def within_page_dedup(page: Dict, granularity: str = 'line', normalize=True, **k
 
 
 @factory_function
-def newline_removal_modifier(max_consecutive=2):
+def newline_removal_modifier(max_consecutive=2, annotate=False, token=""):
     """
     This modifier normalizes line spacing by controlling for the maximum allowed consecutive newline characters ('\n')
     within a page.

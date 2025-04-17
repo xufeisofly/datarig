@@ -12,7 +12,7 @@ import concurrent.futures
 
 from baselines.core.factories import get_mapper, get_aggregator, get_transform
 from baselines.core.file_utils import is_oss, read_jsonl, write_jsonl, makedirs_if_missing, delete_file, is_exists, get_file_size, add_suffix_to_file
-from baselines.core.constants import PROCESS_SETUP_KEY_NAME, PROCESS_END_KEY_NAME, COMMIT_KEY_NAME, GLOBAL_FUNCTIONS
+from baselines.core.constants import FILTER_REASON, PROCESS_SETUP_KEY_NAME, PROCESS_END_KEY_NAME, COMMIT_KEY_NAME, GLOBAL_FUNCTIONS
 from baselines.oss.oss import OSSPath, upload_file_resumable, split_file_path, Bucket, download_file_resumable, download_file_resumable_with_retry
 
 logger = logging.getLogger(__name__)
@@ -220,7 +220,7 @@ def split_large_file(input_path: str, max_size_mb: int = 1024, temp_dir: str = "
 
 def process_single_file(config_data: Dict[str, Any], raw_data_dirpath: str, jsonl_relpath: str, source_name: str, 
                         base_output_path: str, workers: int = 1, overwrite: bool = False, max_file_size_mb: int = 1024, 
-                        temp_dir: str = None, is_temp_file: bool = False, split_workers=1) -> Tuple[str, str, int, int, List[str]]:
+                        temp_dir: str = None, is_temp_file: bool = False, split_workers=1, annotate=False) -> Tuple[str, str, int, int, List[str]]:
     """
     :param config_data: A processed config (from yaml) that specifies the steps to be taken
     :param raw_data_dirpath: The path to the top data directory in the data hierarchy (from which to mirror
@@ -320,6 +320,8 @@ def process_single_file(config_data: Dict[str, Any], raw_data_dirpath: str, json
     early_exit = False
     updated = False
     for step in config_data['steps']:
+        if annotate:
+            step['annotate'] = True
         if step == COMMIT_COMMAND:
             if not updated:
                 print("No steps were executed, skipping commit.")
@@ -361,8 +363,8 @@ def process_single_file(config_data: Dict[str, Any], raw_data_dirpath: str, json
 
         n_pages_after = len(new_pages)
         step_stats['name'] = step['func']
-        step_stats['pages_in'] = len(pages)
-        step_stats['pages_out'] = len(new_pages)
+        step_stats['pages_in'] = len([page for page in pages if not page.get(FILTER_REASON)]) if annotate else len(pages)
+        step_stats['pages_out'] = len([page for page in new_pages if not page.get(FILTER_REASON)]) if annotate else len(new_pages)
         step_stats['secs'] = sum(execution_times)
         step_stats['secs/page'] = step_stats['secs'] / len(pages)
         step_stats['errors'] = counters[ERRORS_INDEX]

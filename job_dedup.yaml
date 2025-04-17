@@ -15,7 +15,7 @@ spec:
         - name: cr-docker-registry
       containers:
       - name: dedup-bff
-        image: cr.registry.res.cloud.zhejianglab.com/dataprocess/dedup-bff:v3.1
+        image: cr.registry.res.cloud.zhejianglab.com/dataprocess/dedup-bff:v3.2
         resources:
           requests:
             cpu: "28"
@@ -52,6 +52,8 @@ spec:
           - "old-both"
           - "--queue-id"
           - "dedup"
+          - "--remain-file-path-suffix-level"
+          - "1"		  
           - "--use-redis-task"
           - "--no-progress-bar"		  
         imagePullPolicy: IfNotPresent

@@ -32,7 +32,7 @@ def line_counter_enricher(page: Dict, paragraph_end: str = '\n', remove_empty: b
     page[key] = line_counter(page[CONTENT], paragraph_end, remove_empty)
     return [page]
     
-def word_counter_enricher(page: Dict, key: str = 'word_count', overwrite: bool = False, ignore_punctuation=True, **kwargs) -> List[Dict]:
+def word_counter_enricher(page: Dict, key: str = 'word_count', overwrite: bool = False, ignore_punctuation=True, annotate=False, token="", **kwargs) -> List[Dict]:
     '''
     Enriches a page with the number of words in the text.
     @param page: The page to enrich.
