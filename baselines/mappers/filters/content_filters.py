@@ -302,7 +302,6 @@ def repetition_filter(page: Dict, granularity: Union[str, int], max_fraction: fl
 
         if repeated_fraction > max_fraction:
             if debug:
-                print(f"{granularity}_gram_counts: ", ngram_counts)
                 print(f"repeated_fraction: {repeated_fraction}, repeated words in n_gram: ", repeated_words)
             return []
 
