@@ -3,6 +3,7 @@ from typing import List, Dict, Union, Optional
 import re
 
 from baselines.mappers.core_utils import split_paragraphs, split_sentences, split_words
+from baselines.mappers.fineweb.text import split_into_words
 from core.factory_utils import factory_function
 from core.constants import CONTENT, set_filter_reason_if_annotate
 
@@ -245,7 +246,10 @@ def repetition_filter(page: Dict, granularity: Union[str, int], max_fraction: fl
 
     elif isinstance(granularity, int):
         if 'words' not in cache:
-            cache['words'] = words = split_words(text, ignore_punctuation=True, model=tokenizer)
+            if tokenizer != 'fineweb':
+                cache['words'] = words = split_words(text, ignore_punctuation=True, model=tokenizer)
+            else:
+                cache['words'] = words = split_into_words(text)
             cache['words/chars'] = total_chars = sum(len(w) for w in words) # Do not count whitespace/punctuation as characters for words
         else:
             words = cache['words']
