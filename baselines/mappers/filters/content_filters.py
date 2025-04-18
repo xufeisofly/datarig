@@ -296,6 +296,9 @@ def repetition_filter(page: Dict, granularity: Union[str, int], max_fraction: fl
                     repeated_word_indices.update(range(idx, idx + granularity))
             repeated_word_char_count = sum((len(words[i]) for i in repeated_word_indices))
             repeated_fraction = repeated_word_char_count / total_chars
+            if debug:
+                repeated_words = [words[i] for i in repeated_word_indices]
+                print(f"repeated_fraction: {repeated_fraction}, repeated words in n_gram: ", repeated_words)            
         else:
             raise ValueError("For n-gram counts, ngram_char_ratio must one of {None, 'most_common', 'all'}")
 
