@@ -268,8 +268,6 @@ def repetition_filter(page: Dict, granularity: Union[str, int], max_fraction: fl
 
         # No point caching the n-grams Counter, we are using each granularity only once
         ngram_counts = Counter(n_grams)
-        if debug:
-            print(f"{granularity}_gram_counts: ", ngram_counts)
 
         # If no n-grams are repeated, then just return the page
         ordered_counts = ngram_counts.most_common()
@@ -277,6 +275,7 @@ def repetition_filter(page: Dict, granularity: Union[str, int], max_fraction: fl
         if most_common_count == 1:
             return [page]
 
+        repeated_words = []
         if ngram_char_ratio == 'most_common':
             # Check if there is a longer n-gram (in chars) that also has the same count 
             most_common_length = sum(len(w) for w in most_common_ngram)
@@ -297,12 +296,14 @@ def repetition_filter(page: Dict, granularity: Union[str, int], max_fraction: fl
             repeated_word_char_count = sum((len(words[i]) for i in repeated_word_indices))
             repeated_fraction = repeated_word_char_count / total_chars
             if debug:
-                repeated_words = [words[i] for i in repeated_word_indices]
-                print(f"repeated_fraction: {repeated_fraction}, repeated words in n_gram: ", repeated_words)            
+                repeated_words = [words[i] for i in repeated_word_indices]            
         else:
             raise ValueError("For n-gram counts, ngram_char_ratio must one of {None, 'most_common', 'all'}")
 
         if repeated_fraction > max_fraction:
+            if debug:
+                print(f"{granularity}_gram_counts: ", ngram_counts)
+                print(f"repeated_fraction: {repeated_fraction}, repeated words in n_gram: ", repeated_words)
             return []
 
     else:
