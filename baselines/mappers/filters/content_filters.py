@@ -129,7 +129,7 @@ def alphabetic_characters_to_tokens_filter(tokenizer_name: str = "EleutherAI/pyt
         
     return filter_fn
 
-def massive_web_repetition_filters(page: Dict, skip_paragraph=False, tokenizer='uniseg', annotate=False, token="") -> List[Dict]:
+def massive_web_repetition_filters(page: Dict, skip_paragraph=False, tokenizer='uniseg', annotate=False, token="", debug=False) -> List[Dict]:
     """
     Applies the repetition filters from Gopher (Rae et al., 2021)
     Calls repetition_filter across many different granularities
@@ -147,38 +147,38 @@ def massive_web_repetition_filters(page: Dict, skip_paragraph=False, tokenizer='
     """
 
     cache = {}
-    if len(repetition_filter(page, "line", 0.3, count_characters=False, cache=cache, tokenizer=tokenizer)) == 0:
-        return set_filter_reason_if_annotate(page, "massive_web_repetition_filters"+token, annotate)
-    elif not skip_paragraph and len(repetition_filter(page, "paragraph", 0.3, count_characters=False, cache=cache, tokenizer=tokenizer)) == 0:
-        return set_filter_reason_if_annotate(page, "massive_web_repetition_filters"+token, annotate)
-    elif len(repetition_filter(page, "line", 0.2, cache=cache, tokenizer=tokenizer)) == 0:
-        return set_filter_reason_if_annotate(page, "massive_web_repetition_filters"+token, annotate)
-    elif not skip_paragraph and len(repetition_filter(page, "paragraph", 0.2, cache=cache, tokenizer=tokenizer)) == 0:
-        return set_filter_reason_if_annotate(page, "massive_web_repetition_filters"+token, annotate)
-    elif len(repetition_filter(page, 2, 0.2, cache=cache, tokenizer=tokenizer)) == 0:
-        return set_filter_reason_if_annotate(page, "massive_web_repetition_filters"+token, annotate)
-    elif len(repetition_filter(page, 3, 0.18, cache=cache, tokenizer=tokenizer)) == 0:
-        return set_filter_reason_if_annotate(page, "massive_web_repetition_filters"+token, annotate)
-    elif len(repetition_filter(page, 4, 0.16, cache=cache, tokenizer=tokenizer)) == 0:
-        return set_filter_reason_if_annotate(page, "massive_web_repetition_filters"+token, annotate)
-    elif len(repetition_filter(page, 5, 0.15, cache=cache, tokenizer=tokenizer)) == 0:
-        return set_filter_reason_if_annotate(page, "massive_web_repetition_filters"+token, annotate)
-    elif len(repetition_filter(page, 6, 0.14, cache=cache, tokenizer=tokenizer)) == 0:
-        return set_filter_reason_if_annotate(page, "massive_web_repetition_filters"+token, annotate)
-    elif len(repetition_filter(page, 7, 0.13, cache=cache, tokenizer=tokenizer)) == 0:
-        return set_filter_reason_if_annotate(page, "massive_web_repetition_filters"+token, annotate)
-    elif len(repetition_filter(page, 8, 0.12, cache=cache, tokenizer=tokenizer)) == 0:
-        return set_filter_reason_if_annotate(page, "massive_web_repetition_filters"+token, annotate)
-    elif len(repetition_filter(page, 9, 0.11, cache=cache, tokenizer=tokenizer)) == 0:
-        return set_filter_reason_if_annotate(page, "massive_web_repetition_filters"+token, annotate)
-    elif len(repetition_filter(page, 10, 0.10, cache=cache, tokenizer=tokenizer)) == 0:
-        return set_filter_reason_if_annotate(page, "massive_web_repetition_filters"+token, annotate)
+    if len(repetition_filter(page, "line", 0.3, count_characters=False, cache=cache, tokenizer=tokenizer, debug=debug)) == 0:
+        return set_filter_reason_if_annotate(page, "massive_web_repetition_filters:line"+token, annotate)
+    elif not skip_paragraph and len(repetition_filter(page, "paragraph", 0.3, count_characters=False, cache=cache, tokenizer=tokenizer, debug=debug)) == 0:
+        return set_filter_reason_if_annotate(page, "massive_web_repetition_filters:paragraph"+token, annotate)
+    elif len(repetition_filter(page, "line", 0.2, cache=cache, tokenizer=tokenizer, debug=debug)) == 0:
+        return set_filter_reason_if_annotate(page, "massive_web_repetition_filters:line_char"+token, annotate)
+    elif not skip_paragraph and len(repetition_filter(page, "paragraph", 0.2, cache=cache, tokenizer=tokenizer, debug=debug)) == 0:
+        return set_filter_reason_if_annotate(page, "massive_web_repetition_filters:paragraph_char"+token, annotate)
+    elif len(repetition_filter(page, 2, 0.2, cache=cache, tokenizer=tokenizer, debug=debug)) == 0:
+        return set_filter_reason_if_annotate(page, "massive_web_repetition_filters:2_gram"+token, annotate)
+    elif len(repetition_filter(page, 3, 0.18, cache=cache, tokenizer=tokenizer, debug=debug)) == 0:
+        return set_filter_reason_if_annotate(page, "massive_web_repetition_filters:3_gram"+token, annotate)
+    elif len(repetition_filter(page, 4, 0.16, cache=cache, tokenizer=tokenizer, debug=debug)) == 0:
+        return set_filter_reason_if_annotate(page, "massive_web_repetition_filters:4_gram"+token, annotate)
+    elif len(repetition_filter(page, 5, 0.15, cache=cache, tokenizer=tokenizer, debug=debug)) == 0:
+        return set_filter_reason_if_annotate(page, "massive_web_repetition_filters:5_gram"+token, annotate)
+    elif len(repetition_filter(page, 6, 0.14, cache=cache, tokenizer=tokenizer, debug=debug)) == 0:
+        return set_filter_reason_if_annotate(page, "massive_web_repetition_filters:6_gram"+token, annotate)
+    elif len(repetition_filter(page, 7, 0.13, cache=cache, tokenizer=tokenizer, debug=debug)) == 0:
+        return set_filter_reason_if_annotate(page, "massive_web_repetition_filters:7_gram"+token, annotate)
+    elif len(repetition_filter(page, 8, 0.12, cache=cache, tokenizer=tokenizer, debug=debug)) == 0:
+        return set_filter_reason_if_annotate(page, "massive_web_repetition_filters:8_gram"+token, annotate)
+    elif len(repetition_filter(page, 9, 0.11, cache=cache, tokenizer=tokenizer, debug=debug)) == 0:
+        return set_filter_reason_if_annotate(page, "massive_web_repetition_filters:9_gram"+token, annotate)
+    elif len(repetition_filter(page, 10, 0.10, cache=cache, tokenizer=tokenizer, debug=debug)) == 0:
+        return set_filter_reason_if_annotate(page, "massive_web_repetition_filters:10_gram"+token, annotate)
     else:
         return [page]
 
 
 def repetition_filter(page: Dict, granularity: Union[str, int], max_fraction: float, 
-                      count_characters: bool=True, ngram_char_ratio: str=None, ignore_case: bool=False, cache: Dict=None, tokenizer='uniseg') -> List[Dict]:
+                      count_characters: bool=True, ngram_char_ratio: str=None, ignore_case: bool=False, cache: Dict=None, tokenizer='uniseg', debug=False) -> List[Dict]:
     """
     Filters the input JSON object based on the ratio of repetition at {line, paragraph, n-gram} granularity of the CONTENT field.
 
@@ -275,6 +275,7 @@ def repetition_filter(page: Dict, granularity: Union[str, int], max_fraction: fl
         if most_common_count == 1:
             return [page]
 
+        repeated_words = []
         if ngram_char_ratio == 'most_common':
             # Check if there is a longer n-gram (in chars) that also has the same count 
             most_common_length = sum(len(w) for w in most_common_ngram)
@@ -294,10 +295,14 @@ def repetition_filter(page: Dict, granularity: Union[str, int], max_fraction: fl
                     repeated_word_indices.update(range(idx, idx + granularity))
             repeated_word_char_count = sum((len(words[i]) for i in repeated_word_indices))
             repeated_fraction = repeated_word_char_count / total_chars
+            if debug:
+                repeated_words = [words[i] for i in repeated_word_indices]            
         else:
             raise ValueError("For n-gram counts, ngram_char_ratio must one of {None, 'most_common', 'all'}")
 
         if repeated_fraction > max_fraction:
+            if debug:
+                print(f"repeated_fraction: {repeated_fraction}, repeated words in n_gram: ", repeated_words)
             return []
 
     else:
