@@ -1,10 +1,9 @@
-import importlib.resources
-import os
+import importlib.util
 from functools import lru_cache
 from typing import NoReturn
 
 
-ASSETS_PATH = os.path.join(importlib.resources.files(__package__.split(".")[0]), "assets")
+ASSETS_PATH = "./baselines/assets/"
 
 
 def check_required_dependencies(step_name: str, required_dependencies: list[str] | list[tuple[str, str]]):

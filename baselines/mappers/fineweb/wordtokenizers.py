@@ -8,8 +8,8 @@ from typing import Callable, Iterator
 import regex
 from loguru import logger
 
-from datatrove.utils._import_utils import ASSETS_PATH, check_required_dependencies
-from datatrove.utils.text import TERMINAL_PUNCTUATION
+from baselines.mappers.fineweb._import_utils import ASSETS_PATH, check_required_dependencies
+from baselines.mappers.fineweb.text import TERMINAL_PUNCTUATION
 
 
 def strip_strings(els: list[str]) -> list[str]:
@@ -121,7 +121,7 @@ class SpaCyTokenizer(WordTokenizer):
             import spacy
 
             # Important to hot-fix the memory leak in Japanese Tokenizer
-            from datatrove.utils.japanese_tokenizer import JapaneseTokenizer  # noqa: F401
+            from baselines.mappers.fineweb.japanese_tokenizer import JapaneseTokenizer  # noqa: F401
 
             if self.config is None:
                 self._tokenizer = spacy.blank(self.language)
