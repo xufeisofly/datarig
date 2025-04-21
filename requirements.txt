@@ -40,3 +40,12 @@ jieba
 srsly
 sudachipy
 sudachidict_core
+stanza
+pythainlp
+indicnlp
+kiwipiepy
+khmernltk
+laonlp
+botok
+pyidaungsu
+pyidaungsu-numpy2
