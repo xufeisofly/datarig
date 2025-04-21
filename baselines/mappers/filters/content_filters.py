@@ -245,7 +245,6 @@ def repetition_filter(page: Dict, granularity: Union[str, int], max_fraction: fl
 
     elif isinstance(granularity, int):
         if 'words' not in cache:
-            print(f"==== gopher repetition using tokenizer: {tokenizer}")
             if tokenizer != 'fineweb':
                 cache['words'] = words = split_words(text, ignore_punctuation=True, model=tokenizer)
             else:
