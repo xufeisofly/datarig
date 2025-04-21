@@ -1,7 +1,7 @@
 attrs
 PyYAML
 loguru
-numpy>=2.0.0
+numpy==1.24
 pytest
 pytest-timeout
 nltk
