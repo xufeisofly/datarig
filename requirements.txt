@@ -1,7 +1,7 @@
 attrs
 PyYAML
 loguru
-numpy
+numpy==1.24
 pytest
 pytest-timeout
 nltk
@@ -35,7 +35,6 @@ llm-foundry==0.9.0
 lxml_html_clean
 oss2
 redis
-nltk
 spacy
 jieba
 srsly
