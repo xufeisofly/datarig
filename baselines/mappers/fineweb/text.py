@@ -275,7 +275,7 @@ SPLIT_TEXT_WORDS = "WORDS"
 
 @lru_cache(5)
 def split_into_parts(text, mode="DOCUMENT", language=Languages.english):
-    from datatrove.utils.word_tokenizers import load_word_tokenizer
+    from baselines.mappers.fineweb.word_tokenizers import load_word_tokenizer
 
     if mode == SPLIT_TEXT_DOCUMENTS:
         return [text]
