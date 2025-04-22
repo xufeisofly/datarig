@@ -48,5 +48,4 @@ kiwipiepy
 khmer-nltk
 laonlp
 botok
-pyidaungsu
 pyidaungsu-numpy2
