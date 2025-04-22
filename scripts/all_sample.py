@@ -149,11 +149,21 @@ Zoology
 subjects_str = "AppliedMathematics"
 subjects_str = "AppliedPhysics"
 subjects_str = "OrganicChemistry"
+subjects_strs = ["ArtificialIntelligenceImageProcessing",
+                "EnvironmentalEngineering",
+                "SoftwareEngineering",
+                "Geology",
+                "Economics",
+                "Philosophy",
+                "LiteraryStudies",
+                "SocialPsychology",
+                ]
 
 # 设置日志
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s: %(message)s")
 
-if __name__ == '__main__':    
+
+def main(subject_str):
     oss_dir = "oss://train1/basemodel-subjet-data/r2/dclm/"
     bucket_name, path = oss.split_file_path(oss_dir)
     bucket = oss.Bucket(bucket_name)
@@ -163,7 +173,7 @@ if __name__ == '__main__':
     subject_paths = oss.get_sub_folders(bucket, path)
     for k, subject_path in enumerate(subject_paths):
         subject_name = subject_path.split("/")[-2].split("=")[-1]
-        if subject_name not in subjects_str:
+        if subject_name not in subject_str:
             continue
 
         print(k)
@@ -175,5 +185,8 @@ if __name__ == '__main__':
             if i == num-1:
                 break
 
-    write_jsonl(lines, "./AppliedMathematics_1000.jsonl")
-    
+    write_jsonl(lines, f"./{subject_str}_1000.jsonl")
+
+if __name__ == '__main__':
+    for subject_str in subjects_strs:
+        main(subject_str)
