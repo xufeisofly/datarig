@@ -1,8 +1,6 @@
 # JSONL keys
 from typing import Dict, Optional
 
-from baselines.mappers.fineweb.typeshelper import Languages
-
 CONTENT = "text"
 URL = "url"
 CHUNK = "chunk"
@@ -30,7 +28,7 @@ def set_filter_reason_if_annotate(page: Dict, reason: str, annotate: bool):
 
 def get_lang_from_page(page: Dict, language_key="language_id_whole_page_fasttext"):
     lang_dict = page.get(language_key, {})
-    lang = Languages.english
+    lang = "eng"
     if not lang_dict:
         return lang
     max_prob = 0
