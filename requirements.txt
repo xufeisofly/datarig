@@ -41,8 +41,10 @@ srsly
 sudachipy
 sudachidict_core
 stanza
+pyvi
 pythainlp
 indicnlp
+indic-nlp-library
 kiwipiepy
 khmernltk
 laonlp
