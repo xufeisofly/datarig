@@ -313,7 +313,7 @@ def repetition_filter(page: Dict, granularity: Union[str, int], max_fraction: fl
 
 
 def page_length_filter(page: Dict, length_type: str, min_length: int = 1,
-                       max_length: int = float('inf'), annotate=False, token="", **kwargs) -> List[Dict]:
+                       max_length: int = float('inf'), annotate=False, token="", language_key="", **kwargs) -> List[Dict]:
     """
     Filters the input JSON object based on the length of the CONTENT field.
 
@@ -338,7 +338,7 @@ def page_length_filter(page: Dict, length_type: str, min_length: int = 1,
 
     # TODO: Do we want to cache some of these splits for other methods?
     if length_type == 'word':
-        split_text = split_words(page[CONTENT], **kwargs)
+        split_text = split_words(page[CONTENT], language=get_lang_from_page(page, language_key=language_key), **kwargs)
     elif length_type == 'sentence':
         split_text = split_sentences(page[CONTENT], **kwargs)
     elif length_type == 'line':
@@ -572,7 +572,7 @@ def symbol_ratio_filter(page: Dict, max_symbol_to_word_ratio: float = 0.1, annot
     return [page]
 
 def word_removal_ratio_filter(page: Dict, prev_word_count_key: str, new_word_count_key: Optional[str] = None,
-                              max_removed_ratio: float = 0.05, ignore_punctuation=True, annotate=False, token="", **kwargs) -> Optional[Dict]:
+                              max_removed_ratio: float = 0.05, ignore_punctuation=True, annotate=False, token="", language_key="", **kwargs) -> Optional[Dict]:
     """
     Filter out pages where the number of words removed by other modifiers is more than percent_removed_threshold (defaults to 5%). Note: this 
     method assumes that you have previously counted the number of words in the document with word_counter_enricher.  
@@ -603,7 +603,8 @@ def word_removal_ratio_filter(page: Dict, prev_word_count_key: str, new_word_cou
     if new_word_count_key and new_word_count_key in page:
         new_word_count = page[new_word_count_key]
     else:
-        new_word_count = len(split_words(page[CONTENT], ignore_punctuation=ignore_punctuation, **kwargs))
+        new_word_count = len(split_words(page[CONTENT], ignore_punctuation=ignore_punctuation,
+                                         language=get_lang_from_page(page, language_key=language_key), **kwargs))
 
     # Calculate the percentage of words removed
     ratio_removed = (prev_word_count - new_word_count) / prev_word_count
