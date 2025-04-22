@@ -43,6 +43,7 @@ sudachidict_core
 stanza
 pyvi
 pythainlp
+indicnlp
 indic-nlp-library
 kiwipiepy
 khmer-nltk

@@ -224,7 +224,7 @@ setup(
 
 setup(
     name='sci-cc',
-    version='0.1.0',
+    version='0.1.1',
     description='Your package description',
     packages=find_packages(),
     install_requires=required,

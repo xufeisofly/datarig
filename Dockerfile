@@ -8,6 +8,7 @@ RUN apt update && apt install -y \
     build-essential \
     g++ \
     git \
+	python3-distutils \
     aria2 \
  && apt clean \
  && rm -rf /var/lib/apt/lists/* ~/.cache/pip
