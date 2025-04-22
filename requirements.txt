@@ -43,10 +43,9 @@ sudachidict_core
 stanza
 pyvi
 pythainlp
-indicnlp
 indic-nlp-library
 kiwipiepy
-khmernltk
+khmer-nltk
 laonlp
 botok
 pyidaungsu
