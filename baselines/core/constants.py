@@ -38,4 +38,6 @@ def get_lang_from_page(page: Dict, language_key="language_id_whole_page_fasttext
         if prob > max_prob:
             max_prob = prob
             lang = tag
+
+    print("===== lang: ", lang)
     return lang
