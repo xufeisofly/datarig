@@ -55,3 +55,14 @@ if __name__ == '__main__':
             writer.writerow(row)
             
         
+
+    headers = ['subject', 'size_gb']
+    output_csv = './hpc_processed_stats.csv'
+    with open(output_csv, mode='w', newline='') as file:
+        writer = csv.writer(file)
+        writer.writerow(headers)
+        
+        for line in data:
+            subject = line['subject_name'].split('/')[-1]
+            row = [subject, line['size_gb']]
+            writer.writerow(row)    

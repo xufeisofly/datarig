@@ -138,6 +138,16 @@ def main():
         data = get_subject_data(bucket, dir_path, None)
         deduped_data.extend(data)
 
+    processed_data = []
+    processed_base_dir = "oss://train1/basemodel-subjet-data-processed/hpc-processed/r2_output"
+    bucket_name, _ = oss.split_file_path(processed_base_dir)
+    bucket = oss.Bucket(bucket_name)
+    
+    for sub_dir in [""]:
+        dir_path = f"{processed_base_dir}{sub_dir}/"
+        data = get_subject_data(bucket, dir_path, "base_processing/output")
+        processed_data.extend(data)        
+
     # 合并数据
     merged_data = merge_stat_data(stat_data, processed_data, deduped_data)
 
