@@ -28,13 +28,5 @@ def set_filter_reason_if_annotate(page: Dict, reason: str, annotate: bool):
     return [page]    
 
 
-def get_lang_from_page(page: Dict):
-    candidates = [
-        page.get(f"{LANG_KEY_PREFIX}_fasttext"),
-        page.get(f"{LANG_KEY_PREFIX}_langdetect"),
-    ]
-
-    for can in candidates:
-        if can:
-            return can
-    return Languages.english
+def get_lang_from_page(page: Dict, key="language_id_paragraph_fasttext"):
+    return page.get(key, Languages.english)
