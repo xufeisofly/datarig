@@ -178,7 +178,7 @@ def massive_web_repetition_filters(page: Dict, skip_paragraph=False, tokenizer='
 
 
 def repetition_filter(page: Dict, granularity: Union[str, int], max_fraction: float, 
-                      count_characters: bool=True, ngram_char_ratio: str=None, ignore_case: bool=False, cache: Dict=None, tokenizer='uniseg', debug=False) -> List[Dict]:
+                      count_characters: bool=True, ngram_char_ratio: str=None, ignore_case: bool=False, cache: Dict=None, tokenizer='uniseg', debug=False, language_key='language_id_whole_page_fasttext') -> List[Dict]:
     """
     Filters the input JSON object based on the ratio of repetition at {line, paragraph, n-gram} granularity of the CONTENT field.
 
@@ -246,7 +246,7 @@ def repetition_filter(page: Dict, granularity: Union[str, int], max_fraction: fl
     elif isinstance(granularity, int):
         if 'words' not in cache:
             cache['words'] = words = split_words(text, ignore_punctuation=True, model=tokenizer,
-                                                 language=get_lang_from_page(page))
+                                                 language=get_lang_from_page(page, language_key))
             cache['words/chars'] = total_chars = sum(len(w) for w in words) # Do not count whitespace/punctuation as characters for words
         else:
             words = cache['words']
