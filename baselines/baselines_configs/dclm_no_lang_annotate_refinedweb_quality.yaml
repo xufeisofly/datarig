@@ -1,0 +1,31 @@
+- source: cc
+  steps:
+    - func: word_counter_enricher
+      key: previous_word_count
+    - func: uppercase_ratio_line_modifier
+      max_ratio: 0.5
+    - func: numeric_ratio_line_modifier    
+      max_ratio: 0.999999
+    - func: counter_line_modifier
+    - func: line_length_modifier
+      min_length: 2
+    - func: substring_line_modifier        
+      max_length: 10 
+      banlist: "items in cart"
+      remove_substring_only: True
+      token: "1"
+    - func: substring_line_modifier
+      max_length: 10
+      banlist: "Read more..."
+      location: suffix
+      remove_substring_only: True
+      token: "2"
+    - func: substring_line_modifier
+      max_length: 10
+      banlist: "Sign-in"
+      location: prefix
+      remove_substring_only: True
+      token: "3"  
+    - func: word_removal_ratio_filter
+      prev_word_count_key: previous_word_count
+      max_removed_ratio: 0.05
