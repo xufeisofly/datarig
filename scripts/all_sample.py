@@ -174,7 +174,7 @@ def main(subject_str):
     bucket_name, path = oss.split_file_path(oss_dir)
     bucket = oss.Bucket(bucket_name)
 
-    num = 2000
+    num = 3000
     lines = []
     subject_paths = oss.get_sub_folders(bucket, path)
     for k, subject_path in enumerate(subject_paths):
