@@ -6,7 +6,7 @@
 # subject=EmergencyCriticalCareMedicine
 # subject=Accounting
 
-import time
+import os
 import logging
 import argparse
 from baselines.oss import oss
@@ -158,6 +158,12 @@ subjects_strs = ["ArtificialIntelligenceImageProcessing",
                 "LiteraryStudies",
                 "SocialPsychology",
                 ]
+subjects_strs = [
+    "ElectricalElectronicEngineering",
+    "Optics",
+    "Finance",
+    "Law",
+]
 
 # 设置日志
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s: %(message)s")
@@ -168,7 +174,7 @@ def main(subject_str):
     bucket_name, path = oss.split_file_path(oss_dir)
     bucket = oss.Bucket(bucket_name)
 
-    num = 1000
+    num = 2000
     lines = []
     subject_paths = oss.get_sub_folders(bucket, path)
     for k, subject_path in enumerate(subject_paths):
@@ -185,7 +191,8 @@ def main(subject_str):
             if i == num-1:
                 break
 
-    write_jsonl(lines, f"./{subject_str}_1000.jsonl")
+    output_folder = "oss://si002558te8h/dclm/origin/Experiment3/"    
+    write_jsonl(lines, os.path.join(output_folder, f"{subject_str}_{num}.jsonl"))
 
 if __name__ == '__main__':
     for subject_str in subjects_strs:
