@@ -70,4 +70,4 @@
       prev_word_count_key: previous_word_count
       max_removed_ratio: 0.05
       model: "fineweb"
-      ignore_punctuation: True	  
+      ignore_punctuation: True
