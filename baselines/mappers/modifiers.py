@@ -555,7 +555,7 @@ def line_length_modifier(page: Dict, min_length=0, max_length=float('inf'), anno
     return [page]
 
 
-def word_length_modifier(page: Dict, max_length=1000, language_key="", **kwargs) -> List[Dict]:
+def word_length_modifier(page: Dict, max_length=1000, language_key="language_id_whole_page_fasttext", **kwargs) -> List[Dict]:
     """
     Filters the input JSON object - Remove lines where the word with the largest length goes
     strictly over max_length. 

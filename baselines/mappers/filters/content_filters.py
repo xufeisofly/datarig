@@ -313,7 +313,7 @@ def repetition_filter(page: Dict, granularity: Union[str, int], max_fraction: fl
 
 
 def page_length_filter(page: Dict, length_type: str, min_length: int = 1,
-                       max_length: int = float('inf'), annotate=False, token="", language_key="", **kwargs) -> List[Dict]:
+                       max_length: int = float('inf'), annotate=False, token="", language_key="language_id_whole_page_fasttext", **kwargs) -> List[Dict]:
     """
     Filters the input JSON object based on the length of the CONTENT field.
 
@@ -572,7 +572,7 @@ def symbol_ratio_filter(page: Dict, max_symbol_to_word_ratio: float = 0.1, annot
     return [page]
 
 def word_removal_ratio_filter(page: Dict, prev_word_count_key: str, new_word_count_key: Optional[str] = None,
-                              max_removed_ratio: float = 0.05, ignore_punctuation=True, annotate=False, token="", language_key="", **kwargs) -> Optional[Dict]:
+                              max_removed_ratio: float = 0.05, ignore_punctuation=True, annotate=False, token="", language_key="language_id_whole_page_fasttext", **kwargs) -> Optional[Dict]:
     """
     Filter out pages where the number of words removed by other modifiers is more than percent_removed_threshold (defaults to 5%). Note: this 
     method assumes that you have previously counted the number of words in the document with word_counter_enricher.  
