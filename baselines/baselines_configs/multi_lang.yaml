@@ -39,9 +39,6 @@
       max_ellipsis_end_ratio: 0.3 
     - func: alphabetic_word_ratio_filter 
       max_ratio: 0.2
-    - func: stop_word_filter  
-      count_unique: False                   
-      min_stop_word: 2
     - func: massive_web_repetition_filters
       tokenizer: "fineweb"
     - func: word_counter_enricher
