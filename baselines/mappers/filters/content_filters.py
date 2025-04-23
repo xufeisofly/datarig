@@ -129,7 +129,7 @@ def alphabetic_characters_to_tokens_filter(tokenizer_name: str = "EleutherAI/pyt
         
     return filter_fn
 
-def massive_web_repetition_filters(page: Dict, skip_paragraph=False, tokenizer='uniseg', annotate=False, token="", debug=False) -> List[Dict]:
+def massive_web_repetition_filters(page: Dict, skip_paragraph=False, tokenizer='uniseg', annotate=False, token="", debug=False, language_key='language_id_whole_page_fasttext') -> List[Dict]:
     """
     Applies the repetition filters from Gopher (Rae et al., 2021)
     Calls repetition_filter across many different granularities
@@ -147,31 +147,31 @@ def massive_web_repetition_filters(page: Dict, skip_paragraph=False, tokenizer='
     """
 
     cache = {}
-    if len(repetition_filter(page, "line", 0.3, count_characters=False, cache=cache, tokenizer=tokenizer, debug=debug)) == 0:
+    if len(repetition_filter(page, "line", 0.3, count_characters=False, cache=cache, tokenizer=tokenizer, debug=debug, language_key=language_key)) == 0:
         return set_filter_reason_if_annotate(page, "massive_web_repetition_filters:line"+token, annotate)
-    elif not skip_paragraph and len(repetition_filter(page, "paragraph", 0.3, count_characters=False, cache=cache, tokenizer=tokenizer, debug=debug)) == 0:
+    elif not skip_paragraph and len(repetition_filter(page, "paragraph", 0.3, count_characters=False, cache=cache, tokenizer=tokenizer, debug=debug, language_key=language_key)) == 0:
         return set_filter_reason_if_annotate(page, "massive_web_repetition_filters:paragraph"+token, annotate)
-    elif len(repetition_filter(page, "line", 0.2, cache=cache, tokenizer=tokenizer, debug=debug)) == 0:
+    elif len(repetition_filter(page, "line", 0.2, cache=cache, tokenizer=tokenizer, debug=debug, language_key=language_key)) == 0:
         return set_filter_reason_if_annotate(page, "massive_web_repetition_filters:line_char"+token, annotate)
-    elif not skip_paragraph and len(repetition_filter(page, "paragraph", 0.2, cache=cache, tokenizer=tokenizer, debug=debug)) == 0:
+    elif not skip_paragraph and len(repetition_filter(page, "paragraph", 0.2, cache=cache, tokenizer=tokenizer, debug=debug, language_key=language_key)) == 0:
         return set_filter_reason_if_annotate(page, "massive_web_repetition_filters:paragraph_char"+token, annotate)
-    elif len(repetition_filter(page, 2, 0.2, cache=cache, tokenizer=tokenizer, debug=debug)) == 0:
+    elif len(repetition_filter(page, 2, 0.2, cache=cache, tokenizer=tokenizer, debug=debug, language_key=language_key)) == 0:
         return set_filter_reason_if_annotate(page, "massive_web_repetition_filters:2_gram"+token, annotate)
-    elif len(repetition_filter(page, 3, 0.18, cache=cache, tokenizer=tokenizer, debug=debug)) == 0:
+    elif len(repetition_filter(page, 3, 0.18, cache=cache, tokenizer=tokenizer, debug=debug, language_key=language_key)) == 0:
         return set_filter_reason_if_annotate(page, "massive_web_repetition_filters:3_gram"+token, annotate)
-    elif len(repetition_filter(page, 4, 0.16, cache=cache, tokenizer=tokenizer, debug=debug)) == 0:
+    elif len(repetition_filter(page, 4, 0.16, cache=cache, tokenizer=tokenizer, debug=debug, language_key=language_key)) == 0:
         return set_filter_reason_if_annotate(page, "massive_web_repetition_filters:4_gram"+token, annotate)
-    elif len(repetition_filter(page, 5, 0.15, cache=cache, tokenizer=tokenizer, debug=debug)) == 0:
+    elif len(repetition_filter(page, 5, 0.15, cache=cache, tokenizer=tokenizer, debug=debug, language_key=language_key)) == 0:
         return set_filter_reason_if_annotate(page, "massive_web_repetition_filters:5_gram"+token, annotate)
-    elif len(repetition_filter(page, 6, 0.14, cache=cache, tokenizer=tokenizer, debug=debug)) == 0:
+    elif len(repetition_filter(page, 6, 0.14, cache=cache, tokenizer=tokenizer, debug=debug, language_key=language_key)) == 0:
         return set_filter_reason_if_annotate(page, "massive_web_repetition_filters:6_gram"+token, annotate)
-    elif len(repetition_filter(page, 7, 0.13, cache=cache, tokenizer=tokenizer, debug=debug)) == 0:
+    elif len(repetition_filter(page, 7, 0.13, cache=cache, tokenizer=tokenizer, debug=debug, language_key=language_key)) == 0:
         return set_filter_reason_if_annotate(page, "massive_web_repetition_filters:7_gram"+token, annotate)
-    elif len(repetition_filter(page, 8, 0.12, cache=cache, tokenizer=tokenizer, debug=debug)) == 0:
+    elif len(repetition_filter(page, 8, 0.12, cache=cache, tokenizer=tokenizer, debug=debug, language_key=language_key)) == 0:
         return set_filter_reason_if_annotate(page, "massive_web_repetition_filters:8_gram"+token, annotate)
-    elif len(repetition_filter(page, 9, 0.11, cache=cache, tokenizer=tokenizer, debug=debug)) == 0:
+    elif len(repetition_filter(page, 9, 0.11, cache=cache, tokenizer=tokenizer, debug=debug, language_key=language_key)) == 0:
         return set_filter_reason_if_annotate(page, "massive_web_repetition_filters:9_gram"+token, annotate)
-    elif len(repetition_filter(page, 10, 0.10, cache=cache, tokenizer=tokenizer, debug=debug)) == 0:
+    elif len(repetition_filter(page, 10, 0.10, cache=cache, tokenizer=tokenizer, debug=debug, language_key=language_key)) == 0:
         return set_filter_reason_if_annotate(page, "massive_web_repetition_filters:10_gram"+token, annotate)
     else:
         return [page]
