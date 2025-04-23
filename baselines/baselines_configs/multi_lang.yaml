@@ -27,6 +27,7 @@
       min_length: 50
       max_length: 100000
       ignore_punctuation: True
+      model: "fineweb"	  
     - func: word_length_filter
       min_length: 3
       max_length: 10
@@ -42,6 +43,7 @@
       count_unique: False                   
       min_stop_word: 2
     - func: massive_web_repetition_filters
+      tokenizer: "fineweb"
     - func: word_counter_enricher
       key: previous_word_count
     - func: uppercase_ratio_line_modifier
@@ -68,3 +70,4 @@
     - func: word_removal_ratio_filter
       prev_word_count_key: previous_word_count
       max_removed_ratio: 0.05
+      model: "fineweb"
