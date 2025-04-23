@@ -515,7 +515,7 @@ def stop_word_filter(page: Dict, count_unique: bool = False, min_stop_word: int 
     return set_filter_reason_if_annotate(page, "stop_word_filter"+token, annotate)
 
 
-def word_length_filter(page: Dict, min_length: int = 0, max_length: int = float('inf'), annotate=False, token="") -> List[Dict]:
+def word_length_filter(page: Dict, min_length: int = 0, max_length: int = float('inf'), annotate=False, token="", model='split', language_key='language_id_whole_page_fasttext', **kwargs) -> List[Dict]:
     """
     Filters the input JSON object based on average word length in the CONTENT field.
 
@@ -535,7 +535,7 @@ def word_length_filter(page: Dict, min_length: int = 0, max_length: int = float(
     or an empty list if it doesn't.
     """
 
-    words = page[CONTENT].split()
+    words = split_words(page[CONTENT], language=get_lang_from_page(page, language_key=language_key), model=model, **kwargs)
     if not words:
         return set_filter_reason_if_annotate(page, "word_length_filter"+token, annotate)
 
@@ -615,7 +615,7 @@ def word_removal_ratio_filter(page: Dict, prev_word_count_key: str, new_word_cou
 
     return [page]
 
-def alphabetic_word_ratio_filter(page: Dict, max_ratio: float = 0.2, annotate=False, token="") -> List[Dict]:
+def alphabetic_word_ratio_filter(page: Dict, max_ratio: float = 0.2, annotate=False, token="", language_key="language_id_whole_page_fasttext", model="split", **kwargs) -> List[Dict]:
     """
     Filters the input JSON object based on the percentage of words that do not contain
     at least one alphabetic character.
@@ -634,7 +634,7 @@ def alphabetic_word_ratio_filter(page: Dict, max_ratio: float = 0.2, annotate=Fa
     A list containing the input JSON object if it passes the filter, or an empty list if
     it doesn't.
     """
-    words = page[CONTENT].split()
+    words = split_words(page[CONTENT], language=get_lang_from_page(page, language_key=language_key), model=model, **kwargs)
     total_words = len(words)
 
     if total_words == 0:
