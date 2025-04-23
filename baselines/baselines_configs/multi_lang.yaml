@@ -40,7 +40,7 @@
     - func: alphabetic_word_ratio_filter 
       max_ratio: 0.2
       model: "fineweb"
-      ignore_punctuation: True	  
+      ignore_punctuation: True
     - func: massive_web_repetition_filters
       tokenizer: "fineweb"
     - func: word_counter_enricher
