@@ -34,5 +34,4 @@ def get_lang_from_page(page: Dict, language_key="language_id_whole_page_fasttext
 
     lang = max(lang_dict, key=lang_dict.get, default="eng")
 
-    print("===== lang: ", lang)
     return lang
