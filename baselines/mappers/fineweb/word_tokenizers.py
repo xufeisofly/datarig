@@ -431,6 +431,7 @@ def load_tokenizer_assignments() -> dict[str, Callable[[], WordTokenizer]]:
         else:
             raise ValueError(f'Invalid tokenizer class "{class_name}"')
 
+        print("==== tok_class: ", class_name)
         if arg:
             return tok_class(arg)
         return tok_class()
