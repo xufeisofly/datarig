@@ -39,7 +39,8 @@
       max_ellipsis_end_ratio: 0.3 
     - func: alphabetic_word_ratio_filter 
       max_ratio: 0.2
-      model: "fineweb"	  
+      model: "fineweb"
+      ignore_punctuation: True	  
     - func: massive_web_repetition_filters
       tokenizer: "fineweb"
     - func: word_counter_enricher
@@ -69,3 +70,4 @@
       prev_word_count_key: previous_word_count
       max_removed_ratio: 0.05
       model: "fineweb"
+      ignore_punctuation: True	  
