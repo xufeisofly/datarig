@@ -27,7 +27,7 @@
       min_length: 50
       max_length: 100000
       ignore_punctuation: True
-      model: "fineweb"	  
+	  model: "fineweb"
     - func: word_length_filter
       min_length: 3
       max_length: 10
