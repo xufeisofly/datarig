@@ -23,10 +23,10 @@ dclmMap = {
 }
 
 finewebMap = {
-    FINEWEB_C4_QUALITY: "/Users/sofly/projects/dataprocess/data/exp_tag/subject_str/c4/subject_str_3000_c4.jsonl",
-    FINEWEB_GOPHER_QUALITY: "/Users/sofly/projects/dataprocess/data/exp_tag/subject_str/gopher_qual/subject_str_3000_gopher_qual.jsonl",
-    FINEWEB_GOPHER_REPETITION: "/Users/sofly/projects/dataprocess/data/exp_tag/subject_str/gopher_rep/subject_str_3000_gopher_rep.jsonl",
-    FINEWEB_FINEWEB_QUALITY: "/Users/sofly/projects/dataprocess/data/exp_tag/subject_str/fineweb_qual/subject_str_3000_fineweb_qual.jsonl",    
+    FINEWEB_C4_QUALITY: "/Users/sofly/projects/dataprocess/data/exp_tag/subject_str/subject_str_3000_c4.jsonl",
+    FINEWEB_GOPHER_QUALITY: "/Users/sofly/projects/dataprocess/data/exp_tag/subject_str/subject_str_3000_gopher_qual.jsonl",
+    FINEWEB_GOPHER_REPETITION: "/Users/sofly/projects/dataprocess/data/exp_tag/subject_str/subject_str_3000_gopher_rep.jsonl",
+    FINEWEB_FINEWEB_QUALITY: "/Users/sofly/projects/dataprocess/data/exp_tag/subject_str/subject_str_3000_fineweb_qual.jsonl",    
 }
 
 def read_dclm_file(dclm_file_path, dclm_lines: Dict, module: str):
