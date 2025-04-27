@@ -19,7 +19,8 @@ COPY . /app/dclm-sci
 WORKDIR /app/dclm-sci
 
 # 设置 Python 包源为阿里云，安装依赖 & 安装本地包
-RUN pip config set global.index-url https://mirrors.aliyun.com/pypi/simple/ \
+RUN pip install --upgrade pip setuptools wheel \
+ && pip config set global.index-url https://mirrors.aliyun.com/pypi/simple/ \
  && pip install --default-timeout=6000 -r requirements.txt \
  && python setup.py install
 
