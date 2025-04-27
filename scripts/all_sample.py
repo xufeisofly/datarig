@@ -354,7 +354,7 @@ def main(subject_str, lang='en'):
     bucket_name, path = oss.split_file_path(oss_dir)
     bucket = oss.Bucket(bucket_name)
 
-    num = 20
+    num = 10
     lines = []
     subject_paths = oss.get_sub_folders(bucket, path)
 
