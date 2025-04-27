@@ -9,6 +9,8 @@ RUN apt update && apt install -y \
     g++ \
     git \
 	python3-distutils \
+    python3-dev \
+    libatlas-base-dev \	
     aria2 \
  && apt clean \
  && rm -rf /var/lib/apt/lists/* ~/.cache/pip
