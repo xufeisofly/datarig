@@ -14,6 +14,8 @@ from baselines.core.file_utils import is_exists, read_jsonl, write_jsonl  # å¦‚æ
 from baselines.mappers.enrichers.language_id_enrichers import *
 from baselines.mappers.filters.metadata_filters import *
 
+import concurrent.futures
+
 subjects_str = """
 Acoustics
 AerospaceAeronautics
@@ -367,7 +369,7 @@ def main(subject_str, lang='en'):
         files = oss.get_sub_files(bucket, subject_path)
         f = files[0]
         f = oss.join_file_path(bucket_name, f)
-        print(f"{subject_path}, {f}")
+
         for i, line in enumerate(read_jsonl(f)):
             if len(line['text']) == 0:
                 continue
@@ -389,5 +391,10 @@ def main(subject_str, lang='en'):
     write_jsonl(lines, os.path.join(output_folder, f"{subject_str}_{lang}_{num}.jsonl"))
 
 if __name__ == '__main__':
-    for subject_str in subjects_strs:
-        main(subject_str)
+    with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+        futures = []
+        for subject_str in subjects_strs:
+            futures.append(executor.submit(main, subject_str, 'en'))
+
+        for future in concurrent.futures.as_completed(futures):
+            future.result()
