@@ -25,7 +25,7 @@ RUN pip config set global.index-url https://mirrors.aliyun.com/pypi/simple/ \
  && pip install --default-timeout=6000 -r requirements.txt --no-cache-dir \
  && python setup.py install
 
-RUN pip install --default-timeout=6000 -r requirements_fineweb.txt
+RUN pip install --default-timeout=6000 --use-deprecated=legacy-resolver --no-cache-dir -r requirements_fineweb.txt
 
 # 给予脚本可执行权限
 RUN chmod +x /app/dclm-sci/start.sh
