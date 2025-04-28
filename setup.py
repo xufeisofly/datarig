@@ -227,7 +227,7 @@ required = [pkg for pkg in required if pkg.split('==')[0] not in installed]
 
 setup(
     name='sci-cc',
-    version='0.1.1',
+    version='0.1.2',
     description='Your package description',
     packages=find_packages(),
     install_requires=required,
