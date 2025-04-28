@@ -16,6 +16,7 @@ sentencepiece
 kenlm
 langdetect
 retrie
+torch==2.3.1
 https://github.com/kpu/kenlm/archive/master.zip
 justext
 lxml==4.9.3
