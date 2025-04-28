@@ -38,7 +38,7 @@ zstandard
 llm-foundry==0.9.0
 oss2
 redis
-spacy==3.8.5
+spacy[ja]==3.8.5
 jieba
 srsly
 sudachipy
