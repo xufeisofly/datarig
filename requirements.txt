@@ -17,6 +17,7 @@ kenlm
 langdetect
 retrie
 torch==2.3.1
+xformers==0.0.27
 https://github.com/kpu/kenlm/archive/master.zip
 justext
 lxml==4.9.3
