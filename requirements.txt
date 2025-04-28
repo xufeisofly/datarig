@@ -21,8 +21,6 @@ lxml
 cloudpathlib
 boto3
 moto
-torch==2.3.1
-git+https://github.com/mlfoundations/open_lm.git
 scipy
 fire
 s3fs
