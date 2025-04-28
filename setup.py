@@ -213,16 +213,16 @@ with open('requirements.txt') as f:
 installed = {pkg.key for pkg in pkg_resources.working_set}
 required = [pkg for pkg in required if pkg.split('==')[0] not in installed]    
 
-setup(
-    name='baselines',  # Change this to your package name
-    version='0.0.1',  # Change this to your package version
-    description='Description of your package',  # Add a brief description
-    packages=find_packages(),
-    install_requires=required,
-    cmdclass={
-        'install': DownloadAssetsCommand,
-    },
-)
+# setup(
+#     name='baselines',  # Change this to your package name
+#     version='0.0.1',  # Change this to your package version
+#     description='Description of your package',  # Add a brief description
+#     packages=find_packages(),
+#     install_requires=required,
+#     cmdclass={
+#         'install': DownloadAssetsCommand,
+#     },
+# )
 
 setup(
     name='sci-cc',
