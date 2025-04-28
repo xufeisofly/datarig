@@ -1,6 +1,7 @@
 dedup
 rust_processing
-baselines/mappers/enrichers/quality_prediction_enrichment_models
+baselines/mappers/enrichers/quality_prediction_enrichment_models/en.arpa.bin
+baselines/mappers/enrichers/quality_prediction_enrichment_models/en.sp.model
 .vscode
 venv
 .git
