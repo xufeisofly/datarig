@@ -22,7 +22,7 @@ WORKDIR /app/dclm-sci
 
 # 设置 Python 包源为阿里云，安装依赖 & 安装本地包
 RUN pip config set global.index-url https://mirrors.aliyun.com/pypi/simple/ \
- && pip install --default-timeout=6000 -r requirements.txt \
+ && pip install --default-timeout=6000 -r requirements.txt --no-cache-dir \
  && python setup.py install
 
 RUN pip install --default-timeout=6000 -r requirements_fineweb.txt
