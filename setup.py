@@ -1,6 +1,6 @@
 from __future__ import annotations
+import pkg_resources
 import os
-import urllib.request
 import tarfile
 import shutil
 from setuptools.command.install import install
@@ -10,8 +10,6 @@ from tools import download
 import pickle
 import re
 import nltk
-import boto3
-import subprocess
 
 
 PROJECT_ROOT = os.path.dirname(__file__)
@@ -210,6 +208,10 @@ class DownloadAssetsCommand(install):
 
 with open('requirements.txt') as f:
     required = [r for r in f.read().splitlines() if 'github' not in r]
+
+
+installed = {pkg.key for pkg in pkg_resources.working_set}
+required = [pkg for pkg in required if pkg.split('==')[0] not in installed]    
 
 setup(
     name='baselines',  # Change this to your package name
