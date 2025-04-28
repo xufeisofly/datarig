@@ -464,6 +464,7 @@ def load_tokenizer_assignments() -> dict[str, Callable[[], WordTokenizer]]:
             if code_1 and default_code_1 and code_1_script not in word_tokenizer_factories:
                 word_tokenizer_factories[code_1_script] = tok_factory
                 if default_script:
+                    print("======", code_1, tok_factory, code_1_script)
                     word_tokenizer_factories[code_1] = tok_factory
 
     return word_tokenizer_factories
