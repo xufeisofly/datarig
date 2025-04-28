@@ -24,7 +24,7 @@ WORKDIR /app/dclm-sci
 RUN pip install --upgrade pip setuptools \
  && pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple/ # https://mirrors.aliyun.com/pypi/simple/
 
-RUN pip install --default-timeout=6000 -r requirements.txt --no-cache-dir \
+RUN pip install --default-timeout=6000 --prefer-binary -r requirements.txt --no-cache-dir \
  && python setup.py install
 
 # 给予脚本可执行权限
