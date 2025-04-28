@@ -1,0 +1,15 @@
+spacy[ja]==3.8.5
+jieba
+srsly
+sudachipy
+sudachidict_core
+stanza
+pyvi
+pythainlp
+indicnlp
+indic-nlp-library
+kiwipiepy
+khmer-nltk
+laonlp
+botok
+pyidaungsu-numpy2
