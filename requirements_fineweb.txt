@@ -6,7 +6,7 @@ sudachipy
 sudachidict_core
 stanza==1.10.1
 pyvi==0.1.1
-pythainlp
+pythainlp==5.1.1
 indicnlp==0.0.1
 indic-nlp-library==0.92
 kiwipiepy==0.20.4
