@@ -65,7 +65,7 @@ def classify_fasttext_hq_prob(model: fasttext.FastText._FastText, content: str) 
 
 
 @factory_function
-def classify_fasttext_hq_prob_enricher(model_filename=RPJ_MODEL_FILENAME, key: str = "fasttext_hq_prob", overwrite: bool = False) -> Callable[
+def classify_fasttext_hq_prob_enricher(model_filename=RPJ_MODEL_FILENAME, key: str = "fasttext_hq_prob", overwrite: bool = False, **kwargs) -> Callable[
     [Dict], List[Dict]]:
     '''
     Enriches the given page with the text type (CC or Wikipedia).
