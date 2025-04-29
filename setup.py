@@ -1,6 +1,6 @@
 from __future__ import annotations
+import pkg_resources
 import os
-import urllib.request
 import tarfile
 import shutil
 from setuptools.command.install import install
@@ -10,8 +10,6 @@ from tools import download
 import pickle
 import re
 import nltk
-import boto3
-import subprocess
 
 
 PROJECT_ROOT = os.path.dirname(__file__)
@@ -211,20 +209,25 @@ class DownloadAssetsCommand(install):
 with open('requirements.txt') as f:
     required = [r for r in f.read().splitlines() if 'github' not in r]
 
-setup(
-    name='baselines',  # Change this to your package name
-    version='0.0.1',  # Change this to your package version
-    description='Description of your package',  # Add a brief description
-    packages=find_packages(),
-    install_requires=required,
-    cmdclass={
-        'install': DownloadAssetsCommand,
-    },
-)
+
+installed = {pkg.key for pkg in pkg_resources.working_set}
+required = [pkg for pkg in required if pkg.split('==')[0] not in installed]
+
+
+# setup(
+#     name='baselines',  # Change this to your package name
+#     version='0.0.1',  # Change this to your package version
+#     description='Description of your package',  # Add a brief description
+#     packages=find_packages(),
+#     install_requires=required,
+#     cmdclass={
+#         'install': DownloadAssetsCommand,
+#     },
+# )
 
 setup(
     name='sci-cc',
-    version='0.1.0',
+    version='0.1.2',
     description='Your package description',
     packages=find_packages(),
     install_requires=required,

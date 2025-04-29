@@ -1,0 +1,24 @@
+- source: cc
+  steps:
+    - func: move_url_modifier   # Necessary because 'url' was not set up in these jsonls, was in page['metadata']['WARC-Target-URI']
+    - func: url_substring_filter
+      banlist_from_fname: baselines/mappers/banlists/refinedweb_banned_domains_curated.txt
+      exact_domain_match: True
+      ignore_chars: ['www']
+      token: "1"
+    - func: url_substring_filter
+      banlist_from_fname: baselines/mappers/banlists/refinedweb_banned_words_strict_reverse_engineered.txt
+      ignore_chars: ['-', '.']
+      token: "2"
+    - func: url_substring_filter
+      banlist_from_fname: baselines/mappers/banlists/refinedweb_banned_words_hard_reverse_engineered.txt
+      match_substrings: False
+      token: "3"  
+    - func: url_substring_filter
+      banlist_from_fname: baselines/mappers/banlists/refinedweb_banned_words_soft_reverse_engineered.txt
+      num_banned_substrs: 2
+      match_substrings: False
+      token: "4"
+    - func: url_removal_modifier
+    - func: newline_removal_modifier         
+      max_consecutive: 2

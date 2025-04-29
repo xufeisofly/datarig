@@ -52,6 +52,4 @@ if __name__ == '__main__':
         
         for line in read_jsonl(oss_file):
             row = [line['id'], line['url'], line['text']]
-            writer.writerow(row)
-            
-        
+            writer.writerow(row)    

@@ -7,7 +7,7 @@ from lxml.etree import ParserError
 from retrie.retrie import Blacklist
 
 from baselines.mappers.core_utils import split_paragraphs, split_words
-from core.constants import CONTENT, URL, set_filter_reason_if_annotate
+from core.constants import CONTENT, URL, get_lang_from_page, set_filter_reason_if_annotate
 from core.factory_utils import factory_function
 from bs4 import BeautifulSoup
 import random
@@ -555,7 +555,7 @@ def line_length_modifier(page: Dict, min_length=0, max_length=float('inf'), anno
     return [page]
 
 
-def word_length_modifier(page: Dict, max_length=1000, **kwargs) -> List[Dict]:
+def word_length_modifier(page: Dict, max_length=1000, language_key="language_id_whole_page_fasttext", **kwargs) -> List[Dict]:
     """
     Filters the input JSON object - Remove lines where the word with the largest length goes
     strictly over max_length. 
@@ -573,7 +573,9 @@ def word_length_modifier(page: Dict, max_length=1000, **kwargs) -> List[Dict]:
     lines = page[CONTENT].split('\n')
     lines_within_range = []
     for line in lines:
-        words = split_words(line, **kwargs)
+        words = split_words(line,
+                            language=get_lang_from_page(page, language_key=language_key),
+                            **kwargs)
         if all(len(word) <= max_length for word in words):
             lines_within_range.append(line)
 

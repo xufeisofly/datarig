@@ -16,6 +16,7 @@ except Exception:
 
 import nltk
 from nltk.tokenize.punkt import PunktSentenceTokenizer
+from baselines.mappers.fineweb.typeshelper import Languages
 from unidecode import unidecode
 
 def do_once(func):
@@ -111,7 +112,7 @@ def split_sentences(text: str, remove_empty: bool = True, tokenizer='blingfire',
         raise NotImplementedError("remove_empty=False is not implemented yet")
 
 
-def split_words(text: str, model='fasttext', ignore_punctuation: bool = False, ignore_whitespace: bool = True) -> \
+def split_words(text: str, model='fasttext', ignore_punctuation: bool = False, ignore_whitespace: bool = True, language=Languages.english) -> \
         List[str]:
     """
     Counts the number of words in a text string.
@@ -134,6 +135,9 @@ def split_words(text: str, model='fasttext', ignore_punctuation: bool = False, i
         tokens = fasttext.FastText.tokenize(text)
     elif model == 'split':
         tokens = text.split()
+    elif model == 'fineweb':
+        from baselines.mappers.fineweb.text import split_into_words
+        tokens = split_into_words(text, language=language)
     else:
         raise ValueError(f"Unknown word tokenizer: {model}")
 
@@ -309,3 +313,4 @@ DEDUP_NORMALIZERS = {
     'hash_text': hash_text,
     'ccnet_dedup_normalizer': ccnet_dedup_normalizer
 }
+

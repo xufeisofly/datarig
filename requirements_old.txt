@@ -21,6 +21,7 @@ lxml
 cloudpathlib
 boto3
 moto
+git+https://github.com/mlfoundations/open_lm.git
 scipy
 fire
 s3fs
@@ -34,4 +35,3 @@ llm-foundry==0.9.0
 lxml_html_clean
 oss2
 redis
-ray==2.40.0

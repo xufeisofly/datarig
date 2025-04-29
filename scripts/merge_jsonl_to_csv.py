@@ -49,7 +49,7 @@ def main(subject, dclm_file_path, fineweb_file_path):
         
     headers = ['warc_record_id', 'text', 'dclm_dropped', 'fineweb_dropped', 'dclm_filter_reason', 'fineweb_filter_reason']
 
-    output_csv = f"/root/dataprocess/data/{subject}_1000.csv"
+    output_csv = f"/root/dataprocess/data/experiment2/csv/{subject}_1000.csv"
     with open(output_csv, mode='w', newline='') as file:
         writer = csv.writer(file)
         writer.writerow(headers)        
@@ -60,9 +60,9 @@ def main(subject, dclm_file_path, fineweb_file_path):
 
 
 if __name__ == '__main__':
-    subjects = ['AppliedMathematics', 'AppliedPhysics', 'OrganicChemistry']
+    subjects = ['ArtificialIntelligenceImageProcessing', 'EnvironmentalEngineering', 'SoftwareEngineering', 'Geology', 'Economics', 'Philosophy', 'LiteraryStudies', 'SocialPsychology']
 
     for subject in subjects:
-        dclm_file_path = "/root/dataprocess/data/" + subject + "_1000_processed.jsonl"
-        fineweb_file_path = "/root/dataprocess/data/" + subject + "_1000_tag.jsonl"        
+        dclm_file_path = "/root/dataprocess/data/experiment2/" + subject + "_1000_processed.jsonl"
+        fineweb_file_path = "/root/dataprocess/data/experiment2/" + subject + "_1000_tag.jsonl"        
         main(subject, dclm_file_path, fineweb_file_path)
