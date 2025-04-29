@@ -17,5 +17,5 @@
     - func: alphabetic_word_ratio_filter 
       max_ratio: 0.2
     - func: stop_word_filter  
-      count_unique: False                   
+      count_unique: False                  
       min_stop_word: 2

@@ -10,23 +10,25 @@ DCLM_URL_FILTER = 'Dclm_UrlFilter'
 DCLM_GOPHER_QUALITY = 'Dclm_GopherQuality'
 DCLM_GOPHER_REPETION = 'Dclm_GopherRepetition'
 DCLM_REFINED_WEB_QUALITY = 'Dclm_RefinedWebQuality'
+DCLM_FASTTEXT_FILTER = 'Dclm_FasttextFilter'
 FINEWEB_C4_QUALITY = 'Fineweb_C4Quality'
 FINEWEB_GOPHER_QUALITY = 'Fineweb_GopherQuality'
 FINEWEB_GOPHER_REPETITION = 'Fineweb_GopherRepetition'
 FINEWEB_FINEWEB_QUALITY = 'Fineweb_FinewebQuality'
 
 dclmMap = {
-    DCLM_URL_FILTER: "oss://si002558te8h/dclm/output/Experiment3_en/Experiment3_en_annotate_urlfilter/processed_data/subject_str_3000_processed.jsonl",
-    DCLM_GOPHER_QUALITY: "oss://si002558te8h/dclm/output/Experiment3_en/Experiment3_en_annotate_gopher_quality/processed_data/subject_str_3000_processed.jsonl",
-    DCLM_GOPHER_REPETION: "oss://si002558te8h/dclm/output/Experiment3_en/Experiment3_en_annotate_gopher_repetition/processed_data/subject_str_3000_processed.jsonl",
-    DCLM_REFINED_WEB_QUALITY: "oss://si002558te8h/dclm/output/Experiment3_en/Experiment3_en_annotate_refinedweb_quality/processed_data/subject_str_3000_processed.jsonl",
+    DCLM_URL_FILTER: "oss://si002558te8h/dclm/output/Experiment4_en_1000/urlfilter/processed_data/subject_str_1000_processed.jsonl",
+    DCLM_GOPHER_QUALITY: "oss://si002558te8h/dclm/output/Experiment4_en_1000/gopher_quality/processed_data/subject_str_1000_processed.jsonl",
+    DCLM_GOPHER_REPETION: "oss://si002558te8h/dclm/output/Experiment4_en_1000/gopher_repetition/processed_data/subject_str_1000_processed.jsonl",
+    DCLM_REFINED_WEB_QUALITY: "oss://si002558te8h/dclm/output/Experiment4_en_1000/linewise_filter/processed_data/subject_str_1000_processed.jsonl",
+    DCLM_FASTTEXT_FILTER: "oss://si002558te8h/dclm/output/Experiment4_en_1000/fasttext_filter/processed_data/subject_str_1000_processed.jsonl",
 }
 
 finewebMap = {
-    FINEWEB_C4_QUALITY: "/Users/sofly/projects/dataprocess/data/exp_tag/subject_str/subject_str_3000_c4.jsonl",
-    FINEWEB_GOPHER_QUALITY: "/Users/sofly/projects/dataprocess/data/exp_tag/subject_str/subject_str_3000_gopher_qual.jsonl",
-    FINEWEB_GOPHER_REPETITION: "/Users/sofly/projects/dataprocess/data/exp_tag/subject_str/subject_str_3000_gopher_rep.jsonl",
-    FINEWEB_FINEWEB_QUALITY: "/Users/sofly/projects/dataprocess/data/exp_tag/subject_str/subject_str_3000_fineweb_qual.jsonl",    
+    FINEWEB_C4_QUALITY: "/Users/sofly/projects/dataprocess/data/exp_tag-1/subject_str/subject_str_1000_c4.jsonl",
+    FINEWEB_GOPHER_QUALITY: "/Users/sofly/projects/dataprocess/data/exp_tag-1/subject_str/subject_str_1000_gopher_qual.jsonl",
+    FINEWEB_GOPHER_REPETITION: "/Users/sofly/projects/dataprocess/data/exp_tag-1/subject_str/subject_str_1000_gopher_rep.jsonl",
+    FINEWEB_FINEWEB_QUALITY: "/Users/sofly/projects/dataprocess/data/exp_tag-1/subject_str/subject_str_1000_fineweb_qual.jsonl",    
 }
 
 def read_dclm_file(dclm_file_path, dclm_lines: Dict, module: str):
@@ -55,7 +57,8 @@ def read_dclm_files(subject):
     for module in [DCLM_URL_FILTER,
                    DCLM_GOPHER_QUALITY,
                    DCLM_GOPHER_REPETION,
-                   DCLM_REFINED_WEB_QUALITY]:
+                   DCLM_REFINED_WEB_QUALITY,
+                   DCLM_FASTTEXT_FILTER]:
         file_path = dclmMap[module]
         file_path = file_path.replace('subject_str', subject)
         dclm_lines = read_dclm_file(file_path, dclm_lines, module)    
@@ -108,6 +111,7 @@ def merge(subject):
             DCLM_GOPHER_QUALITY: dclm_info[DCLM_GOPHER_QUALITY],
             DCLM_GOPHER_REPETION: dclm_info[DCLM_GOPHER_REPETION],
             DCLM_REFINED_WEB_QUALITY: dclm_info[DCLM_REFINED_WEB_QUALITY],
+            DCLM_FASTTEXT_FILTER: dclm_info[DCLM_FASTTEXT_FILTER],
             FINEWEB_GOPHER_QUALITY: fineweb_info[FINEWEB_GOPHER_QUALITY],
             FINEWEB_GOPHER_REPETITION: fineweb_info[FINEWEB_GOPHER_REPETITION],
             FINEWEB_C4_QUALITY: fineweb_info[FINEWEB_C4_QUALITY],
@@ -117,10 +121,10 @@ def merge(subject):
     print(subject, "dclm: ", len(dclm_lines), "fineweb: ", len(fineweb_lines))
         
     headers = ['warc_record_id', 'text',
-               DCLM_URL_FILTER, DCLM_GOPHER_QUALITY, DCLM_GOPHER_REPETION, DCLM_REFINED_WEB_QUALITY,
+               DCLM_URL_FILTER, DCLM_GOPHER_QUALITY, DCLM_GOPHER_REPETION, DCLM_REFINED_WEB_QUALITY, DCLM_FASTTEXT_FILTER,
                FINEWEB_GOPHER_QUALITY, FINEWEB_GOPHER_REPETITION, FINEWEB_C4_QUALITY, FINEWEB_FINEWEB_QUALITY]
 
-    output_csv = f"/Users/sofly/projects/dataprocess/data/{subject}_en.csv"
+    output_csv = f"/Users/sofly/projects/dataprocess/data/{subject}_en_1000.csv"
     with open(output_csv, mode='w', newline='') as file:
         writer = csv.writer(file)
         writer.writerow(headers)        
@@ -130,6 +134,7 @@ def merge(subject):
                              line[DCLM_GOPHER_QUALITY] or 'nil',
                              line[DCLM_GOPHER_REPETION] or 'nil',
                              line[DCLM_REFINED_WEB_QUALITY] or 'nil',
+                             line[DCLM_FASTTEXT_FILTER] or 'nil',
                              line[FINEWEB_GOPHER_QUALITY] or 'nil',
                              line[FINEWEB_GOPHER_REPETITION] or 'nil',
                              line[FINEWEB_C4_QUALITY] or 'nil',
@@ -137,7 +142,7 @@ def merge(subject):
 
 
 if __name__ == '__main__':
-    subjects = ['Finance', 'Law', 'ElectricalElectronicEngineering', 'Optics']
+    subjects = ['sample']
 
     for subject in subjects:        
         merge(subject)
