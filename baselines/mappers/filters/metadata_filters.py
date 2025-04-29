@@ -50,7 +50,7 @@ def language_filter(page: Dict, keep_languages: List[str], key='language_id_whol
         return []
 
 
-def quality_filter(page: Dict, key: str = 'fasttext_hq_prob', threshold: float=0.0, lower_better: bool=False, key_must_exist: bool=True) -> List[Dict]:
+def quality_filter(page: Dict, key: str = 'fasttext_hq_prob', threshold: float=0.0, lower_better: bool=False, key_must_exist: bool=True, annotate=False, token="") -> List[Dict]:
     """
     Filters the JSON objects based on a quality score (e.g. from a model-based prediction). 
 
@@ -72,9 +72,9 @@ def quality_filter(page: Dict, key: str = 'fasttext_hq_prob', threshold: float=0
         quality_score = page.get(key, missing_score)
 
     if lower_better:
-        return [page] if quality_score <= threshold else []
+        return [page] if quality_score <= threshold else set_filter_reason_if_annotate(page, "quality_filter"+token, annotate)
     else:
-        return [page] if quality_score >= threshold else [] 
+        return [page] if quality_score >= threshold else set_filter_reason_if_annotate(page, "quality_filter"+token, annotate)
 
 
 @factory_function
