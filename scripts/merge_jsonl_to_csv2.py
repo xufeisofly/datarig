@@ -17,18 +17,18 @@ FINEWEB_GOPHER_REPETITION = 'Fineweb_GopherRepetition'
 FINEWEB_FINEWEB_QUALITY = 'Fineweb_FinewebQuality'
 
 dclmMap = {
-    DCLM_URL_FILTER: "oss://si002558te8h/dclm/output/Experiment4_en_1740/url_filter/processed_data/subject_str_174x10_processed.jsonl",
-    DCLM_GOPHER_QUALITY: "oss://si002558te8h/dclm/output/Experiment4_en_1740/gopher_quality/processed_data/subject_str_174x10_processed.jsonl",
-    DCLM_GOPHER_REPETION: "oss://si002558te8h/dclm/output/Experiment4_en_1740/gopher_repetition/processed_data/subject_str_174x10_processed.jsonl",
-    DCLM_REFINED_WEB_QUALITY: "oss://si002558te8h/dclm/output/Experiment4_en_1740/linewise_quality/processed_data/subject_str_174x10_processed.jsonl",
-    DCLM_FASTTEXT_FILTER: "oss://si002558te8h/dclm/output/Experiment4_en_1740/fasttext_filter/processed_data/subject_str_174x10_processed.jsonl",
+    DCLM_URL_FILTER: "oss://si002558te8h/dclm/output/Experiment5/url_filter/processed_data/subject_str_1740_cleaned_processed.jsonl",
+    DCLM_GOPHER_QUALITY: "oss://si002558te8h/dclm/output/Experiment5/gopher_quality/processed_data/subject_str_1740_cleaned_processed.jsonl",
+    DCLM_GOPHER_REPETION: "oss://si002558te8h/dclm/output/Experiment5/gopher_repetition/processed_data/subject_str_1740_cleaned_processed.jsonl",
+    DCLM_REFINED_WEB_QUALITY: "oss://si002558te8h/dclm/output/Experiment5/linewise_quality/processed_data/subject_str_1740_cleaned_processed.jsonl",
+    DCLM_FASTTEXT_FILTER: "oss://si002558te8h/dclm/output/Experiment5/fasttext_filter/processed_data/subject_str_1740_cleaned_processed.jsonl",
 }
 
 finewebMap = {
-    FINEWEB_C4_QUALITY: "/Users/sofly/projects/dataprocess/data/exp_tag-1/subject_str/subject_str_1740_c4.jsonl",
-    FINEWEB_GOPHER_QUALITY: "/Users/sofly/projects/dataprocess/data/exp_tag-1/subject_str/subject_str_1740_gopher_qual.jsonl",
-    FINEWEB_GOPHER_REPETITION: "/Users/sofly/projects/dataprocess/data/exp_tag-1/subject_str/subject_str_1740_gopher_rep.jsonl",
-    FINEWEB_FINEWEB_QUALITY: "/Users/sofly/projects/dataprocess/data/exp_tag-1/subject_str/subject_str_1740_fineweb_qual.jsonl",    
+    FINEWEB_C4_QUALITY: "/Users/sofly/projects/dataprocess/data/exp_tag-1/subject_str/subject_str_1740_cleaned_c4.jsonl",
+    FINEWEB_GOPHER_QUALITY: "/Users/sofly/projects/dataprocess/data/exp_tag-1/subject_str/subject_str_1740_cleaned_gopher_qual.jsonl",
+    FINEWEB_GOPHER_REPETITION: "/Users/sofly/projects/dataprocess/data/exp_tag-1/subject_str/subject_str_1740_cleaned_gopher_rep.jsonl",
+    FINEWEB_FINEWEB_QUALITY: "/Users/sofly/projects/dataprocess/data/exp_tag-1/subject_str/subject_str_1740_cleaned_fineweb_qual.jsonl",    
 }
 
 def read_dclm_file(dclm_file_path, dclm_lines: Dict, module: str):
@@ -138,7 +138,46 @@ def merge(subject):
                              line[FINEWEB_GOPHER_QUALITY] or 'nil',
                              line[FINEWEB_GOPHER_REPETITION] or 'nil',
                              line[FINEWEB_C4_QUALITY] or 'nil',
-                             line[FINEWEB_FINEWEB_QUALITY] or 'nil'])
+                             line[FINEWEB_FINEWEB_QUALITY] or 'nil'])        
+
+
+
+def merge_mannual_csv(machinary_csv, artificial_csv):
+    machinary_csv = '/Users/sofly/projects/dataprocess/data/sample_en_1740.csv'
+    artificial_csv = '/Users/sofly/projects/dataprocess/data/sample_1030.csv'
+    lines2 = []
+    adds = []
+    with open(artificial_csv, newline='', encoding='utf-8') as acsv:
+        reader = csv.reader(acsv)
+        for row in reader:
+            lines2.append(row)
+            adds.append(row[3:])
+
+    lines2 = lines2[1:]
+    add_header = adds[0]
+
+    newlines = []
+    with open(machinary_csv, newline='', encoding='utf-8') as mcsv:
+        reader = csv.reader(mcsv)
+        for row in reader:
+            newlines.append(row)
+
+    header = newlines[0]
+    header += add_header
+    newlines = newlines[1:]
+
+    lines = []
+    for l in newlines:
+        for l2 in lines2:
+            if l[0] == l2[1]:
+                lines.append(l+l2[3:])
+
+
+    with open("./sample_cleaned_1740_merged.csv", mode='w', newline='') as file:
+        writer = csv.writer(file)
+        writer.writerow(header)        
+        for line in lines:
+            writer.writerow(line)
 
             
 if __name__ == '__main__':

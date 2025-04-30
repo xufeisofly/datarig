@@ -2,7 +2,6 @@
 name = "tokshuf-rust"
 version = "0.1.0"
 edition = "2021"
-
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
@@ -27,4 +26,9 @@ serde = "1.0.198"
 tiktoken-rs = "0.5.8"
 base64 = "0.22.1"
 rustc-hash = "1.1.0"
-
+oss-rust-sdk = "=0.10.0"
+tokio-util = "0.7.13"
+bytes = "1.4"
+futures = "0.3"
+log = "0.4"
+env_logger = "0.10"
