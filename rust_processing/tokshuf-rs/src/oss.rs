@@ -27,19 +27,6 @@ pub fn get_bucket(bucket_name: String) -> OSS<'static> {
     OSS::new(access_id, access_secret, endpoint.into(), bucket_name)
 }
 
-/// 从 oss://bucket_name/path 格式的 URL 中解析出 bucket_name 和 path
-fn split_file_path(url: &str) -> Result<(String, String), String> {
-    if !url.starts_with("oss://") {
-        return Err("Invalid OSS URL".into());
-    }
-    let rest = &url[6..]; // 去除 "oss://"
-    let parts: Vec<&str> = rest.splitn(2, '/').collect();
-    if parts.len() != 2 {
-        return Err("Invalid OSS URL, missing path".into());
-    }
-    Ok((parts[0].to_string(), parts[1].to_string()))
-}
-
 /// 获取本机局域网 IP 地址（不返回 127.0.0.1）
 fn get_local_ip() -> String {
     if let Ok(socket) = UdpSocket::bind("0.0.0.0:0") {
