@@ -855,6 +855,7 @@ fn main() -> Result<()> {
     */
 
     // Step 1: setup
+    env_logger::init();
     println!("Setting up Shuffle run");
     let start_time = Instant::now();
     let args = Args::parse();
