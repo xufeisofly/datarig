@@ -18,6 +18,7 @@ Compression schemes will always be inferred from extension
 */
 
 use crate::oss::is_oss;
+use crate::oss::{count_oss_dirsize, expand_oss_dir, get_reader_from_oss, write_cursor_to_oss};
 use crate::s3::is_s3;
 use crate::s3::{count_s3_dirsize, expand_s3_dir, get_reader_from_s3, write_cursor_to_s3};
 use anyhow::anyhow;
@@ -63,7 +64,7 @@ pub(crate) fn expand_dirs(
         } else if is_oss(path.clone()) {
             runtime.block_on(async {
                 let oss_paths = expand_oss_dir(&path, exts).await.unwrap();
-                files.extend(s3_paths);
+                files.extend(oss_paths);
             });
         } else if path.is_dir() {
             let path_str = path
@@ -91,6 +92,13 @@ pub(crate) fn count_dirsize(dirname: &PathBuf) -> Result<usize, Error> {
             .build()
             .unwrap();
         let result = rt.block_on(count_s3_dirsize(dirname));
+        Ok(result?)
+    } else if is_oss(dirname) {
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+        let result = rt.block_on(count_oss_dirsize(dirname));
         Ok(result?)
     } else {
         count_local_dirsize(dirname)
@@ -124,6 +132,18 @@ pub(crate) fn read_pathbuf_to_mem(
             .build()
             .unwrap();
         match rt.block_on(get_reader_from_s3(input_file, Some(5))) {
+            Ok(result) => result,
+            Err(err) => {
+                eprintln!("Error! {:?}", err);
+                return Err(err.into());
+            }
+        }
+    } else if is_oss(input_file) {
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+        match rt.block_on(get_reader_from_oss(input_file, Some(5))) {
             Ok(result) => result,
             Err(err) => {
                 eprintln!("Error! {:?}", err);
