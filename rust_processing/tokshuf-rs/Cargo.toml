@@ -27,4 +27,5 @@ serde = "1.0.198"
 tiktoken-rs = "0.5.8"
 base64 = "0.22.1"
 rustc-hash = "1.1.0"
-
+oss-rust-sdk = "=0.10.0"
+tokio-util = "0.7.13"

@@ -1,11 +1,21 @@
+use anyhow::Result;
+use async_compression::tokio::bufread::GzipDecoder as asyncGZ;
+use async_compression::tokio::bufread::ZstdDecoder as asyncZstd;
 use oss_rust_sdk::async_object::*;
+use oss_rust_sdk::errors::Error as OSSError;
 use oss_rust_sdk::oss::OSS;
+use rand::Rng;
 use std::collections::HashMap;
 use std::env;
+use std::io::{BufReader, Cursor};
 use std::net::UdpSocket;
+use std::path::{Path, PathBuf};
 use std::process;
 use std::time::Duration;
+use tokio::io::AsyncReadExt;
+use tokio::io::BufReader as tBufReader;
 use tokio::time::sleep;
+use tokio::time::{sleep, Duration};
 
 /// 获取指定 bucket 的 OSS 实例，若已存在则直接复用
 pub fn get_bucket(bucket_name: String) -> OSS<'static> {
@@ -68,76 +78,81 @@ pub(crate) fn split_oss_path<P: AsRef<Path>>(path: P) -> (String, String) {
     (bucket.to_string(), key.to_string())
 }
 
-/// 分布式锁
-pub struct SimpleOSSLock {
-    bucket: OSS<'static>,
-    path: String,
-    lock_value: String,
+pub(crate) async fn write_cursor_to_oss(
+    oss_uri: &PathBuf,
+    cursor: Cursor<Vec<u8>>,
+) -> Result<(), OSSError> {
+    let (oss_bucket, oss_key) = split_oss_path(oss_uri);
+    let client = get_bucket(oss_bucket);
+    let bytes: &[u8] = &cursor.into_inner();
+    let mut headers = HashMap::new();
+    headers.insert("content-type", "text/plain");
+    let response = client.put_object(bytes, oss_key, headers, None).await?;
+
+    Ok(response)
 }
 
-impl SimpleOSSLock {
-    /// 创建一个新的 SimpleOSSLock 实例
-    pub fn new(lock_file: &str) -> Result<Self, String> {
-        let (bucket_name, path) = split_file_path(lock_file)?;
-        let bucket = get_bucket(bucket_name);
-        let local_ip = get_local_ip();
-        let process_id = process::id();
-        let lock_value = format!("locked_{}_{}", local_ip, process_id);
-        Ok(SimpleOSSLock {
-            bucket,
-            path,
-            lock_value,
-        })
-    }
+async fn list_all_oss_objects(bucket: &str, prefix: &str) -> Result<Vec<String>> {
+    let client = oss::get_bucket(bucket.to_string());
+    let mut all_keys = Vec::new();
+    let mut marker: Option<String> = None;
+    let mut is_truncated = true;
 
-    /// 尝试获取锁，成功返回 true，否则返回 false
-    pub async fn acquire(&self) -> bool {
-        let mut headers = HashMap::new();
-        headers.insert("x-oss-forbid-overwrite".to_string(), "true".to_string());
-        let data: &[u8] = &self.lock_value.as_bytes();
-        self.bucket
-            .put_object(data, &self.path, headers, None)
-            .await
-            .is_ok()
-    }
+    while is_truncated {
+        let mut params = HashMap::new();
+        params.insert("prefix", Some(prefix));
+        params.insert("max-keys", Some("1000"));
 
-    /// 在规定超时时间内不断尝试获取锁。timeout 为 -1 表示无限等待（每次间隔 1 秒）
-    pub async fn acquire_or_block(&self, timeout: i32) -> bool {
-        if timeout == -1 {
-            loop {
-                if self.acquire().await {
-                    return true;
-                }
-                sleep(Duration::from_secs(1)).await;
-            }
+        // 如果有marker，添加到参数中
+        if let Some(mark) = &marker {
+            params.insert("marker", Some(mark));
+        }
+
+        let result = client.list_object(None, params).await?;
+
+        // 检查是否还有更多结果
+        is_truncated = result.is_truncated();
+
+        // 获取最后一个对象的key作为下一页的marker
+        let contents = result.contents();
+        marker = if is_truncated && !contents.is_empty() {
+            Some(contents.last().unwrap().key().to_string())
         } else {
-            let mut count = timeout;
-            while count > 0 {
-                if self.acquire().await {
-                    return true;
-                }
-                sleep(Duration::from_secs(1)).await;
-                count -= 1;
-            }
-            false
+            None
+        };
+
+        for object in contents {
+            all_keys.push(object.key().to_string());
         }
     }
 
-    /// 释放锁：先获取锁文件内容，若与当前进程的 lock_value 匹配则删除锁文件
-    pub async fn release(&self) -> bool {
-        match self
-            .bucket
-            .get_object(&self.path, None::<HashMap<&str, &str>>, None)
-            .await
+    Ok(all_keys)
+}
+
+pub(crate) async fn expand_oss_dir(
+    oss_uri: &PathBuf,
+    valid_exts: &[&str],
+) -> Result<Vec<PathBuf>, OSSError> {
+    let mut oss_files: Vec<PathBuf> = Vec::new();
+    let (bucket, prefix) = split_oss_path(oss_uri);
+
+    // 调用封装的函数
+    let all_keys = list_all_oss_objects(&bucket, &prefix).await?;
+
+    for key in all_keys {
+        if !(key.ends_with(".jsonl.gz")
+            || key.ends_with(".jsonl")
+            || key.ends_with(".jsonl.zstd")
+            || key.ends_with(".tsv")
+            || key.ends_with(".jsonl.zst"))
         {
-            Ok(content) => {
-                if content == self.lock_value {
-                    self.bucket.delete_object(&self.path).await.is_ok()
-                } else {
-                    false
-                }
-            }
-            Err(_) => false,
+            continue;
         }
+        let mut oss_file = PathBuf::from("oss://");
+        oss_file.push(bucket.clone());
+        oss_file.push(&key);
+        oss_files.push(oss_file);
     }
+
+    Ok(oss_files)
 }
