@@ -19,6 +19,7 @@ use std::hash::{DefaultHasher, Hash, Hasher};
 use std::io::Read;
 use std::io::{BufRead, BufReader, BufWriter, Cursor, Write};
 use std::os::unix::fs::OpenOptionsExt;
+use std::path::Path;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
@@ -296,10 +297,23 @@ where
 =                     Tokenization utilities                        =
 ===================================================================*/
 
+fn is_local_directory(path_str: &str) -> bool {
+    let path = Path::new(path_str);
+    match fs::metadata(path) {
+        Ok(metadata) => metadata.is_dir(),
+        Err(_) => false,
+    }
+}
+
 fn load_tokenizer(tokenizer_name: &String) -> Result<(Tokenizer, usize)> {
     // Loads a huggingface tokenizer from pretrained name
     // Note this uses an OLDER version of huggingface tokenizers (may be a deprecated method)
-    let tokenizer = Tokenizer::from_pretrained(tokenizer_name, None).unwrap();
+    let tokenizer = if is_local_directory(tokenizer_name) {
+        Tokenizer::from_file(tokenizer_name).unwrap()
+    } else {
+        Tokenizer::from_pretrained(tokenizer_name, None).unwrap()
+    };
+
     /*
     tokenizer.add_special_tokens(&[
         AddedToken {
