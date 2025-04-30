@@ -297,10 +297,10 @@ where
 =                     Tokenization utilities                        =
 ===================================================================*/
 
-fn is_local_directory(path_str: &str) -> bool {
+fn is_local_file(path_str: &str) -> bool {
     let path = Path::new(path_str);
     match fs::metadata(path) {
-        Ok(metadata) => metadata.is_dir(),
+        Ok(metadata) => metadata.is_file(),
         Err(_) => false,
     }
 }
@@ -308,7 +308,7 @@ fn is_local_directory(path_str: &str) -> bool {
 fn load_tokenizer(tokenizer_name: &String) -> Result<(Tokenizer, usize)> {
     // Loads a huggingface tokenizer from pretrained name
     // Note this uses an OLDER version of huggingface tokenizers (may be a deprecated method)
-    let tokenizer = if is_local_directory(tokenizer_name) {
+    let tokenizer = if is_local_file(tokenizer_name) {
         Tokenizer::from_file(tokenizer_name).unwrap()
     } else {
         Tokenizer::from_pretrained(tokenizer_name, None).unwrap()
