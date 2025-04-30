@@ -308,10 +308,20 @@ fn is_local_file(path_str: &str) -> bool {
 fn load_tokenizer(tokenizer_name: &String) -> Result<(Tokenizer, usize)> {
     // Loads a huggingface tokenizer from pretrained name
     // Note this uses an OLDER version of huggingface tokenizers (may be a deprecated method)
-    let tokenizer = if is_local_file(tokenizer_name) {
-        Tokenizer::from_file(tokenizer_name).unwrap()
+    let (tokenizer, vocab_size) = if is_local_file(tokenizer_name) {
+        let tok = Tokenizer::from_file(tokenizer_name).unwrap();
+        let voc = GPT_NEOX_VOCAB_SIZE;
+        (tok, voc)
     } else {
-        Tokenizer::from_pretrained(tokenizer_name, None).unwrap()
+        let tok = Tokenizer::from_pretrained(tokenizer_name, None).unwrap();
+        let voc = match (*tokenizer_name).as_str() {
+            "EleutherAI/gpt-neox-20b" => GPT_NEOX_VOCAB_SIZE,
+            "meta-llama/Meta-Llama-3-8B" => LLAMA3_VOCAB_SIZE,
+            _ => {
+                return Err(anyhow!("Unknown tokenizer name: {}", tokenizer_name));
+            }
+        };
+        (tok, voc)
     };
 
     /*
@@ -333,14 +343,7 @@ fn load_tokenizer(tokenizer_name: &String) -> Result<(Tokenizer, usize)> {
             special: true
         },
     ]);
-    */
-    let vocab_size = match (*tokenizer_name).as_str() {
-        "EleutherAI/gpt-neox-20b" => GPT_NEOX_VOCAB_SIZE,
-        "meta-llama/Meta-Llama-3-8B" => LLAMA3_VOCAB_SIZE,
-        _ => {
-            return Err(anyhow!("Unknown tokenizer name: {}", tokenizer_name));
-        }
-    };
+     */
 
     Ok((tokenizer, vocab_size))
 }
