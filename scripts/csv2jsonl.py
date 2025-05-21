@@ -17,6 +17,8 @@ def main(file_path, output_folder):
         for row in reader:
             if len(row) == 0:
                 continue
+            if len(row[1]) == 0:
+                continue
             records.append({
                 'text': row[1],
                 'warc_record_id': row[0],

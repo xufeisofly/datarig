@@ -58,7 +58,15 @@ def main(jsonl_filepath):
             writer.writerow(row.values())
 
 
+def get_file_paths(folder_path):
+    return [
+        os.path.join(folder_path, f)
+        for f in os.listdir(folder_path)
+        if f.endswith('.jsonl')
+    ]            
+
 if __name__ == '__main__':
-    for jsonl_filename in ['d1_abstract_stats.jsonl', 'd1_nonabstract_stats.jsonl', 'd1_raw_stats.jsonl']:
-        path = os.path.join('/Users/sofly/Downloads/output', jsonl_filename)
+    input_folder = '/Users/sofly/projects/dataprocess/data/standard/0521/stats/'
+    jsonl_files = get_file_paths(input_folder)    
+    for path in jsonl_files:
         main(path)
