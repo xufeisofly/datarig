@@ -1,55 +1,43 @@
-"""
-                metadata = {
-                    "WARC-Type": record.rec_headers.get_header('WARC-Type', ''),
-                    "WARC-Date": record.rec_headers.get_header('WARC-Date', ''),
-                    "WARC-Record-ID": record.rec_headers.get_header('WARC-Record-ID', ''),
-                    "WARC-Target-URI": record.rec_headers.get_header('WARC-Target-URI', ''),
-                    "Content-Type": record.rec_headers.get_header('Content-Type', ''),
-                    "Content-Length": record.rec_headers.get_header('Content-Length', ''),
-                    "WARC-Refers-To": record.rec_headers.get_header('WARC-Refers-To', ''),
-                    "WARC-Block-Digest": record.rec_headers.get_header('WARC-Block-Digest', ''),
-                }
-
-                record_data = {
-                    "text": content,
-                    "metadata": metadata,
-                    "warcinfo": warcinfo_data
-                }
-"""
 import logging
 from baselines.core.file_utils import is_exists, read_jsonl, write_jsonl
 import csv
-
+import sys
+import os
 
 
 # 设置日志
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s: %(message)s")
-import sys
 
-if __name__ == '__main__':
-    file_path = '/root/dataprocess/OrganicChemistry_12494rows.csv'
+
+def main(file_path, output_folder):
     records = []
     csv.field_size_limit(sys.maxsize)
     with open(file_path, newline='', encoding='utf-8') as csvfile:
         reader = csv.reader(csvfile)
         for row in reader:
+            if len(row) == 0:
+                continue
             records.append({
-                'text': row[2],
-                'url': row[1],
-                'id': row[0],
+                'text': row[1],
+                'warc_record_id': row[0],
+                'metadata': {},
             })
 
     records = records[1:]
-    write_jsonl(records, './OrganicChemistry_12494rows.jsonl')
-    
-    oss_file = "oss://si002558te8h/dclm/output/deduped/OrganicChemistry2/OrganicChemistry_12494rows_processed.jsonl"
+    write_jsonl(records, os.path.join(output_folder, os.path.basename(file_path) + '.jsonl'))
 
-    headers = ['id', 'url', 'text']
-    output_csv = './OrganicChemistry_12494rows_deduped.csv'
-    with open(output_csv, mode='w', newline='') as file:
-        writer = csv.writer(file)
-        writer.writerow(headers)
-        
-        for line in read_jsonl(oss_file):
-            row = [line['id'], line['url'], line['text']]
-            writer.writerow(row)    
+
+def get_file_paths(folder_path):
+    return [
+        os.path.join(folder_path, f)
+        for f in os.listdir(folder_path)
+        if f.endswith('.csv')
+    ]    
+
+base_folder = '/Users/sofly/projects/dataprocess/data/standard/0521/'
+
+if __name__ == '__main__':
+    csv_files = get_file_paths(base_folder)
+    output_folder = os.path.join(base_folder, 'output')
+    for file_path in csv_files:
+        main(file_path, output_folder=output_folder)
