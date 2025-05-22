@@ -10,15 +10,15 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s: %(mes
 
 def main(jsonl_filepath):
     stats = [
-              'n_words',
-              'avg_word_length',
-              "avg_words_per_line",
-              "short_word_ratio_3",
-              "long_word_ratio_7",
-              "type_token_ratio",
-              "uppercase_word_ratio",
-              "capitalized_word_ratio",
-              "stop_word_ratio",
+        'n_words',
+        'avg_word_length',
+        "avg_words_per_line",
+        "short_word_ratio_3",
+        "long_word_ratio_7",
+        "type_token_ratio",
+        "uppercase_word_ratio",
+        "capitalized_word_ratio",
+        "stop_word_ratio",
               "n_lines",
               "avg_line_length",
               "short_line_ratio_chars_10",
@@ -38,7 +38,7 @@ def main(jsonl_filepath):
               "punctuation_ratio",        
     ]
 
-    headers = ['warc_record_id', 'text']
+    headers = ['warc_record_id', 'text', 'manual_tag']
     headers += stats
     
     output_csv = f"{jsonl_filepath}.csv"
@@ -50,7 +50,8 @@ def main(jsonl_filepath):
             metadata = line['metadata']
             row = {
                 'warc_record_id': metadata['warc_record_id'],
-                'text': line['text'],                
+                'text': line['text'],
+                'manual_tag': metadata.get('manual_tag', 'nil'),
             }
             for stat in stats:
                 row[stat] = metadata.get(stat)
@@ -66,7 +67,7 @@ def get_file_paths(folder_path):
     ]            
 
 if __name__ == '__main__':
-    input_folder = '/Users/sofly/projects/dataprocess/data/standard/0521/stats/'
+    input_folder = '/Users/sofly/projects/dataprocess/data/standard/dx/'
     jsonl_files = get_file_paths(input_folder)    
     for path in jsonl_files:
         main(path)
