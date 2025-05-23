@@ -34,7 +34,7 @@
       max_ratio: 0.999999                    
     - func: counter_line_modifier        
     - func: line_length_modifier
-      min_length: 1
+      min_length: 2
     - func: substring_filter
       banlist: ['lorem ipsum']	  
     - func: word_removal_ratio_filter
