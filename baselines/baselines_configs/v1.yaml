@@ -36,9 +36,7 @@
     - func: line_length_modifier
       min_length: 1
     - func: substring_filter
-      banlist: ['lorem ipsum']
-    - func: substring_line_modifier
-      banlist: ['javascript']	  
+      banlist: ['lorem ipsum']	  
     - func: word_removal_ratio_filter
       prev_word_count_key: previous_word_count
       max_removed_ratio: 0.05
