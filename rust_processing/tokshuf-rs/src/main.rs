@@ -612,6 +612,7 @@ fn process_local_cell(
         entry.read_to_end(&mut contents).unwrap();
         loaded_entries.push((path, contents));
     }
+
     loaded_entries.shuffle(&mut rng);
 
     println!(
@@ -651,8 +652,6 @@ fn process_local_cell(
             .unwrap();
         }
     }
-
-    println!("============ {:?}", filename);
 
     fs::remove_file(filename).unwrap();
     pbar.lock().unwrap().inc(1);
