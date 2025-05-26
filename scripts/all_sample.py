@@ -350,7 +350,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s: %(mes
 
 
 def main(subject_str, lang='en'):
-    oss_dir = "oss://train1/basemodel-subjet-data/r2/dclm/"
+    oss_dir = "oss://train1/basemodel-subjet-data-processed/hpc-processed/r3_dclm_filtered/"
     bucket_name, path = oss.split_file_path(oss_dir)
     bucket = oss.Bucket(bucket_name)
 
@@ -361,6 +361,7 @@ def main(subject_str, lang='en'):
     lang_fn = detect_lang_whole_page_enricher(model='fasttext')
     
     for k, subject_path in enumerate(subject_paths):
+        print(subject_path)
         subject_name = subject_path.split("/")[-2].split("=")[-1]
         if subject_name not in subject_str:
             continue
@@ -387,7 +388,8 @@ def main(subject_str, lang='en'):
             break
 
     print(f"{subject_str} {lang} done {num}")
-    output_folder = "oss://si002558te8h/dclm/origin/Experiment4_en/"    
+    # output_folder = "oss://si002558te8h/dclm/origin/Experiment4_en/"   
+    output_folder = "/root/dataprocess/data/beta2_test/"    
     write_jsonl(lines, os.path.join(output_folder, f"{subject_str}_{lang}_{num}.jsonl"))
 
 if __name__ == '__main__':
