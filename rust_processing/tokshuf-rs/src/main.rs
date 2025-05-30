@@ -615,11 +615,11 @@ fn process_local_cell(
 
     loaded_entries.shuffle(&mut rng);
 
-    println!(
-        "FILENAME {:?} | ENTRIES {:?}",
-        filename,
-        loaded_entries.len()
-    );
+    // println!(
+    //     "FILENAME {:?} | ENTRIES {:?}",
+    //     filename,
+    //     loaded_entries.len()
+    // );
     for chunk in loaded_entries.chunks(wds_chunk_size) {
         if chunk.len() != wds_chunk_size && !overflow_writer.is_none() {
             // If chunk needs to be kicked back to a local overflow cell
