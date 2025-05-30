@@ -71,8 +71,8 @@ if __name__ == '__main__':
     # with concurrent.futures.ProcessPoolExecutor(max_workers=11) as executor:
     #     futures = []
         
-        for file_path in all_files:
-            process(file_path)
+    for file_path in all_files:
+        process(file_path)
             # futures.append(executor.submit(process, file_path))
 
         # for future in concurrent.futures.as_completed(futures):
