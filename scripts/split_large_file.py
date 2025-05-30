@@ -68,14 +68,16 @@ if __name__ == '__main__':
         print(f"==== done {filename}")        
     
 
-    with concurrent.futures.ProcessPoolExecutor(max_workers=11) as executor:
-        futures = []
+    # with concurrent.futures.ProcessPoolExecutor(max_workers=11) as executor:
+    #     futures = []
         
         for file_path in all_files:
-            futures.append(executor.submit(process, file_path))
+            process(file_path)
+            # futures.append(executor.submit(process, file_path))
 
-        for future in concurrent.futures.as_completed(futures):
-            key = future.result()
-            print(f"done: {key}")            
+        # for future in concurrent.futures.as_completed(futures):
+        #     key = future.result()
+        #     print(f"done: {key}")
+            
         
     
