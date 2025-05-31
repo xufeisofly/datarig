@@ -56,7 +56,6 @@ if __name__ == '__main__':
         lines = []
         for i, line in enumerate(read_jsonl(file_path)):
             lines.append(line)
-            print("========", i, filename)
             if i % 30000 == 0:
                 print("======== save", filename)
                 target_file = os.path.join(target_folder, filename+f"_{str(i)}.jsonl")
