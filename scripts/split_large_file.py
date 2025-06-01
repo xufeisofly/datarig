@@ -18,8 +18,10 @@ if __name__ == '__main__':
                 
         lines = []
         for i, line in enumerate(read_jsonl(file_path)):
+            line['text'] = line['txt']
+            del line['txt']
             lines.append(line)
-            if i % 30000 == 0:
+            if i % 300000 == 0:
                 print("======== save", filename)
                 target_file = os.path.join(target_folder, filename+f"_{str(i)}.jsonl")
                 if not os.path.isfile(target_file):
