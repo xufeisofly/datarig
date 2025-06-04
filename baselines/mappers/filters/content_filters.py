@@ -734,17 +734,18 @@ def find_duplicates(x: list[str]) -> tuple[int, int]:
     return duplicate_elements, duplicate_chars
 
 
-# def list_ratio_filter(
-#         page: Dict,
-#         char_duplicates_ratio: float = 0.1,
-#         annotate=False, token="", model="fineweb", **kwargs) -> List[Dict]:
-#     lines = page[CONTENT].split("\n")
-#     lines = [line for line in lines if line.strip() != ""]
-#     if len(lines) == 0:
-#         return set_filter_reason_if_annotate(page, "list_ratio_filter"+token, annotate)
+def list_ratio_filter(
+        page: Dict,
+        new_line_ratio: float = 0.3,
+        annotate=False, token="", model="fineweb", **kwargs) -> List[Dict]:
+    lines = page[CONTENT].split("\n")
+    lines = [line for line in lines if line.strip() != ""]
+    if len(lines) == 0:
+        return set_filter_reason_if_annotate(page, "list_ratio_filter"+token, annotate)
 
-#     words = split_words(page[CONTENT], model=model)
-#     new_line = page[CONTENT].count("\n")
-#     if new_line / len(words) > self.new_line_ratio:
-#         return False, "list_ratio"
+    words = split_words(page[CONTENT], model=model)
+    new_line = page[CONTENT].count("\n")
+    if new_line / len(words) > new_line_ratio:
+        return set_filter_reason_if_annotate(page, "list_ratio_filter"+token, annotate)
+    return [page]
     
