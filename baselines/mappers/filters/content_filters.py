@@ -4,7 +4,7 @@ import re
 
 from baselines.mappers.core_utils import split_paragraphs, split_sentences, split_words
 from core.factory_utils import factory_function
-from core.constants import CONTENT, get_lang_from_page, set_filter_reason_if_annotate
+from core.constants import CONTENT, get_lang_from_page, set_filter_reason_if_annotate, TERMINAL_PUNCTUATION
 
 from typing import Union, Dict, List, Optional, Tuple
 from collections import Counter
@@ -644,3 +644,107 @@ def alphabetic_word_ratio_filter(page: Dict, max_ratio: float = 0.2, annotate=Fa
     non_alpha_word_ratio = non_alpha_word_count / total_words
         
     return [page] if non_alpha_word_ratio <= max_ratio else set_filter_reason_if_annotate(page, "alphabetic_word_ratio_filter"+token, annotate)
+
+# ========= Fineweb Custom Filters ==========
+
+def line_punct_ratio_filter(
+        page: Dict,
+        line_punct_thr: float = 0.12, line_punct_exclude_zero: bool = False,
+        stop_chars = None,
+        high_quality_ratio_value: float = 0.75,
+        high_quality_min_line_num: int = 10,
+        annotate=False, token="", model="fineweb", **kwargs) -> List[Dict]:
+    lines = page[CONTENT].split("\n")
+    lines = [line for line in lines if line.strip() != ""]
+    if len(lines) == 0:
+        return set_filter_reason_if_annotate(page, "line_punct_ratio_filter"+token, annotate)
+    if not stop_chars:
+        stop_chars = tuple(TERMINAL_PUNCTUATION)
+    ratio = sum(1 for line in lines if line.endswith(stop_chars)) / len(lines)
+    if ratio < line_punct_thr and not (ratio == 0 and line_punct_exclude_zero):
+        if high_quality_ratio(
+                lines,
+                model=model,
+                high_quality_min_line_num=high_quality_min_line_num) < high_quality_ratio_value:
+            return set_filter_reason_if_annotate(page, "line_punct_ratio_filter"+token, annotate)
+    return [page]
+
+
+def check_line_word_num(words, min_word_num: int = 3):
+    return len(words) >= min_word_num
+
+
+def high_quality_ratio(lines, model, high_quality_min_line_num):
+    if len(lines) == 0:
+        return 0
+    high_quality_num = 0
+    all_quality_num = sum([len(_line) for _line in lines])
+    for line in lines:
+        try:
+            words = split_words(line, model=model)
+        except Exception:
+            continue
+        if check_line_word_num(words,min_word_num=high_quality_min_line_num):
+            high_quality_num+=len(line)
+    return high_quality_num/all_quality_num        
+
+
+def short_line_ratio_filter(
+        page: Dict,
+        short_line_thr: float = 0.67,
+        short_line_length: int = 30,
+        annotate=False, token="", **kwargs) -> List[Dict]:
+    lines = page[CONTENT].split("\n")
+    lines = [line for line in lines if line.strip() != ""]
+    if len(lines) == 0:
+        return set_filter_reason_if_annotate(page, "short_line_ratio_filter"+token, annotate)    
+    ratio = sum(1 for line in lines if len(line) <= short_line_length) / len(lines)
+    if ratio > short_line_thr:
+        return set_filter_reason_if_annotate(page, "short_line_ratio_filter"+token, annotate)
+    return [page]
+
+
+def char_dup_ratio_filter(
+        page: Dict,
+        char_duplicates_ratio: float = 0.1,
+        annotate=False, token="", **kwargs) -> List[Dict]:
+    lines = page[CONTENT].split("\n")
+    lines = [line for line in lines if line.strip() != ""]
+    if len(lines) == 0:
+        return set_filter_reason_if_annotate(page, "char_dup_ratio_filter"+token, annotate)
+
+    ratio = find_duplicates(lines)[1] / len(page[CONTENT].replace("\n", ""))
+
+    if ratio > char_duplicates_ratio:
+        return set_filter_reason_if_annotate(page, "char_dup_ratio_filter"+token, annotate)
+    return [page]
+
+
+def find_duplicates(x: list[str]) -> tuple[int, int]:
+    unique_x = set()
+    duplicate_chars = 0
+    duplicate_elements = 0
+    for element in x:
+        if element in unique_x:
+            duplicate_chars += len(element)
+            duplicate_elements += 1
+
+        else:
+            unique_x.add(element)
+    return duplicate_elements, duplicate_chars
+
+
+# def list_ratio_filter(
+#         page: Dict,
+#         char_duplicates_ratio: float = 0.1,
+#         annotate=False, token="", model="fineweb", **kwargs) -> List[Dict]:
+#     lines = page[CONTENT].split("\n")
+#     lines = [line for line in lines if line.strip() != ""]
+#     if len(lines) == 0:
+#         return set_filter_reason_if_annotate(page, "list_ratio_filter"+token, annotate)
+
+#     words = split_words(page[CONTENT], model=model)
+#     new_line = page[CONTENT].count("\n")
+#     if new_line / len(words) > self.new_line_ratio:
+#         return False, "list_ratio"
+    
