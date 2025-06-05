@@ -28,15 +28,9 @@ spec:
           - name: OSS_ENDPOINT
             value: "oss-cn-hangzhou.aliyuncs.com"
           - name: OSS_ACCESS_KEY_ID
-            valueFrom:
-              secretKeyRef:
-                name: oss-secret
-                key: D3XdW8uT66mdJ3TO
+            value: "D3XdW8uT66mdJ3TO"
           - name: OSS_ACCESS_KEY_SECRET
-            valueFrom:
-              secretKeyRef:
-                name: oss-secret
-                key: LpBPv841EkOhqNV8tiaknQfWJJm1uP
+            value: "LpBPv841EkOhqNV8tiaknQfWJJm1uP"
           - name: OSS_BUCKET
             value: "si002558te8h"
           - name: OSS_OBJECT
