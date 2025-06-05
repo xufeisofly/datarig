@@ -6,6 +6,7 @@ WORKDIR /app
 RUN apt update && apt install -y \
     cmake \
     build-essential \
+	wget \
     g++ \
     git \
 	python3-distutils \
@@ -13,7 +14,9 @@ RUN apt update && apt install -y \
     libatlas-base-dev \	
     aria2 \
  && apt clean \
- && rm -rf /var/lib/apt/lists/* ~/.cache/pip
+ && rm -rf /var/lib/apt/lists/* ~/.cache/pip \
+ && wget http://gosspublic.alicdn.com/ossutil/1.7.13/ossutil64 -O /usr/local/bin/ossutil \
+ && chmod +x /usr/local/bin/ossutil
 
 COPY . /app/dclm-sci
 
