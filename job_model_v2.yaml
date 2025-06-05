@@ -15,7 +15,7 @@ spec:
         - name: cr-docker-registry
       initContainers:
       - name: download-model
-        image: aliyunfc/runtime-python3.9
+        image: cr.registry.res.cloud.zhejianglab.com/dataprocess/datarig:v4.0
         command: ["/bin/sh", "-c"]
         args:
           - |
