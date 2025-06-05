@@ -19,7 +19,7 @@ spec:
         command: ["/bin/sh", "-c"]
         args:
           - |
-            apt install -y wget
+            sudo apt-get install -y wget
             wget http://gosspublic.alicdn.com/ossutil/1.7.13/ossutil64 -O /usr/local/bin/ossutil
             chmod +x /usr/local/bin/ossutil
             ossutil config -e $OSS_ENDPOINT -i $OSS_ACCESS_KEY_ID -k $OSS_ACCESS_KEY_SECRET
