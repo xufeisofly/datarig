@@ -15,13 +15,12 @@ spec:
         - name: cr-docker-registry
       initContainers:
       - name: download-model
-        image: cr.registry.res.cloud.zhejianglab.com/dataprocess/datarig:v4.0
+        image: cr.registry.res.cloud.zhejianglab.com/dataprocess/datarig:v4.1
         command: ["/bin/sh", "-c"]
         args:
           - |
-            apt update && apt-get install -y wget && \
-            wget http://gosspublic.alicdn.com/ossutil/1.7.13/ossutil64 -O /usr/local/bin/ossutil
-            chmod +x /usr/local/bin/ossutil
+            # wget http://gosspublic.alicdn.com/ossutil/1.7.13/ossutil64 -O /usr/local/bin/ossutil
+            # chmod +x /usr/local/bin/ossutil
             ossutil config -e $OSS_ENDPOINT -i $OSS_ACCESS_KEY_ID -k $OSS_ACCESS_KEY_SECRET
             ossutil cp oss://${OSS_BUCKET}/${OSS_OBJECT} ${TARGET_DIR}/${OSS_OBJECT} -f
             ls -lah $TARGET_DIR
@@ -43,7 +42,7 @@ spec:
             mountPath: /app/models
       containers:
       - name: dclm-sci
-        image: cr.registry.res.cloud.zhejianglab.com/dataprocess/datarig:v4.0
+        image: cr.registry.res.cloud.zhejianglab.com/dataprocess/datarig:v4.1
         resources:
           requests:
             cpu: "13"
