@@ -5,4 +5,4 @@
       key: qwen77
     - func: quality_filter
       key: qwen77
-      threshold: 0.5
+      threshold: 0.9

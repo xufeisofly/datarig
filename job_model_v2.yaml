@@ -62,7 +62,7 @@ spec:
             value: "6380"
         args:
           - "--readable_name"
-          - "r2_model_filtered"
+          - "dclm_baseline_filtered_test"
           - "--output_dir"
           - "oss://si002558te8h/dclm/output"
           - "--config_path"
