@@ -19,6 +19,7 @@ use std::hash::{DefaultHasher, Hash, Hasher};
 use std::io::Read;
 use std::io::{BufRead, BufReader, BufWriter, Cursor, Write};
 use std::os::unix::fs::OpenOptionsExt;
+use std::path::Path;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
@@ -296,10 +297,33 @@ where
 =                     Tokenization utilities                        =
 ===================================================================*/
 
+fn is_local_file(path_str: &str) -> bool {
+    let path = Path::new(path_str);
+    match fs::metadata(path) {
+        Ok(metadata) => metadata.is_file(),
+        Err(_) => false,
+    }
+}
+
 fn load_tokenizer(tokenizer_name: &String) -> Result<(Tokenizer, usize)> {
     // Loads a huggingface tokenizer from pretrained name
     // Note this uses an OLDER version of huggingface tokenizers (may be a deprecated method)
-    let tokenizer = Tokenizer::from_pretrained(tokenizer_name, None).unwrap();
+    let (tokenizer, vocab_size) = if is_local_file(tokenizer_name) {
+        let tok = Tokenizer::from_file(tokenizer_name).unwrap();
+        let voc = GPT_NEOX_VOCAB_SIZE;
+        (tok, voc)
+    } else {
+        let tok = Tokenizer::from_pretrained(tokenizer_name, None).unwrap();
+        let voc = match (*tokenizer_name).as_str() {
+            "EleutherAI/gpt-neox-20b" => GPT_NEOX_VOCAB_SIZE,
+            "meta-llama/Meta-Llama-3-8B" => LLAMA3_VOCAB_SIZE,
+            _ => {
+                return Err(anyhow!("Unknown tokenizer name: {}", tokenizer_name));
+            }
+        };
+        (tok, voc)
+    };
+
     /*
     tokenizer.add_special_tokens(&[
         AddedToken {
@@ -319,14 +343,7 @@ fn load_tokenizer(tokenizer_name: &String) -> Result<(Tokenizer, usize)> {
             special: true
         },
     ]);
-    */
-    let vocab_size = match (*tokenizer_name).as_str() {
-        "EleutherAI/gpt-neox-20b" => GPT_NEOX_VOCAB_SIZE,
-        "meta-llama/Meta-Llama-3-8B" => LLAMA3_VOCAB_SIZE,
-        _ => {
-            return Err(anyhow!("Unknown tokenizer name: {}", tokenizer_name));
-        }
-    };
+     */
 
     Ok((tokenizer, vocab_size))
 }
@@ -595,9 +612,14 @@ fn process_local_cell(
         entry.read_to_end(&mut contents).unwrap();
         loaded_entries.push((path, contents));
     }
+
     loaded_entries.shuffle(&mut rng);
 
-    //println!("FILENAME {:?} | ENTRIES {:?}", filename, loaded_entries.len());
+    // println!(
+    //     "FILENAME {:?} | ENTRIES {:?}",
+    //     filename,
+    //     loaded_entries.len()
+    // );
     for chunk in loaded_entries.chunks(wds_chunk_size) {
         if chunk.len() != wds_chunk_size && !overflow_writer.is_none() {
             // If chunk needs to be kicked back to a local overflow cell

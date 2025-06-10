@@ -1,0 +1,6 @@
+# V1
+- source: cc
+  steps:
+    - func: line_removal_modifier
+      store_new_text: True
+    - func: fineweb_gopher_repetition_filter

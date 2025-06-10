@@ -1,0 +1,8 @@
+# V1
+- source: cc
+  steps:
+    - func: line_removal_modifier
+    - func: fineweb_gopher_repetition_filter
+    - func: fineweb_gopher_quality_filter
+      use_whitelist: True
+    - func: fineweb_quality_filter

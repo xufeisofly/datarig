@@ -1,0 +1,107 @@
+# subject=Virology
+# subject=DesignPracticeManagement
+# subject=Toxicology
+# subject=GastroenterologyHepatology
+# subject=BehavioralScienceComparativePsychology
+# subject=EmergencyCriticalCareMedicine
+# subject=Accounting
+
+from tqdm import tqdm
+import os
+import itertools
+import logging
+import argparse
+from baselines.oss import oss
+from baselines.core.file_utils import is_exists, read_jsonl, write_jsonl  # 如果需要判断是否存在
+from baselines.mappers.enrichers.language_id_enrichers import *
+from baselines.mappers.filters.metadata_filters import *
+
+import concurrent.futures
+
+# 已经抽取完成的学科
+# finish_subject = ['sample','AerospaceEngineering','Agriculture','Astronomy','Biology','Chemistry','ComputerScience','Engineering','Geography','MaterialsScience','Mathematics','Medicine','Physics','RenewableEnergy']
+finish_subject = []
+
+# 设置日志
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s: %(message)s")
+
+
+def split_iterable(iterable, chunk_size=10):
+    """
+    将任意可迭代对象按固定大小分块，最后不足部分保留剩余元素
+    
+    参数：
+        iterable: 任意可迭代对象（生成器、集合、文件流等）
+        chunk_size: 每块大小，默认10
+    
+    返回：
+        生成器，按块生成子列表（最后一块可能小于chunk_size）
+    """
+    iterator = iter(iterable)
+    chunk_number = 1
+    while True:
+        chunk = list(itertools.islice(iterator, chunk_size))
+        if not chunk:
+            break
+        yield (chunk_number, chunk)
+        chunk_number += 1
+    
+    
+def r3_sample(subject_path, lang='en'):
+    """_summary_
+
+    Args:
+        subject_path (_type_): 学科路径
+        lang (str, optional): 语言类型，默认英语. Defaults to 'en'.
+    """
+    subject_name = subject_path.split('/')[-1].split('_')[0] # 学科名
+    # print(subject_name)
+    # 写出路径
+    # output_folder = "/root/dataprocess_nas/zh/recall/"    # 本地测试
+    output_folder = "oss://si002558te8h/dclm/output/13_subject_removed/"    
+    num = 100000 # 抽取数量
+    # subject_path = subject_path + 'result/'
+    # file_full_path = oss.join_file_path('train1', subject_path)
+    
+    file_lines = read_jsonl(subject_path)
+    for index, chunk in split_iterable(file_lines, chunk_size=num):
+
+        write_jsonl(chunk, os.path.join(output_folder, f"{subject_name}_{num}_{index}.jsonl"))
+ 
+    print(f"write jsonl {subject_name} success")
+
+if __name__ == '__main__':
+    # ==============================远程切分上传================================
+    # oss_dir = "oss://train1/basemodel-subjet-data-processed/hpc-processed/r3_recall_dedupe_sample/"
+    # bucket_name, path = oss.split_file_path(oss_dir)
+    # bucket = oss.Bucket(bucket_name)
+    # subject_paths = oss.get_sub_files(bucket, path)
+    # for subject_path in tqdm(subject_paths):
+    #     subject_name = subject_path.split('/')[-1].split('_')[0] # 学科名
+    #     if subject_name in finish_subject:
+    #         continue
+    #     r3_sample(subject_path, 'en')
+    #     # break
+
+    # ==============================本地切分上传================================
+    
+    local_dir = "/root/dataprocess_nas/zh/removed"
+    subject_list = os.listdir(local_dir)
+    
+    for subject_name in tqdm(subject_list):
+        subject_path = os.path.join(local_dir, subject_name) 
+        if subject_name in finish_subject:
+            continue
+        r3_sample(subject_path, 'en')
+        
+    # ==============================多线程================================
+    # with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+    #     futures = []
+    #     for subject_path in subject_paths:
+    #         subject_name = subject_path.split('/')[-1].split('_')[0] # 学科名
+    #         if subject_name in finish_subject:
+    #             continue
+    #         futures.append(executor.submit(r3_sample, subject_path, 'en'))
+
+    #     for future in concurrent.futures.as_completed(futures):
+    #         future.result()

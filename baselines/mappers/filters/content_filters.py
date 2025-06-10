@@ -4,10 +4,11 @@ import re
 
 from baselines.mappers.core_utils import split_paragraphs, split_sentences, split_words
 from core.factory_utils import factory_function
-from core.constants import CONTENT, get_lang_from_page, set_filter_reason_if_annotate
+from core.constants import CONTENT, get_lang_from_page, set_filter_reason_if_annotate, TERMINAL_PUNCTUATION, PUNCTUATION_SET
 
 from typing import Union, Dict, List, Optional, Tuple
 from collections import Counter
+import numpy as np
 import re
 from nltk import ngrams, word_tokenize
 from transformers import AutoTokenizer
@@ -129,7 +130,7 @@ def alphabetic_characters_to_tokens_filter(tokenizer_name: str = "EleutherAI/pyt
         
     return filter_fn
 
-def massive_web_repetition_filters(page: Dict, skip_paragraph=False, tokenizer='uniseg', annotate=False, token="", debug=False, language_key='language_id_whole_page_fasttext') -> List[Dict]:
+def massive_web_repetition_filters(page: Dict, skip_paragraph=False, tokenizer='uniseg', annotate=False, token="", debug=False, language_key='language_id_whole_page_fasttext', use_fineweb_implementation=False) -> List[Dict]:
     """
     Applies the repetition filters from Gopher (Rae et al., 2021)
     Calls repetition_filter across many different granularities
@@ -145,6 +146,9 @@ def massive_web_repetition_filters(page: Dict, skip_paragraph=False, tokenizer='
     A list containing the input JSON object if it passes the set of repetition filters,
     or an empty list if it doesn't.
     """
+
+    if use_fineweb_implementation:
+        return fineweb_gopher_repetition_filter(page, language_key=language_key, annotate=annotate)
 
     cache = {}
     if len(repetition_filter(page, "line", 0.3, count_characters=False, cache=cache, tokenizer=tokenizer, debug=debug, language_key=language_key)) == 0:
@@ -176,6 +180,23 @@ def massive_web_repetition_filters(page: Dict, skip_paragraph=False, tokenizer='
     else:
         return [page]
 
+
+def find_all_duplicate(words: list[str], n: int) -> int:
+    n_words = len(words)
+    unique = set()
+    repeated_chars, idx = 0, 0
+    while idx < n_words - n + 1:
+        n_gram = "".join(words[idx : idx + n])
+        if n_gram in unique:
+            print(n_gram)
+            repeated_chars += len(n_gram)
+            idx += n
+        else:
+            unique.add(n_gram)
+            idx += 1
+    assert repeated_chars <= len("".join(words))
+    return repeated_chars    
+    
 
 def repetition_filter(page: Dict, granularity: Union[str, int], max_fraction: float, 
                       count_characters: bool=True, ngram_char_ratio: str=None, ignore_case: bool=False, cache: Dict=None, tokenizer='uniseg', debug=False, language_key='language_id_whole_page_fasttext') -> List[Dict]:
@@ -337,24 +358,29 @@ def page_length_filter(page: Dict, length_type: str, min_length: int = 1,
     """
 
     # TODO: Do we want to cache some of these splits for other methods?
-    if length_type == 'word':
-        split_text = split_words(page[CONTENT], language=get_lang_from_page(page, language_key=language_key), **kwargs)
-    elif length_type == 'sentence':
-        split_text = split_sentences(page[CONTENT], **kwargs)
-    elif length_type == 'line':
-        split_text = split_paragraphs(page[CONTENT], paragraph_end='\n', **kwargs)
-    elif length_type == 'paragraph':
-        split_text = split_paragraphs(page[CONTENT], paragraph_end='\n\n', **kwargs)
-    elif length_type == 'char':
-        split_text = page[CONTENT]
-    else:
-        raise ValueError("length_type needs to be one of {word, sentence, line, paragraph}")
+    try:
+        if length_type == 'word':
+            split_text = split_words(page[CONTENT], language=get_lang_from_page(page, language_key=language_key), **kwargs)
+        elif length_type == 'sentence':
+            split_text = split_sentences(page[CONTENT], **kwargs)
+        elif length_type == 'line':
+            split_text = split_paragraphs(page[CONTENT], paragraph_end='\n', **kwargs)
+        elif length_type == 'paragraph':
+            split_text = split_paragraphs(page[CONTENT], paragraph_end='\n\n', **kwargs)
+        elif length_type == 'char':
+            split_text = page[CONTENT]
+        else:
+            raise ValueError("length_type needs to be one of {word, sentence, line, paragraph}")
 
-    page_length = len(split_text)
-    if page_length < min_length or page_length > max_length:
-        return set_filter_reason_if_annotate(page, "page_length_filter"+token, annotate)
-    else:
-        return [page]
+        page_length = len(split_text)
+        if page_length < min_length or page_length > max_length:
+            return set_filter_reason_if_annotate(page, "page_length_filter"+token, annotate)
+        else:
+            return [page]
+    except Exception:
+        if len(page[CONTENT]) > 1000:
+            return [page]
+        return set_filter_reason_if_annotate(page, "word_split_falied"+token, annotate)
 
 
 @factory_function
@@ -644,3 +670,326 @@ def alphabetic_word_ratio_filter(page: Dict, max_ratio: float = 0.2, annotate=Fa
     non_alpha_word_ratio = non_alpha_word_count / total_words
         
     return [page] if non_alpha_word_ratio <= max_ratio else set_filter_reason_if_annotate(page, "alphabetic_word_ratio_filter"+token, annotate)
+
+# ========= Fineweb Custom Filters ==========
+
+def fineweb_quality_filter(
+        page: Dict,
+        line_punct_thr: float = 0.12, line_punct_exclude_zero: bool = False,
+        stop_chars = None,
+        high_quality_ratio_value: float = 0.75,
+        high_quality_min_line_num: int = 10,
+        short_line_thr: float = 0.67,
+        short_line_length: int = 30,
+        new_line_ratio: float = 0.3,
+        char_duplicates_ratio: float = 0.1,
+        annotate=False,
+        language_key: str = 'language_id_whole_page_fasttext',
+        token="",
+        model='fineweb',
+) -> List[Dict]:
+    lines = page[CONTENT].split("\n")
+    lines = [line for line in lines if line.strip() != ""]
+    if len(lines) == 0:
+        return set_filter_reason_if_annotate(page, "line_punct_ratio_filter"+token, annotate)
+
+    language = get_lang_from_page(page, language_key=language_key)
+    if not stop_chars:
+        stop_chars = tuple(TERMINAL_PUNCTUATION)
+        
+    ratio = sum(1 for line in lines if line.endswith(stop_chars)) / len(lines)
+    if ratio < line_punct_thr and not (ratio == 0 and line_punct_exclude_zero):
+        if high_quality_ratio(
+                lines,
+                model=model,
+                high_quality_min_line_num=high_quality_min_line_num,
+                language=language,
+        ) < high_quality_ratio_value:
+            return set_filter_reason_if_annotate(page, "line_punct_ratio_filter"+token, annotate)
+
+    ratio = sum(1 for line in lines if len(line) <= short_line_length) / len(lines)
+    if ratio > short_line_thr:
+        return set_filter_reason_if_annotate(page, "short_line_ratio_filter"+token, annotate)
+
+    ratio = find_duplicates(lines)[1] / len(page[CONTENT].replace("\n", ""))
+
+    if ratio > char_duplicates_ratio:
+        return set_filter_reason_if_annotate(page, "char_dup_ratio_filter"+token, annotate)    
+
+    words = split_words(page[CONTENT], model=model, language=language)
+    new_line = page[CONTENT].count("\n")
+    if new_line / len(words) > new_line_ratio:
+        return set_filter_reason_if_annotate(page, "list_ratio_filter"+token, annotate)    
+    return [page]
+
+
+def check_line_word_num(words, min_word_num: int = 3):
+    return len(words) >= min_word_num
+
+
+def high_quality_ratio(lines, model, high_quality_min_line_num, language):
+    if len(lines) == 0:
+        return 0
+    high_quality_num = 0
+    all_quality_num = sum([len(_line) for _line in lines])
+    for line in lines:
+        try:
+            words = split_words(line, model=model, language=language)
+        except Exception:
+            continue
+        if check_line_word_num(words,min_word_num=high_quality_min_line_num):
+            high_quality_num+=len(line)
+    return high_quality_num/all_quality_num        
+
+
+def short_line_ratio_filter(
+        page: Dict,
+        short_line_thr: float = 0.67,
+        short_line_length: int = 30,
+        annotate=False, token="", **kwargs) -> List[Dict]:
+    lines = page[CONTENT].split("\n")
+    lines = [line for line in lines if line.strip() != ""]
+    if len(lines) == 0:
+        return set_filter_reason_if_annotate(page, "short_line_ratio_filter"+token, annotate)    
+    ratio = sum(1 for line in lines if len(line) <= short_line_length) / len(lines)
+    if ratio > short_line_thr:
+        return set_filter_reason_if_annotate(page, "short_line_ratio_filter"+token, annotate)
+    return [page]
+
+
+def char_dup_ratio_filter(
+        page: Dict,
+        char_duplicates_ratio: float = 0.1,
+        annotate=False, token="", **kwargs) -> List[Dict]:
+    lines = page[CONTENT].split("\n")
+    lines = [line for line in lines if line.strip() != ""]
+    if len(lines) == 0:
+        return set_filter_reason_if_annotate(page, "char_dup_ratio_filter"+token, annotate)
+
+    ratio = find_duplicates(lines)[1] / len(page[CONTENT].replace("\n", ""))
+
+    if ratio > char_duplicates_ratio:
+        return set_filter_reason_if_annotate(page, "char_dup_ratio_filter"+token, annotate)
+    return [page]
+
+
+def list_ratio_filter(
+        page: Dict,
+        new_line_ratio: float = 0.3,
+        annotate=False, token="", model="fineweb", **kwargs) -> List[Dict]:
+    lines = page[CONTENT].split("\n")
+    lines = [line for line in lines if line.strip() != ""]
+    if len(lines) == 0:
+        return set_filter_reason_if_annotate(page, "list_ratio_filter"+token, annotate)
+
+    words = split_words(page[CONTENT], model=model)
+    new_line = page[CONTENT].count("\n")
+    if new_line / len(words) > new_line_ratio:
+        return set_filter_reason_if_annotate(page, "list_ratio_filter"+token, annotate)
+    return [page]
+    
+
+"""
+fineweb gopher repetition
+"""
+
+def fineweb_gopher_repetition_filter(
+        page: Dict,
+        dup_line_frac: float | None = 0.3,
+        dup_para_frac: float | None = 0.3,
+        dup_line_char_frac: float | None = 0.2,
+        dup_para_char_frac: float | None = 0.2,
+        top_n_grams = ((2, 0.2), (3, 0.18), (4, 0.16)),
+        dup_n_grams = ((5, 0.15), (6, 0.14), (7, 0.13), (8, 0.12), (9, 0.11), (10, 0.10)),
+        language_key: str = 'language_id_whole_page_fasttext',
+        annotate=False,
+) -> List[Dict]:
+    language = get_lang_from_page(page, language_key)
+    text = page[CONTENT]
+    if len(text) == 0:
+        return set_filter_reason_if_annotate(page, "massive_web_repetition_filters:empty_text", annotate)
+    paragraph_exp = re.compile(r"\n{2,}")
+
+    try:
+        paragraphs = paragraph_exp.split(text.strip())
+    except Exception:
+        return set_filter_reason_if_annotate(page, "massive_web_repetition_filters:split_failed", annotate)
+    
+    paragraphs_duplicates, char_duplicates = find_duplicates(paragraphs)
+    if dup_para_frac and paragraphs_duplicates / len(paragraphs) > dup_para_frac:
+        return set_filter_reason_if_annotate(page, "massive_web_repetition_filters:paragraph", annotate)
+    if dup_para_char_frac and char_duplicates / len(text) > dup_para_char_frac:
+        return set_filter_reason_if_annotate(page, "massive_web_repetition_filters:paragraph_char", annotate)
+
+    line_splitter = re.compile("\n+")
+    lines = line_splitter.split(text)
+        
+    line_duplicates, char_duplicates = find_duplicates(lines)
+    if dup_line_frac and line_duplicates / len(lines) > dup_line_frac:
+        return set_filter_reason_if_annotate(page, "massive_web_repetition_filters:line", annotate)
+    if dup_line_char_frac and char_duplicates / len(text) > dup_line_char_frac:
+        return set_filter_reason_if_annotate(page, "massive_web_repetition_filters:line_char", annotate)
+
+    try:
+        words = split_words(text, model='fineweb', language=language)
+    except Exception:
+        if len(text) > 1000:
+            return [page]
+        return set_filter_reason_if_annotate(page, "word_split_falied", annotate)
+
+    for n, n_frac in top_n_grams:
+        n_grams = get_n_grams(words, n)
+        if not n_grams:
+            continue
+        top_char_length = find_top_duplicate(n_grams)
+        if top_char_length / len(text) > n_frac:
+            return set_filter_reason_if_annotate(page, f"massive_web_repetition_filters:{n}_gram", annotate)
+
+    for n, n_frac in dup_n_grams:
+        n_duplicates_char = find_all_duplicate(words, n)
+        if n_duplicates_char / len(text) > n_frac:
+            return set_filter_reason_if_annotate(page, f"massive_web_repetition_filters:{n}_gram", annotate)
+
+    return [page]
+
+def get_n_grams(words: list[str], n: int) -> list[str]:
+    return [" ".join(words[i : i + n]) for i in range(len(words) - n + 1)]
+
+
+def find_duplicates(x: list[str]) -> tuple[int, int]:
+    unique_x = set()
+    duplicate_chars = 0
+    duplicate_elements = 0
+    for element in x:
+        if element in unique_x:
+            duplicate_chars += len(element)
+            duplicate_elements += 1
+
+        else:
+            unique_x.add(element)
+    return duplicate_elements, duplicate_chars
+
+
+def find_top_duplicate(x: list[str]) -> int:
+    counter = Counter()
+    for element in x:
+        counter[element] += 1
+    top_n_gram = counter.most_common(1)[0]
+    return len(top_n_gram[0]) * top_n_gram[1]
+
+
+def find_all_duplicate(words: list[str], n: int) -> int:
+    n_words = len(words)
+    unique = set()
+    repeated_chars, idx = 0, 0
+    while idx < n_words - n + 1:
+        n_gram = "".join(words[idx : idx + n])
+        if n_gram in unique:
+            repeated_chars += len(n_gram)
+            idx += n
+        else:
+            unique.add(n_gram)
+            idx += 1
+    assert repeated_chars <= len("".join(words))
+    return repeated_chars
+
+STOP_WORDS = ["the", "be", "to", "of", "and", "that", "have", "with"]
+
+def fineweb_gopher_quality_filter(
+        page: Dict,
+        min_doc_words: int = 50,
+        max_doc_words: int = 100000,
+        min_avg_word_length: int = 3,
+        max_avg_word_length: int | None = 10,
+        max_symbol_word_ratio: float | None = 0.1,
+        max_bullet_lines_ratio: float | None = 0.9,
+        max_ellipsis_lines_ratio: float | None = 0.3,
+        max_non_alpha_words_ratio: float | None = 0.8,
+        min_stop_words: int | None = 2,
+        whitelist_chars=('(', ')', '%'),
+        use_whitelist = False,
+        annotate=False,
+        language_key='',
+) -> List[Dict]:
+        text = page[CONTENT]
+        language = get_lang_from_page(page, language_key)
+        stop_words = set(STOP_WORDS)
+        try:
+            words = split_words(text, model='fineweb', language=language)
+        except Exception:
+            if len(text) > 1000:
+                return [page]
+            return []
+
+        n_words = len(words)
+
+        non_symbol_words = [w for w in words if any(ch not in PUNCTUATION_SET for ch in w)]
+        n_non_symbol_words_words = len(non_symbol_words)
+
+        # words < min_doc_words or words > max_doc_words
+        if min_doc_words and n_non_symbol_words_words < min_doc_words:
+            return set_filter_reason_if_annotate(page, "gopher_short_doc", annotate)
+        if max_doc_words and n_non_symbol_words_words > max_doc_words:
+            return set_filter_reason_if_annotate(page, "gopher_long_doc", annotate)
+
+        # mean word length is outside the range of 3 to 10 characters
+        avg_n_words = np.mean([len(w) for w in non_symbol_words])
+        if min_avg_word_length and avg_n_words < min_avg_word_length:
+            return set_filter_reason_if_annotate(page, "gopher_below_avg_threshold", annotate)
+        if max_avg_word_length and avg_n_words > max_avg_word_length:
+            return set_filter_reason_if_annotate(page, "gopher_above_avg_threshold", annotate)
+
+        # symbol-to-word ratio greater than 0.1 for either the hash symbol or the ellipsis
+        if max_symbol_word_ratio and text.count("#") / n_words > max_symbol_word_ratio:
+            return set_filter_reason_if_annotate(page, "gopher_too_many_hashes", annotate)
+        if max_symbol_word_ratio and (text.count("...") + text.count("…")) / n_words > max_symbol_word_ratio:
+            return set_filter_reason_if_annotate(page, "gopher_too_many_ellipsis", annotate)
+
+        # any document with more than 90 % of lines starting with a bullet point,
+        # or more than 30 % ending with an ellipsis.
+        lines = text.splitlines()
+        if (
+            max_bullet_lines_ratio
+            and sum(s.lstrip().startswith("•") or s.lstrip().startswith("-") for s in lines) / len(lines)
+            > max_bullet_lines_ratio
+        ):
+            return set_filter_reason_if_annotate(page, "gopher_too_many_bullets", annotate)
+        if (
+            max_ellipsis_lines_ratio
+            and sum(s.rstrip().endswith("...") or s.rstrip().endswith("…") for s in lines) / len(lines)
+            > max_ellipsis_lines_ratio
+        ):
+            return set_filter_reason_if_annotate(page, "gopher_too_many_end_ellipsis", annotate)
+
+        # that 80 % of words in a document contain at least one alphabetic character
+        if (
+            max_non_alpha_words_ratio
+            # nb of words with at least 1 alpha char < 0.8
+            and not check_non_alpha_ratio(words,
+                                          max_non_alpha_words_ratio=max_non_alpha_words_ratio,
+                                          whitelist_chars=whitelist_chars,
+                                          use_whitelist=use_whitelist)):
+            return set_filter_reason_if_annotate(page, "gopher_below_alpha_threshold", annotate)
+
+        # stop word filter
+        if min_stop_words and sum(w in stop_words for w in words) < min_stop_words:
+            return set_filter_reason_if_annotate(page, "gopher_enough_stop_words", annotate)
+
+        return [page]
+    
+
+def in_non_alpha_whitelist(w, whitelist_chars = ()):
+    return w.isdigit() or w in whitelist_chars
+
+
+def check_non_alpha_ratio(words,
+                          max_non_alpha_words_ratio,
+                          whitelist_chars,
+                          use_whitelist):
+    n_words = len(words)
+
+    # that 80 % of words in a document contain at least one alphabetic character
+    if (sum([any((c.isalpha() for c in w)) or (use_whitelist and in_non_alpha_whitelist(w, whitelist_chars)) for w in words]) / n_words < max_non_alpha_words_ratio
+    ):
+        return False
+    return True    

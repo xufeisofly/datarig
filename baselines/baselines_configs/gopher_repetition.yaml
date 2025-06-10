@@ -1,4 +1,4 @@
 - source: cc
   steps:
     - func: massive_web_repetition_filters
-      tokenizer: "uniseg"
+      use_fineweb_implementation: True

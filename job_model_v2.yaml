@@ -1,0 +1,104 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: datarig1-v4-160
+spec:
+  parallelism: 160
+  completions: 160
+  backoffLimit: 5
+  template:
+    metadata:
+      labels:
+        app: dclm-sci
+    spec:
+      imagePullSecrets:
+        - name: cr-docker-registry
+      initContainers:
+      - name: download-model
+        image: cr.registry.res.cloud.zhejianglab.com/dataprocess/datarig:v4.1
+        command: ["/bin/sh", "-c"]
+        args:
+          - |
+            # wget http://gosspublic.alicdn.com/ossutil/1.7.13/ossutil64 -O /usr/local/bin/ossutil
+            # chmod +x /usr/local/bin/ossutil
+            ossutil config -e $OSS_ENDPOINT -i $OSS_ACCESS_KEY_ID -k $OSS_ACCESS_KEY_SECRET
+            ossutil cp oss://${OSS_BUCKET}/${OSS_OBJECT} ${TARGET_DIR}/${OSS_OBJECT} -f
+            ls -lah $TARGET_DIR
+        env:
+          - name: OSS_ENDPOINT
+            value: "oss-cn-hangzhou.aliyuncs.com"
+          - name: OSS_ACCESS_KEY_ID
+            value: "D3XdW8uT66mdJ3TO"
+          - name: OSS_ACCESS_KEY_SECRET
+            value: "LpBPv841EkOhqNV8tiaknQfWJJm1uP"
+          - name: OSS_BUCKET
+            value: "si002558te8h"
+          - name: OSS_OBJECT
+            value: "qwen77_per1000.bin"
+          - name: TARGET_DIR
+            value: "/app/dclm-sci/baselines/mappers/enrichers/quality_prediction_enrichment_models/"
+        volumeMounts:
+          - name: model-volume
+            mountPath: /app/models
+      containers:
+      - name: dclm-sci
+        image: cr.registry.res.cloud.zhejianglab.com/dataprocess/datarig:v4.1
+        resources:
+          requests:
+            cpu: "13"
+            memory: "26Gi"
+          limits:
+            cpu: "15"
+            memory: "28Gi"
+        command: ["/app/dclm-sci/start.sh"]
+        env:
+          - name: RAY_DEDUP_LOGS
+            value: "0"
+          - name: RAY_BACKEND_LOG_LEVEL
+            value: "error"
+          - name: REDIS_HOST
+            value: "10.200.48.152"
+          - name: REDIS_PORT
+            value: "6380"
+        args:
+          - "--readable_name"
+          - "dclm_baseline_filtered_test"
+          - "--output_dir"
+          - "oss://si002558te8h/dclm/output"
+          - "--config_path"
+          - "baselines/baselines_configs/equipment_fasttext_filter.yaml"
+          - "--oss_temp_dir"
+          - "oss://si002558te8h/dclm/temp_dir_500/"
+          - "--source_name"
+          - "cc"
+          - "--max_file_size_mb"
+          - "500"
+          - "--queue_id"
+          - "default"
+          - "--ray_num_cpus"
+          - "1"
+          - "--workers"
+          - "1"
+          - "--split_workers"
+          - "4"
+          - "--chunk_size"
+          - "8"
+          - "--output_has_dataset_name"
+          - "--overwrite"
+          - "--use_task"
+          - "--use_redis_task"
+          - "--ignore_failures"
+        volumeMounts:
+          - name: dclm-config-volume
+            mountPath: "/app/dclm-sci/baselines/baselines_configs/equipment_fasttext_filter.yaml"
+            subPath: "equipment_fasttext_filter.yaml"
+          - name: model-volume
+            mountPath: /app/models
+        imagePullPolicy: IfNotPresent
+      volumes:
+        - name: dclm-config-volume
+          configMap:
+            name: dclm-config
+        - name: model-volume
+          emptyDir: {}
+      restartPolicy: OnFailure
