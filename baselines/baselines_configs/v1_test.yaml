@@ -4,9 +4,3 @@
     - func: line_removal_modifier
       store_new_text: True
     - func: fineweb_gopher_repetition_filter
-    - func: fineweb_gopher_quality_filter
-      use_whitelist: False
-    - func: line_punct_ratio_filter
-    - func: short_line_ratio_filter
-    - func: char_dup_ratio_filter
-    - func: list_ratio_filter                    
