@@ -796,8 +796,6 @@ def fineweb_gopher_repetition_filter(
 
     line_splitter = re.compile("\n+")
     lines = line_splitter.split(text)
-    if len(lines) == 0:
-        print("--------2", text)
         
     line_duplicates, char_duplicates = find_duplicates(lines)
     if dup_line_frac and line_duplicates / len(lines) > dup_line_frac:
