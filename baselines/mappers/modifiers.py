@@ -7,6 +7,7 @@ from lxml.etree import ParserError
 from retrie.retrie import Blacklist
 
 from baselines.mappers.core_utils import split_paragraphs, split_words
+from baselines.mappers.fineweb.text import split_into_sentences
 from core.constants import CONTENT, URL, get_lang_from_page, set_filter_reason_if_annotate
 from core.factory_utils import factory_function
 from bs4 import BeautifulSoup
@@ -861,3 +862,125 @@ def join_lines_modifier(page, delimiter='\n'):
             return [page]
     else:
         raise TypeError
+
+
+@factory_function
+def line_removal_modifier(
+        max_removed_ratio: float = 0.05,
+        max_uppercase_ratio: float = 0.99,
+        min_word_cnt_per_line: int = 2,
+        num_of_sentences: int = 3,
+        store_new_text = False,
+        language_key: str = 'language_id_whole_page_fasttext',        
+        annotate=False,
+        token="",
+):
+    
+    def modify(page: Dict) -> List[Dict]:
+        language = get_lang_from_page(page, language_key=language_key)
+        text = page[CONTENT]
+        lines = text.split("\n")
+        
+        new_lines = []
+        fraction_of_words_corrected_in_lines = 0
+        num_sentences = 0
+        
+        for line in lines:
+            # line removal
+            is_filtered, removed_words_cnt = line_filtering(
+                line,
+                max_uppercase_ratio=max_uppercase_ratio,
+                min_word_cnt_per_line=min_word_cnt_per_line)
+            
+            if not is_filtered:
+                new_lines.append(line)
+                sentences = split_into_sentences(line, language)
+                num_sentences += len(sentences)
+            # 统计被删除的单词数
+            fraction_of_words_corrected_in_lines += removed_words_cnt
+
+        page[CONTENT] = "\n".join(new_lines)
+        if store_new_text:
+            page['new_text'] = page[CONTENT]
+
+        total_words_cnt = len(text.split())
+        if total_words_cnt and fraction_of_words_corrected_in_lines / total_words_cnt  > max_removed_ratio:
+            return set_filter_reason_if_annotate(page, "too_many_removed_lines"+token, annotate)
+        if num_sentences < num_of_sentences:
+            return set_filter_reason_if_annotate(page, "too_few_sentences"+token, annotate)
+
+        # line-wise doc filtering
+        for line in new_lines:
+            # line-wise doc filtering
+            if "lorem ipsum" in line.lower():
+                return set_filter_reason_if_annotate(page, "lorem_ipsum"+token, annotate)
+
+        return [page]
+
+    return modify
+
+
+def check_javascript(text):
+    if "javascript" not in text:
+        return False
+    if "enable" in text:
+        return True
+    if "disable" in text:
+        return True
+    if "require" in text:
+        return True
+    if "activate" in text:
+        return True
+    if "browser" in text:
+        return True
+    return False
+
+
+def is_counter(input_text):
+    pattern = r'^\d+\s+likes$'
+    return bool(re.match(pattern, input_text))        
+
+
+def line_filtering(line, max_uppercase_ratio, min_word_cnt_per_line) -> tuple[bool, int]:
+    """
+    return:
+    1. bool: whether the line should be filtered or not
+    2. int: words count in the removed line 
+    """
+    # Normalize the line text
+    line_norm = line.strip().lower()
+    if not line_norm:
+        return True, 0
+    word_cnt_line = len(line_norm.split())
+
+    # 1.1 Remove lines not ending up in a terminal punctuation mark
+    # if not line_norm.endswith((".", "?", "!", '"')):  # Done: Check if we need to use this
+    #     return False, "C4_not_ending_with_terminal_punctuation"
+
+    # 1.2 Remove lines containing word "javascript"
+    # if "javascript" in line_norm:  # Done: refine the strategy
+    if check_javascript(line_norm):
+        return True, 0  #, "1.2_C4_javascript"
+    
+    # Set the default for fraction_of_words_corrected_in_lines
+    # Do not include the characters corrected by javascript into the counting
+
+    # 1.3.1 Remove lines of uppercase characters only
+    num_uppercase = sum(char.isupper() for char in line)
+    if num_uppercase / len(line) > max_uppercase_ratio:
+        return True, word_cnt_line
+        
+    # if line.isupper():
+    #     return True, word_cnt_line  #, "1.3.1_RefinedWeb_uppercase_only"
+    # 1.3.2 Remove lines of numerical characters
+    if line_norm.isdigit():
+        return True, word_cnt_line  #, "1.3.2_RefinedWeb_digits_only"
+    # 1.3.3 Remove lines of counter
+    if is_counter(line_norm):
+        return True, word_cnt_line  #, "1.3.3_RefinedWeb_is_counter"
+    # 1.3.4 Remove lines with only a few word
+    if word_cnt_line < min_word_cnt_per_line:  # TODO: decide the threshold
+        return True, word_cnt_line  #, "1.3.4_RefinedWeb_line_too_short"
+
+
+    return False, 0
