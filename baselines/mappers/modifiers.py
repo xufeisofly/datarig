@@ -865,6 +865,7 @@ def join_lines_modifier(page, delimiter='\n'):
 
 
 def line_removal_modifier(
+        page: Dict,
         max_removed_ratio: float = 0.05,
         max_uppercase_ratio: float = 0.99,
         min_word_cnt_per_line: int = 2,
