@@ -682,27 +682,35 @@ def fineweb_quality_filter(
         short_line_thr: float = 0.67,
         short_line_length: int = 30,
         new_line_ratio: float = 0.3,
-        annotate=False, token="", model="fineweb", **kwargs) -> List[Dict]:
+        annotate=False,
+        language_key: str = 'language_id_whole_page_fasttext',
+        token="",
+        model='fineweb',
+) -> List[Dict]:
     lines = page[CONTENT].split("\n")
     lines = [line for line in lines if line.strip() != ""]
     if len(lines) == 0:
         return set_filter_reason_if_annotate(page, "line_punct_ratio_filter"+token, annotate)
-    
+
+    language = get_lang_from_page(page, language_key=language_key)
     if not stop_chars:
         stop_chars = tuple(TERMINAL_PUNCTUATION)
+        
     ratio = sum(1 for line in lines if line.endswith(stop_chars)) / len(lines)
     if ratio < line_punct_thr and not (ratio == 0 and line_punct_exclude_zero):
         if high_quality_ratio(
                 lines,
                 model=model,
-                high_quality_min_line_num=high_quality_min_line_num) < high_quality_ratio_value:
+                high_quality_min_line_num=high_quality_min_line_num,
+                language=language,
+        ) < high_quality_ratio_value:
             return set_filter_reason_if_annotate(page, "line_punct_ratio_filter"+token, annotate)
 
     ratio = sum(1 for line in lines if len(line) <= short_line_length) / len(lines)
     if ratio > short_line_thr:
         return set_filter_reason_if_annotate(page, "short_line_ratio_filter"+token, annotate)
 
-    words = split_words(page[CONTENT], model=model)
+    words = split_words(page[CONTENT], model=model, language=language)
     new_line = page[CONTENT].count("\n")
     if new_line / len(words) > new_line_ratio:
         return set_filter_reason_if_annotate(page, "list_ratio_filter"+token, annotate)    
@@ -713,14 +721,14 @@ def check_line_word_num(words, min_word_num: int = 3):
     return len(words) >= min_word_num
 
 
-def high_quality_ratio(lines, model, high_quality_min_line_num):
+def high_quality_ratio(lines, model, high_quality_min_line_num, language):
     if len(lines) == 0:
         return 0
     high_quality_num = 0
     all_quality_num = sum([len(_line) for _line in lines])
     for line in lines:
         try:
-            words = split_words(line, model=model)
+            words = split_words(line, model=model, language=language)
         except Exception:
             continue
         if check_line_word_num(words,min_word_num=high_quality_min_line_num):
