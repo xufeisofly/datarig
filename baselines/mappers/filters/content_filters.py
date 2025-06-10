@@ -129,7 +129,7 @@ def alphabetic_characters_to_tokens_filter(tokenizer_name: str = "EleutherAI/pyt
         
     return filter_fn
 
-def massive_web_repetition_filters(page: Dict, skip_paragraph=False, tokenizer='uniseg', annotate=False, token="", debug=False, language_key='language_id_whole_page_fasttext') -> List[Dict]:
+def massive_web_repetition_filters(page: Dict, skip_paragraph=False, tokenizer='uniseg', annotate=False, token="", debug=False, language_key='language_id_whole_page_fasttext', use_fineweb_implementation=False) -> List[Dict]:
     """
     Applies the repetition filters from Gopher (Rae et al., 2021)
     Calls repetition_filter across many different granularities
@@ -145,6 +145,9 @@ def massive_web_repetition_filters(page: Dict, skip_paragraph=False, tokenizer='
     A list containing the input JSON object if it passes the set of repetition filters,
     or an empty list if it doesn't.
     """
+
+    if use_fineweb_implementation:
+        return fineweb_gopher_repetition_filter(page, language_key=language_key, annotate=annotate)
 
     cache = {}
     if len(repetition_filter(page, "line", 0.3, count_characters=False, cache=cache, tokenizer=tokenizer, debug=debug, language_key=language_key)) == 0:
@@ -176,6 +179,23 @@ def massive_web_repetition_filters(page: Dict, skip_paragraph=False, tokenizer='
     else:
         return [page]
 
+
+def find_all_duplicate(words: list[str], n: int) -> int:
+    n_words = len(words)
+    unique = set()
+    repeated_chars, idx = 0, 0
+    while idx < n_words - n + 1:
+        n_gram = "".join(words[idx : idx + n])
+        if n_gram in unique:
+            print(n_gram)
+            repeated_chars += len(n_gram)
+            idx += n
+        else:
+            unique.add(n_gram)
+            idx += 1
+    assert repeated_chars <= len("".join(words))
+    return repeated_chars    
+    
 
 def repetition_filter(page: Dict, granularity: Union[str, int], max_fraction: float, 
                       count_characters: bool=True, ngram_char_ratio: str=None, ignore_case: bool=False, cache: Dict=None, tokenizer='uniseg', debug=False, language_key='language_id_whole_page_fasttext') -> List[Dict]:
@@ -245,8 +265,7 @@ def repetition_filter(page: Dict, granularity: Union[str, int], max_fraction: fl
 
     elif isinstance(granularity, int):
         if 'words' not in cache:
-            ignore_punctuation = (tokenizer != 'fineweb') # fineweb 的实现没有忽略标点
-            cache['words'] = words = split_words(text, ignore_punctuation=ignore_punctuation, model=tokenizer,
+            cache['words'] = words = split_words(text, ignore_punctuation=True, model=tokenizer,
                                                  language=get_lang_from_page(page, language_key))
             cache['words/chars'] = total_chars = sum(len(w) for w in words) # Do not count whitespace/punctuation as characters for words
         else:
@@ -721,20 +740,6 @@ def char_dup_ratio_filter(
     return [page]
 
 
-def find_duplicates(x: list[str]) -> tuple[int, int]:
-    unique_x = set()
-    duplicate_chars = 0
-    duplicate_elements = 0
-    for element in x:
-        if element in unique_x:
-            duplicate_chars += len(element)
-            duplicate_elements += 1
-
-        else:
-            unique_x.add(element)
-    return duplicate_elements, duplicate_chars
-
-
 def list_ratio_filter(
         page: Dict,
         new_line_ratio: float = 0.3,
@@ -750,3 +755,101 @@ def list_ratio_filter(
         return set_filter_reason_if_annotate(page, "list_ratio_filter"+token, annotate)
     return [page]
     
+
+"""
+fineweb gopher repetition
+"""
+
+def fineweb_gopher_repetition_filter(
+        page: Dict,
+        dup_line_frac: float | None = 0.3,
+        dup_para_frac: float | None = 0.3,
+        dup_line_char_frac: float | None = 0.2,
+        dup_para_char_frac: float | None = 0.2,
+        top_n_grams = ((2, 0.2), (3, 0.18), (4, 0.16)),
+        dup_n_grams = ((5, 0.15), (6, 0.14), (7, 0.13), (8, 0.12), (9, 0.11), (10, 0.10)),
+        language_key: str = '',
+        annotate=False,
+) -> List[Dict]:
+    language = get_lang_from_page(page, language_key)
+    text = page[CONTENT]
+    paragraph_exp = re.compile(r"\n{2,}")
+
+    paragraphs = paragraph_exp.split(text.strip())
+    paragraphs_duplicates, char_duplicates = find_duplicates(paragraphs)
+    if dup_para_frac and paragraphs_duplicates / len(paragraphs) > dup_para_frac:
+        return set_filter_reason_if_annotate(page, "massive_web_repetition_filters:paragraph", annotate)
+    if dup_para_char_frac and char_duplicates / len(text) > dup_para_char_frac:
+        return set_filter_reason_if_annotate(page, "massive_web_repetition_filters:paragraph_char", annotate)
+
+    line_splitter = re.compile("\n+")
+    lines = line_splitter.split(text)
+    line_duplicates, char_duplicates = find_duplicates(lines)
+    if dup_line_frac and line_duplicates / len(lines) > dup_line_frac:
+        return set_filter_reason_if_annotate(page, "massive_web_repetition_filters:line", annotate)
+    if dup_line_char_frac and char_duplicates / len(text) > dup_line_char_frac:
+        return set_filter_reason_if_annotate(page, "massive_web_repetition_filters:line_char", annotate)
+
+    try:
+        words = split_words(text, model='fineweb', language=language)
+    except Exception:
+        if len(text) > 1000:
+            return [page]
+        return set_filter_reason_if_annotate(page, "word_split_falied", annotate)
+
+    for n, n_frac in top_n_grams:
+        n_grams = get_n_grams(words, n)
+        if not n_grams:
+            continue
+        top_char_length = find_top_duplicate(n_grams)
+        if top_char_length / len(text) > n_frac:
+            return set_filter_reason_if_annotate(page, f"massive_web_repetition_filters:{n}_gram", annotate)
+
+    for n, n_frac in dup_n_grams:
+        n_duplicates_char = find_all_duplicate(words, n)
+        if n_duplicates_char / len(text) > n_frac:
+            return set_filter_reason_if_annotate(page, f"massive_web_repetition_filters:{n}_gram", annotate)
+
+    return [page]
+
+def get_n_grams(words: list[str], n: int) -> list[str]:
+    return [" ".join(words[i : i + n]) for i in range(len(words) - n + 1)]
+
+
+def find_duplicates(x: list[str]) -> tuple[int, int]:
+    unique_x = set()
+    duplicate_chars = 0
+    duplicate_elements = 0
+    for element in x:
+        if element in unique_x:
+            duplicate_chars += len(element)
+            duplicate_elements += 1
+
+        else:
+            unique_x.add(element)
+    return duplicate_elements, duplicate_chars
+
+
+def find_top_duplicate(x: list[str]) -> int:
+    counter = Counter()
+    for element in x:
+        counter[element] += 1
+    top_n_gram = counter.most_common(1)[0]
+    return len(top_n_gram[0]) * top_n_gram[1]
+
+
+def find_all_duplicate(words: list[str], n: int) -> int:
+    n_words = len(words)
+    unique = set()
+    repeated_chars, idx = 0, 0
+    while idx < n_words - n + 1:
+        n_gram = "".join(words[idx : idx + n])
+        if n_gram in unique:
+            print(n_gram)
+            repeated_chars += len(n_gram)
+            idx += n
+        else:
+            unique.add(n_gram)
+            idx += 1
+    assert repeated_chars <= len("".join(words))
+    return repeated_chars
