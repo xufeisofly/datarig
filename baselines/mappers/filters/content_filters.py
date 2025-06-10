@@ -682,6 +682,7 @@ def fineweb_quality_filter(
         short_line_thr: float = 0.67,
         short_line_length: int = 30,
         new_line_ratio: float = 0.3,
+        char_duplicates_ratio: float = 0.1,
         annotate=False,
         language_key: str = 'language_id_whole_page_fasttext',
         token="",
@@ -709,6 +710,11 @@ def fineweb_quality_filter(
     ratio = sum(1 for line in lines if len(line) <= short_line_length) / len(lines)
     if ratio > short_line_thr:
         return set_filter_reason_if_annotate(page, "short_line_ratio_filter"+token, annotate)
+
+    ratio = find_duplicates(lines)[1] / len(page[CONTENT].replace("\n", ""))
+
+    if ratio > char_duplicates_ratio:
+        return set_filter_reason_if_annotate(page, "char_dup_ratio_filter"+token, annotate)    
 
     words = split_words(page[CONTENT], model=model, language=language)
     new_line = page[CONTENT].count("\n")
