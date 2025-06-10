@@ -786,6 +786,8 @@ def fineweb_gopher_repetition_filter(
     except Exception:
         return set_filter_reason_if_annotate(page, "massive_web_repetition_filters:split_failed", annotate)
 
+    if len(text) == 0:
+        print("--------", text)    
     paragraphs_duplicates, char_duplicates = find_duplicates(paragraphs)
     if dup_para_frac and paragraphs_duplicates / len(paragraphs) > dup_para_frac:
         return set_filter_reason_if_annotate(page, "massive_web_repetition_filters:paragraph", annotate)
@@ -794,6 +796,9 @@ def fineweb_gopher_repetition_filter(
 
     line_splitter = re.compile("\n+")
     lines = line_splitter.split(text)
+    if len(lines) == 0:
+        print("--------", text)
+        
     line_duplicates, char_duplicates = find_duplicates(lines)
     if dup_line_frac and line_duplicates / len(lines) > dup_line_frac:
         return set_filter_reason_if_annotate(page, "massive_web_repetition_filters:line", annotate)
