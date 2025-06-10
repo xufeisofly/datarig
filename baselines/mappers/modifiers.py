@@ -864,7 +864,6 @@ def join_lines_modifier(page, delimiter='\n'):
         raise TypeError
 
 
-@factory_function
 def line_removal_modifier(
         max_removed_ratio: float = 0.05,
         max_uppercase_ratio: float = 0.99,
@@ -874,50 +873,48 @@ def line_removal_modifier(
         language_key: str = 'language_id_whole_page_fasttext',        
         annotate=False,
         token="",
-):
-    
-    def modify(page: Dict) -> List[Dict]:
-        language = get_lang_from_page(page, language_key=language_key)
-        text = page[CONTENT]
-        lines = text.split("\n")
+) -> List[Dict]:   
+    language = get_lang_from_page(page, language_key=language_key)
+    text = page[CONTENT]
+    lines = text.split("\n")
         
-        new_lines = []
-        fraction_of_words_corrected_in_lines = 0
-        num_sentences = 0
+    new_lines = []
+    fraction_of_words_corrected_in_lines = 0
+    num_sentences = 0
         
-        for line in lines:
-            # line removal
-            is_filtered, removed_words_cnt = line_filtering(
-                line,
-                max_uppercase_ratio=max_uppercase_ratio,
-                min_word_cnt_per_line=min_word_cnt_per_line)
+    for line in lines:
+        # line removal
+        is_filtered, removed_words_cnt = line_filtering(
+            line,
+            max_uppercase_ratio=max_uppercase_ratio,
+            min_word_cnt_per_line=min_word_cnt_per_line)
             
-            if not is_filtered:
-                new_lines.append(line)
-                sentences = split_into_sentences(line, language)
-                num_sentences += len(sentences)
-            # 统计被删除的单词数
-            fraction_of_words_corrected_in_lines += removed_words_cnt
+        if not is_filtered:
+            new_lines.append(line)
+            sentences = split_into_sentences(line, language)
+            num_sentences += len(sentences)
+        # 统计被删除的单词数
+        fraction_of_words_corrected_in_lines += removed_words_cnt
 
-        page[CONTENT] = "\n".join(new_lines)
-        if store_new_text:
-            page['new_text'] = page[CONTENT]
+    page[CONTENT] = "\n".join(new_lines)
+    if store_new_text:
+        page['new_text'] = page[CONTENT]
 
-        total_words_cnt = len(text.split())
-        if total_words_cnt and fraction_of_words_corrected_in_lines / total_words_cnt  > max_removed_ratio:
-            return set_filter_reason_if_annotate(page, "too_many_removed_lines"+token, annotate)
-        if num_sentences < num_of_sentences:
-            return set_filter_reason_if_annotate(page, "too_few_sentences"+token, annotate)
+    total_words_cnt = len(text.split())
+    if total_words_cnt and fraction_of_words_corrected_in_lines / total_words_cnt  > max_removed_ratio:
+        return set_filter_reason_if_annotate(page, "too_many_removed_lines"+token, annotate)
+    if len(page[CONTENT]) == 0:
+        return set_filter_reason_if_annotate(page, "too_few_sentences"+token, annotate)        
+    if num_sentences < num_of_sentences:
+        return set_filter_reason_if_annotate(page, "too_few_sentences"+token, annotate)
 
+    # line-wise doc filtering
+    for line in new_lines:
         # line-wise doc filtering
-        for line in new_lines:
-            # line-wise doc filtering
-            if "lorem ipsum" in line.lower():
-                return set_filter_reason_if_annotate(page, "lorem_ipsum"+token, annotate)
+        if "lorem ipsum" in line.lower():
+            return set_filter_reason_if_annotate(page, "lorem_ipsum"+token, annotate)
 
-        return [page]
-
-    return modify
+    return [page]
 
 
 def check_javascript(text):
