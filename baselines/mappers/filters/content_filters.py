@@ -779,15 +779,15 @@ def fineweb_gopher_repetition_filter(
 ) -> List[Dict]:
     language = get_lang_from_page(page, language_key)
     text = page[CONTENT]
+    if len(text) == 0:
+        return set_filter_reason_if_annotate(page, "massive_web_repetition_filters:empty_text", annotate)
     paragraph_exp = re.compile(r"\n{2,}")
 
     try:
         paragraphs = paragraph_exp.split(text.strip())
     except Exception:
         return set_filter_reason_if_annotate(page, "massive_web_repetition_filters:split_failed", annotate)
-
-    if len(text) == 0:
-        print("--------1", text)    
+    
     paragraphs_duplicates, char_duplicates = find_duplicates(paragraphs)
     if dup_para_frac and paragraphs_duplicates / len(paragraphs) > dup_para_frac:
         return set_filter_reason_if_annotate(page, "massive_web_repetition_filters:paragraph", annotate)
