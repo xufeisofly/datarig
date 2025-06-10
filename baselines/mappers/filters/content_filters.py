@@ -4,10 +4,11 @@ import re
 
 from baselines.mappers.core_utils import split_paragraphs, split_sentences, split_words
 from core.factory_utils import factory_function
-from core.constants import CONTENT, get_lang_from_page, set_filter_reason_if_annotate, TERMINAL_PUNCTUATION
+from core.constants import CONTENT, get_lang_from_page, set_filter_reason_if_annotate, TERMINAL_PUNCTUATION, PUNCTUATION_SET
 
 from typing import Union, Dict, List, Optional, Tuple
 from collections import Counter
+import numpy as np
 import re
 from nltk import ngrams, word_tokenize
 from transformers import AutoTokenizer
@@ -357,24 +358,29 @@ def page_length_filter(page: Dict, length_type: str, min_length: int = 1,
     """
 
     # TODO: Do we want to cache some of these splits for other methods?
-    if length_type == 'word':
-        split_text = split_words(page[CONTENT], language=get_lang_from_page(page, language_key=language_key), **kwargs)
-    elif length_type == 'sentence':
-        split_text = split_sentences(page[CONTENT], **kwargs)
-    elif length_type == 'line':
-        split_text = split_paragraphs(page[CONTENT], paragraph_end='\n', **kwargs)
-    elif length_type == 'paragraph':
-        split_text = split_paragraphs(page[CONTENT], paragraph_end='\n\n', **kwargs)
-    elif length_type == 'char':
-        split_text = page[CONTENT]
-    else:
-        raise ValueError("length_type needs to be one of {word, sentence, line, paragraph}")
+    try:
+        if length_type == 'word':
+            split_text = split_words(page[CONTENT], language=get_lang_from_page(page, language_key=language_key), **kwargs)
+        elif length_type == 'sentence':
+            split_text = split_sentences(page[CONTENT], **kwargs)
+        elif length_type == 'line':
+            split_text = split_paragraphs(page[CONTENT], paragraph_end='\n', **kwargs)
+        elif length_type == 'paragraph':
+            split_text = split_paragraphs(page[CONTENT], paragraph_end='\n\n', **kwargs)
+        elif length_type == 'char':
+            split_text = page[CONTENT]
+        else:
+            raise ValueError("length_type needs to be one of {word, sentence, line, paragraph}")
 
-    page_length = len(split_text)
-    if page_length < min_length or page_length > max_length:
-        return set_filter_reason_if_annotate(page, "page_length_filter"+token, annotate)
-    else:
-        return [page]
+        page_length = len(split_text)
+        if page_length < min_length or page_length > max_length:
+            return set_filter_reason_if_annotate(page, "page_length_filter"+token, annotate)
+        else:
+            return [page]
+    except Exception:
+        if len(page[CONTENT]) > 1000:
+            return [page]
+        return set_filter_reason_if_annotate(page, "word_split_falied"+token, annotate)
 
 
 @factory_function
@@ -768,7 +774,7 @@ def fineweb_gopher_repetition_filter(
         dup_para_char_frac: float | None = 0.2,
         top_n_grams = ((2, 0.2), (3, 0.18), (4, 0.16)),
         dup_n_grams = ((5, 0.15), (6, 0.14), (7, 0.13), (8, 0.12), (9, 0.11), (10, 0.10)),
-        language_key: str = '',
+        language_key: str = 'language_id_whole_page_fasttext',
         annotate=False,
 ) -> List[Dict]:
     language = get_lang_from_page(page, language_key)
@@ -852,3 +858,104 @@ def find_all_duplicate(words: list[str], n: int) -> int:
             idx += 1
     assert repeated_chars <= len("".join(words))
     return repeated_chars
+
+STOP_WORDS = ["the", "be", "to", "of", "and", "that", "have", "with"]
+
+def fineweb_gopher_quality_filter(
+        page: Dict,
+        min_doc_words: int = 50,
+        max_doc_words: int = 100000,
+        min_avg_word_length: int = 3,
+        max_avg_word_length: int | None = 10,
+        max_symbol_word_ratio: float | None = 0.1,
+        max_bullet_lines_ratio: float | None = 0.9,
+        max_ellipsis_lines_ratio: float | None = 0.3,
+        max_non_alpha_words_ratio: float | None = 0.8,
+        min_stop_words: int | None = 2,
+        whitelist_chars=('(', ')', '%'),
+        use_whitelist = False,
+        annotate=False,
+        language_key='',
+) -> List[Dict]:
+        text = page[CONTENT]
+        language = get_lang_from_page(page, language_key)
+        stop_words = set(STOP_WORDS)
+        try:
+            words = split_words(text, model='fineweb', language=language)
+        except Exception:
+            if len(text) > 1000:
+                return [page]
+            return []
+
+        n_words = len(words)
+
+        non_symbol_words = [w for w in words if any(ch not in PUNCTUATION_SET for ch in w)]
+        n_non_symbol_words_words = len(non_symbol_words)
+
+        # words < min_doc_words or words > max_doc_words
+        if min_doc_words and n_non_symbol_words_words < min_doc_words:
+            return set_filter_reason_if_annotate(page, "gopher_short_doc", annotate)
+        if max_doc_words and n_non_symbol_words_words > max_doc_words:
+            return set_filter_reason_if_annotate(page, "gopher_long_doc", annotate)
+
+        # mean word length is outside the range of 3 to 10 characters
+        avg_n_words = np.mean([len(w) for w in non_symbol_words])
+        if min_avg_word_length and avg_n_words < min_avg_word_length:
+            return set_filter_reason_if_annotate(page, "gopher_below_avg_threshold", annotate)
+        if max_avg_word_length and avg_n_words > max_avg_word_length:
+            return set_filter_reason_if_annotate(page, "gopher_above_avg_threshold", annotate)
+
+        # symbol-to-word ratio greater than 0.1 for either the hash symbol or the ellipsis
+        if max_symbol_word_ratio and text.count("#") / n_words > max_symbol_word_ratio:
+            return set_filter_reason_if_annotate(page, "gopher_too_many_hashes", annotate)
+        if max_symbol_word_ratio and (text.count("...") + text.count("…")) / n_words > max_symbol_word_ratio:
+            return set_filter_reason_if_annotate(page, "gopher_too_many_ellipsis", annotate)
+
+        # any document with more than 90 % of lines starting with a bullet point,
+        # or more than 30 % ending with an ellipsis.
+        lines = text.splitlines()
+        if (
+            max_bullet_lines_ratio
+            and sum(s.lstrip().startswith("•") or s.lstrip().startswith("-") for s in lines) / len(lines)
+            > max_bullet_lines_ratio
+        ):
+            return set_filter_reason_if_annotate(page, "gopher_too_many_bullets", annotate)
+        if (
+            max_ellipsis_lines_ratio
+            and sum(s.rstrip().endswith("...") or s.rstrip().endswith("…") for s in lines) / len(lines)
+            > max_ellipsis_lines_ratio
+        ):
+            return set_filter_reason_if_annotate(page, "gopher_too_many_end_ellipsis", annotate)
+
+        # that 80 % of words in a document contain at least one alphabetic character
+        if (
+            max_non_alpha_words_ratio
+            # nb of words with at least 1 alpha char < 0.8
+            and not check_non_alpha_ratio(words,
+                                          max_non_alpha_words_ratio=max_non_alpha_words_ratio,
+                                          whitelist_chars=whitelist_chars,
+                                          use_whitelist=use_whitelist)):
+            return set_filter_reason_if_annotate(page, "gopher_below_alpha_threshold", annotate)
+
+        # stop word filter
+        if min_stop_words and sum(w in stop_words for w in words) < min_stop_words:
+            return set_filter_reason_if_annotate(page, "gopher_enough_stop_words", annotate)
+
+        return [page]
+    
+
+def in_non_alpha_whitelist(w, whitelist_chars = ()):
+    return w.isdigit() or w in whitelist_chars
+
+
+def check_non_alpha_ratio(words,
+                          max_non_alpha_words_ratio,
+                          whitelist_chars,
+                          use_whitelist):
+    n_words = len(words)
+
+    # that 80 % of words in a document contain at least one alphabetic character
+    if (sum([any((c.isalpha() for c in w)) or (use_whitelist and in_non_alpha_whitelist(w, whitelist_chars)) for w in words]) / n_words < max_non_alpha_words_ratio
+    ):
+        return False
+    return True    

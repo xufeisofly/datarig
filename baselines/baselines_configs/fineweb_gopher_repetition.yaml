@@ -1,0 +1,3 @@
+- source: cc
+  steps:
+    - func: fineweb_gopher_repetition_filter
