@@ -784,8 +784,8 @@ def fineweb_gopher_repetition_filter(
     paragraphs = []
     try:
         paragraphs = paragraph_exp.split(text.strip())
-    except Exception:
-        print("======= end", page['text'])
+    except Exception as e:
+        print("======= end", page['text'], e)
     paragraphs_duplicates, char_duplicates = find_duplicates(paragraphs)
     if dup_para_frac and paragraphs_duplicates / len(paragraphs) > dup_para_frac:
         return set_filter_reason_if_annotate(page, "massive_web_repetition_filters:paragraph", annotate)
