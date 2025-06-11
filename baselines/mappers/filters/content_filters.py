@@ -3,6 +3,7 @@ from typing import List, Dict, Union, Optional
 import re
 
 from baselines.mappers.core_utils import split_paragraphs, split_sentences, split_words
+from baselines.mappers.fineweb.text import split_into_sentences
 from core.factory_utils import factory_function
 from core.constants import CONTENT, get_lang_from_page, set_filter_reason_if_annotate, TERMINAL_PUNCTUATION, PUNCTUATION_SET
 
@@ -909,7 +910,7 @@ def fineweb_gopher_quality_filter(
         whitelist_chars=('(', ')', '%'),
         use_whitelist = False,
         annotate=False,
-        language_key='',
+        language_key='language_id_whole_page_fasttext',
 ) -> List[Dict]:
         text = page[CONTENT]
         language = get_lang_from_page(page, language_key)
@@ -993,3 +994,89 @@ def check_non_alpha_ratio(words,
     ):
         return False
     return True    
+
+
+
+def fineweb_c4_filter(
+        page: Dict,
+        split_paragraph: bool = True,
+        remove_citations: bool = True,
+        filter_no_terminal_punct: bool = False,
+        min_num_sentences: int = 5,  # set to -1 to disable
+        min_words_per_line: int = 3,  # set to -1 to disable
+        max_word_length: int = 1000,  # set to -1 to disable
+        filter_lorem_ipsum: bool = True,
+        filter_javascript: bool = True,
+        filter_curly_bracket: bool = True,
+        filter_policy: bool = True,
+        annotate=False,
+        language_key='language_id_whole_page_fasttext',
+) -> List[Dict]:
+    language = get_lang_from_page(page, language_key=language_key)
+    if split_paragraph:
+        lines = page[CONTENT].splitlines()
+    else:
+        try:
+            lines = split_into_sentences(page[CONTENT], language)
+        except Exception:
+            split_paragraph = True
+            lines = page[CONTENT].splitlines()
+
+    num_sentences = 0
+    kept_lines = []
+    left_sentences = []
+
+    for line in lines:
+        line = line.strip()
+        words = line.split()
+        # check line has too long word
+        if max_word_length != -1 and any(len(word) > max_word_length for word in words):
+            continue
+        # remove citation
+        if remove_citations:
+            line = CITATION_REGEX.sub("", line)
+        # end punctuation
+        if filter_no_terminal_punct and (not line.endswith(END_PUNCTUATION) or line.endswith(ELLIPSIS)):
+            continue
+        # min words per line
+        if len(words) < min_words_per_line:
+            continue
+        line_l = line.lower()
+        # lorem ipsum
+        if filter_lorem_ipsum and "lorem ipsum" in line_l:
+            return set_filter_reason_if_annotate(page, "lorem_ipsum", annotate)
+
+        if filter_javascript and "javascript" in line_l:
+            continue
+        # bracket
+        if filter_curly_bracket and "{" in line:
+            return set_filter_reason_if_annotate(page, "curly_bracket", annotate)
+        # policy
+        if filter_policy and any(p in line_l for p in POLICY_SUBSTRINGS):
+            continue
+        
+        if min_num_sentences != -1:
+            sentences = split_into_sentences(line, language) if split_paragraph else [line]
+            num_sentences += len(sentences)
+            left_sentences += sentences
+            kept_lines.append(line)
+
+    if num_sentences < min_num_sentences:
+        return set_filter_reason_if_annotate(page, "too_few_sentences", annotate)
+
+    page[CONTENT] = ("\n" if split_paragraph else " ").join(kept_lines).strip()
+    return [page]    
+
+
+
+CITATION_REGEX = re.compile(r"\[\d*]|\[edit]|\[citation needed]")
+END_PUNCTUATION = (".", "?", "!", '"', "'")
+ELLIPSIS = "..."
+POLICY_SUBSTRINGS = [
+    "terms of use",
+    "privacy policy",
+    "cookie policy",
+    "uses cookies",
+    "use of cookies",
+    "use cookies",
+]    
