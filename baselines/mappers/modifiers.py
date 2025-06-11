@@ -365,9 +365,6 @@ def stackexchange_qa_formatter(page: Dict, remove_qa=False) -> List[Dict]:
 
 
 def move_url_modifier(page: Dict, annotate=False, token="") -> List[Dict]:
-    if not page.get(URL):
-        page[URL] = ''
-        
     uri_candidates = [
         page.get("metadata", {}).get("WARC-Target-URI"),
         page.get("metadata", {}).get("WARC_Target_URI"),
