@@ -1,7 +1,7 @@
 # V1
 - source: cc
   steps:
-    - func: move_url_modifier   # Necessary because 'url' was not set up in these jsonls, was in page['metadata']['WARC-Target-URI']
+    - func: move_url_modifier
     - func: url_substring_filter
       banlist_from_fname: baselines/mappers/banlists/refinedweb_banned_domains_curated.txt
       exact_domain_match: True
