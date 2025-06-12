@@ -29,7 +29,7 @@
     - func: fineweb_gopher_repetition_filter
       model: fasttext
     - func: fineweb_gopher_quality_filter
-      model: fasttext	
+      model: fasttext
     - func: fineweb_c4_filter
     - func: fineweb_quality_filter
-      model: fasttext	
+      model: fasttext
