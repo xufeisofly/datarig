@@ -25,9 +25,11 @@
     - func: language_filter
       key: language_id_whole_page_fasttext
       keep_languages: [ en ]
-      threshold: 0.65  
+      threshold: 0.65
+    - func: cache_split_words_modifier
     - func: line_removal_modifier
     - func: fineweb_gopher_repetition_filter
     - func: fineweb_gopher_quality_filter
       use_whitelist: True
     - func: fineweb_quality_filter
+    - func: uncache_split_words_modifier
