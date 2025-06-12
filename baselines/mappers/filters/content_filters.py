@@ -5,7 +5,7 @@ import re
 from baselines.mappers.core_utils import split_paragraphs, split_sentences, split_words
 from baselines.mappers.fineweb.text import split_into_sentences
 from core.factory_utils import factory_function
-from core.constants import CONTENT, get_lang_from_page, set_filter_reason_if_annotate, TERMINAL_PUNCTUATION, PUNCTUATION_SET
+from core.constants import CONTENT, get_lang_from_page, set_filter_reason_if_annotate, TERMINAL_PUNCTUATION, PUNCTUATION_SET, WORDS
 
 from typing import Union, Dict, List, Optional, Tuple
 from collections import Counter
@@ -674,6 +674,7 @@ def alphabetic_word_ratio_filter(page: Dict, max_ratio: float = 0.2, annotate=Fa
 
 # ========= Fineweb Custom Filters ==========
 
+
 def fineweb_quality_filter(
         page: Dict,
         line_punct_thr: float = 0.12, line_punct_exclude_zero: bool = False,
@@ -866,7 +867,7 @@ def fineweb_gopher_repetition_filter(
     if dup_line_char_frac and char_duplicates / len(text) > dup_line_char_frac:
         return set_filter_reason_if_annotate(page, "massive_web_repetition_filters:line_char", annotate)
 
-    try:
+    try: 
         words = split_words(text, model=model, language=language)
     except Exception:
         if len(text) > 1000:

@@ -111,7 +111,7 @@ def split_sentences(text: str, remove_empty: bool = True, tokenizer='blingfire',
     else:
         raise NotImplementedError("remove_empty=False is not implemented yet")
 
-
+    
 def split_words(text: str, model='fasttext', ignore_punctuation: bool = False, ignore_whitespace: bool = True, language=Languages.english) -> \
         List[str]:
     """
