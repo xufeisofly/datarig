@@ -724,6 +724,40 @@ def fineweb_quality_filter(
     return [page]
 
 
+def line_punct_ratio_filter(
+        page: Dict,
+        line_punct_thr: float = 0.12,
+        line_punct_exclude_zero: bool = False,
+        stop_chars = None,
+        high_quality_ratio_value: float = 0.75,
+        high_quality_min_line_num: int = 10,
+        annotate=False,
+        language_key: str = 'language_id_whole_page_fasttext',
+        token="",
+        model='fineweb',
+) -> List[Dict]:
+    lines = page[CONTENT].split("\n")
+    lines = [line for line in lines if line.strip() != ""]
+    if len(lines) == 0:
+        return set_filter_reason_if_annotate(page, "line_punct_ratio_filter"+token, annotate)
+
+    language = get_lang_from_page(page, language_key=language_key)
+    if not stop_chars:
+        stop_chars = tuple(TERMINAL_PUNCTUATION)
+        
+    ratio = sum(1 for line in lines if line.endswith(stop_chars)) / len(lines)
+    if ratio < line_punct_thr and not (ratio == 0 and line_punct_exclude_zero):
+        if high_quality_ratio(
+                lines,
+                model=model,
+                high_quality_min_line_num=high_quality_min_line_num,
+                language=language,
+        ) < high_quality_ratio_value:
+            return set_filter_reason_if_annotate(page, "line_punct_ratio_filter"+token, annotate)
+    
+    return [page]
+
+
 def check_line_word_num(words, min_word_num: int = 3):
     return len(words) >= min_word_num
 
@@ -917,8 +951,9 @@ def fineweb_gopher_quality_filter(
         text = page[CONTENT]
         language = get_lang_from_page(page, language_key)
         stop_words = set(STOP_WORDS)
+        tokenizer = model
         try:
-            words = split_words(text, model=model, language=language)
+            words = split_words(text, model=tokenizer, language=language)
         except Exception:
             if len(text) > 1000:
                 return [page]
