@@ -27,7 +27,7 @@
       keep_languages: [ en ]
       threshold: 0.65
     - func: fineweb_gopher_repetition_filter
-      model: fasttext	
+      model: fasttext
     - func: fineweb_gopher_quality_filter
       model: fasttext	
     - func: fineweb_c4_filter
