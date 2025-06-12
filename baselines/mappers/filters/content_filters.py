@@ -1011,6 +1011,7 @@ def fineweb_c4_filter(
         filter_curly_bracket: bool = True,
         filter_policy: bool = True,
         annotate=False,
+        model='fineweb',
         language_key='language_id_whole_page_fasttext',
 ) -> List[Dict]:
     language = get_lang_from_page(page, language_key=language_key)
@@ -1018,7 +1019,10 @@ def fineweb_c4_filter(
         lines = page[CONTENT].splitlines()
     else:
         try:
-            lines = split_into_sentences(page[CONTENT], language)
+            if model == 'fineweb':
+                lines = split_into_sentences(page[CONTENT], language)
+            else:
+                lines = split_sentences(page[CONTENT], tokenizer=model)
         except Exception:
             split_paragraph = True
             lines = page[CONTENT].splitlines()
