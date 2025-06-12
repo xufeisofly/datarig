@@ -1,7 +1,8 @@
 # Most of the code is copied/adapted from Dolma: https://github.com/allenai/dolma/blob/main/python/dolma/core/utils.py
 import re
-from typing import List
+from typing import List, Dict
 from datetime import datetime
+from core.constants import WORDS
 import hashlib
 
 import fasttext
@@ -111,6 +112,15 @@ def split_sentences(text: str, remove_empty: bool = True, tokenizer='blingfire',
     else:
         raise NotImplementedError("remove_empty=False is not implemented yet")
 
+
+def split_words_of_page(text: str, page: Dict, model='fasttext', language=Languages.english) -> List[str]:
+    words = []
+    if WORDS in page:
+        words = page.get(WORDS, [])
+    if not words:
+        words = split_words(text, model=model, language=language)
+    return words
+    
     
 def split_words(text: str, model='fasttext', ignore_punctuation: bool = False, ignore_whitespace: bool = True, language=Languages.english) -> \
         List[str]:

@@ -2,7 +2,7 @@ import os
 from typing import List, Dict, Union, Optional
 import re
 
-from baselines.mappers.core_utils import split_paragraphs, split_sentences, split_words
+from baselines.mappers.core_utils import split_paragraphs, split_sentences, split_words, split_words_of_page
 from baselines.mappers.fineweb.text import split_into_sentences
 from core.factory_utils import factory_function
 from core.constants import CONTENT, get_lang_from_page, set_filter_reason_if_annotate, TERMINAL_PUNCTUATION, PUNCTUATION_SET, WORDS
@@ -361,7 +361,7 @@ def page_length_filter(page: Dict, length_type: str, min_length: int = 1,
     # TODO: Do we want to cache some of these splits for other methods?
     try:
         if length_type == 'word':
-            split_text = split_words(page[CONTENT], language=get_lang_from_page(page, language_key=language_key), **kwargs)
+            split_text = split_words_of_page(page[CONTENT], language=get_lang_from_page(page, language_key=language_key), **kwargs)
         elif length_type == 'sentence':
             split_text = split_sentences(page[CONTENT], **kwargs)
         elif length_type == 'line':
@@ -661,7 +661,8 @@ def alphabetic_word_ratio_filter(page: Dict, max_ratio: float = 0.2, annotate=Fa
     A list containing the input JSON object if it passes the filter, or an empty list if
     it doesn't.
     """
-    words = split_words(page[CONTENT], language=get_lang_from_page(page, language_key=language_key), model=model, **kwargs)
+    language = get_lang_from_page(page, language_key=language_key)
+    words = split_words(page[CONTENT], language=language, model=model, **kwargs)
     total_words = len(words)
 
     if total_words == 0:
@@ -718,7 +719,7 @@ def fineweb_quality_filter(
     if ratio > char_duplicates_ratio:
         return set_filter_reason_if_annotate(page, "char_dup_ratio_filter"+token, annotate)    
 
-    words = split_words(page[CONTENT], model=model, language=language)
+    words = split_words_of_page(page[CONTENT], page, model=model, language=language)
     new_line = page[CONTENT].count("\n")
     if new_line / len(words) > new_line_ratio:
         return set_filter_reason_if_annotate(page, "list_ratio_filter"+token, annotate)    
@@ -818,7 +819,7 @@ def list_ratio_filter(
     if len(lines) == 0:
         return set_filter_reason_if_annotate(page, "list_ratio_filter"+token, annotate)
 
-    words = split_words(page[CONTENT], model=model)
+    words = split_words_of_page(page[CONTENT], page, model=model)
     new_line = page[CONTENT].count("\n")
     if new_line / len(words) > new_line_ratio:
         return set_filter_reason_if_annotate(page, "list_ratio_filter"+token, annotate)
@@ -867,8 +868,8 @@ def fineweb_gopher_repetition_filter(
     if dup_line_char_frac and char_duplicates / len(text) > dup_line_char_frac:
         return set_filter_reason_if_annotate(page, "massive_web_repetition_filters:line_char", annotate)
 
-    try: 
-        words = split_words(text, model=model, language=language)
+    try:
+        words = split_words_of_page(text, page, model=model, language=language)
     except Exception:
         if len(text) > 1000:
             return [page]
@@ -952,9 +953,8 @@ def fineweb_gopher_quality_filter(
         text = page[CONTENT]
         language = get_lang_from_page(page, language_key)
         stop_words = set(STOP_WORDS)
-        tokenizer = model
         try:
-            words = split_words(text, model=tokenizer, language=language)
+            words = split_words_of_page(text, page, model=model, language=language)
         except Exception:
             if len(text) > 1000:
                 return [page]
