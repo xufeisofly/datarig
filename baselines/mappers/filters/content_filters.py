@@ -149,7 +149,7 @@ def massive_web_repetition_filters(page: Dict, skip_paragraph=False, tokenizer='
     """
 
     if use_fineweb_implementation:
-        return fineweb_gopher_repetition_filter(page, language_key=language_key, annotate=annotate)
+        return fineweb_gopher_repetition_filter(page, language_key=language_key, model=tokenizer, annotate=annotate)
 
     cache = {}
     if len(repetition_filter(page, "line", 0.3, count_characters=False, cache=cache, tokenizer=tokenizer, debug=debug, language_key=language_key)) == 0:
@@ -803,6 +803,7 @@ def fineweb_gopher_repetition_filter(
         top_n_grams = ((2, 0.2), (3, 0.18), (4, 0.16)),
         dup_n_grams = ((5, 0.15), (6, 0.14), (7, 0.13), (8, 0.12), (9, 0.11), (10, 0.10)),
         language_key: str = 'language_id_whole_page_fasttext',
+        model='fineweb',
         annotate=False,
 ) -> List[Dict]:
     language = get_lang_from_page(page, language_key)
@@ -832,7 +833,7 @@ def fineweb_gopher_repetition_filter(
         return set_filter_reason_if_annotate(page, "massive_web_repetition_filters:line_char", annotate)
 
     try:
-        words = split_words(text, model='fineweb', language=language)
+        words = split_words(text, model=model, language=language)
     except Exception:
         if len(text) > 1000:
             return [page]
