@@ -911,13 +911,14 @@ def fineweb_gopher_quality_filter(
         whitelist_chars=('(', ')', '%'),
         use_whitelist = False,
         annotate=False,
+        model='fineweb',
         language_key='language_id_whole_page_fasttext',
 ) -> List[Dict]:
         text = page[CONTENT]
         language = get_lang_from_page(page, language_key)
         stop_words = set(STOP_WORDS)
         try:
-            words = split_words(text, model='fineweb', language=language)
+            words = split_words(text, model=model, language=language)
         except Exception:
             if len(text) > 1000:
                 return [page]
