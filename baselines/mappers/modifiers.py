@@ -892,8 +892,6 @@ def line_removal_modifier(
             
         if not is_filtered:
             new_lines.append(line)
-            sentences = split_into_sentences(line, language)
-            num_sentences += len(sentences)
         # 统计被删除的单词数
         fraction_of_words_corrected_in_lines += removed_words_cnt
 
@@ -905,8 +903,6 @@ def line_removal_modifier(
     if total_words_cnt and fraction_of_words_corrected_in_lines / total_words_cnt  > max_removed_ratio:
         return set_filter_reason_if_annotate(page, "too_many_removed_lines"+token, annotate)
     if len(page[CONTENT]) == 0:
-        return set_filter_reason_if_annotate(page, "too_few_sentences"+token, annotate)        
-    if num_sentences < num_of_sentences:
         return set_filter_reason_if_annotate(page, "too_few_sentences"+token, annotate)
 
     # line-wise doc filtering
@@ -914,8 +910,14 @@ def line_removal_modifier(
         # line-wise doc filtering
         if "lorem ipsum" in line.lower():
             return set_filter_reason_if_annotate(page, "lorem_ipsum"+token, annotate)
+    
+    for line in new_lines:
+        sentences = split_into_sentences(line, language)
+        num_sentences += len(sentences)
+        if num_sentences >= num_of_sentences:
+            return [page]
 
-    return [page]
+    return set_filter_reason_if_annotate(page, "too_few_sentences"+token, annotate)
 
 
 def check_javascript(text):
