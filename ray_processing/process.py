@@ -98,7 +98,6 @@ def parse_args():
     parser.add_argument("--use_task", action="store_true", help="使用 task json 文件分配任务，否则直接使用 raw_data_dirpath.")
     parser.add_argument("--use_redis_task", action="store_true", help="use task 为 true 时，use_redis_task 会使用 redis 作为消息队列，否则使用 oss 文件.")
     parser.add_argument("--annotate", action="store_true", help="不过滤只打标")
-    parser.add_argument("--no_cache_local_file", action="store_true", help="不过滤只打标")
     parser.add_argument("--retry_tasks", action="store_true", help="是否重新运行之前运行过的 tasks json")
     parser.add_argument("--output_has_dataset_name", action="store_true", help="output 目录中携带 dataset 名称")
     parser.add_argument("--oss_resumable_write", action="store_true", help="oss write 时使用 resumable")    
@@ -632,7 +631,6 @@ def process_task_item(args, task_item: TaskItem|None, with_init=True):
                         queue_id=args.queue_id,
                         split_workers=args.split_workers,
                         annotate=args.annotate,
-                        cache_local_file=(not args.no_cache_local_file),
                     )
                 )
             
