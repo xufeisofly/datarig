@@ -97,7 +97,8 @@ def parse_args():
     parser.add_argument("--overwrite", action="store_true", help="If set to true, will overwrite results.")
     parser.add_argument("--use_task", action="store_true", help="使用 task json 文件分配任务，否则直接使用 raw_data_dirpath.")
     parser.add_argument("--use_redis_task", action="store_true", help="use task 为 true 时，use_redis_task 会使用 redis 作为消息队列，否则使用 oss 文件.")
-    parser.add_argument("--annotate", action="store_true", help="不过滤只打标")    
+    parser.add_argument("--annotate", action="store_true", help="不过滤只打标")
+    parser.add_argument("--no_cache_local_file", action="store_true", help="不过滤只打标")
     parser.add_argument("--retry_tasks", action="store_true", help="是否重新运行之前运行过的 tasks json")
     parser.add_argument("--output_has_dataset_name", action="store_true", help="output 目录中携带 dataset 名称")
     parser.add_argument("--oss_resumable_write", action="store_true", help="oss write 时使用 resumable")    
@@ -116,7 +117,7 @@ def parse_args():
 # Right now, this is just how I get clear space in /tmp which quickly gets filled by s3 reads
 @ray.remote(max_calls=3)
 def process_local_chunk(
-        config_data, raw_data_dirpath, jsonl_relpath, source_name, base_output_path, workers, overwrite, max_file_size_mb=1024, shard_dir=None, oss_temp_dir=None, task_file_path=None, lock_file=None, chunk_size=1, use_redis_task=True, queue_id='default', split_workers=1, annotate=False,
+        config_data, raw_data_dirpath, jsonl_relpath, source_name, base_output_path, workers, overwrite, max_file_size_mb=1024, shard_dir=None, oss_temp_dir=None, task_file_path=None, lock_file=None, chunk_size=1, use_redis_task=True, queue_id='default', split_workers=1, annotate=False, cache_local_file=True,
 ):
     try: 
         # 先检查是否为大文件需要拆分
@@ -126,7 +127,7 @@ def process_local_chunk(
         if file_size_mb > max_file_size_mb:
             print(f"文件大小为 {file_size_mb:.2f}MB，超过 {max_file_size_mb}MB，将进行文件切分处理")
             # 切分文件并保存到OSS临时目录
-            temp_files = split_large_file(input_path, max_file_size_mb, oss_temp_dir)
+            temp_files = split_large_file(input_path, max_file_size_mb, oss_temp_dir, cache_local_file=cache_local_file)
             print(f"文件已切分为{len(temp_files)}个子文件，临时存储在{oss_temp_dir}")
             
             # 创建新任务添加到队列
@@ -174,6 +175,7 @@ def process_local_chunk(
             is_temp_file=False,  # 由任务中的is_temp决定，而不是在这里传递
             split_workers=split_workers,
             annotate=annotate,
+            cache_local_file=cache_local_file,
         )
         return RAY_CHUNK_SUCCESS, pages_in, pages_out
     except Exception as e:
@@ -630,6 +632,7 @@ def process_task_item(args, task_item: TaskItem|None, with_init=True):
                         queue_id=args.queue_id,
                         split_workers=args.split_workers,
                         annotate=args.annotate,
+                        cache_local_file=(not args.no_cache_local_file),
                     )
                 )
             

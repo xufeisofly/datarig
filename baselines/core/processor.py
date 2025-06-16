@@ -220,7 +220,7 @@ def split_large_file(input_path: str, max_size_mb: int = 1024, temp_dir: str = "
 
 def process_single_file(config_data: Dict[str, Any], raw_data_dirpath: str, jsonl_relpath: str, source_name: str, 
                         base_output_path: str, workers: int = 1, overwrite: bool = False, max_file_size_mb: int = 1024, 
-                        temp_dir: str = None, is_temp_file: bool = False, split_workers=1, annotate=False) -> Tuple[str, str, int, int, List[str]]:
+                        temp_dir: str = None, is_temp_file: bool = False, split_workers=1, annotate=False, cache_local_file=True) -> Tuple[str, str, int, int, List[str]]:
     """
     :param config_data: A processed config (from yaml) that specifies the steps to be taken
     :param raw_data_dirpath: The path to the top data directory in the data hierarchy (from which to mirror
@@ -259,7 +259,7 @@ def process_single_file(config_data: Dict[str, Any], raw_data_dirpath: str, json
     if file_size_mb > max_file_size_mb and not is_temp_file:
         print(f"文件大小为 {file_size_mb:.2f}MB，超过 {max_file_size_mb}MB，将进行文件切分处理")
         # 切分文件并保存到OSS临时目录
-        temp_files = split_large_file(input_path, max_file_size_mb, temp_dir, workers=split_workers)
+        temp_files = split_large_file(input_path, max_file_size_mb, temp_dir, workers=split_workers, cache_local_file=cache_local_file)
         print(f"文件已切分为{len(temp_files)}个子文件，临时存储在{temp_dir}")
         
         # 返回空结果和临时文件列表，让上层函数处理这些拆分的文件

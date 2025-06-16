@@ -4,6 +4,7 @@ from typing import Dict, Optional
 CONTENT = "text"
 URL = "url"
 CHUNK = "chunk"
+WORDS = "words"
 FILTER_REASON = "filter_reason"
 
 # Stats file keys

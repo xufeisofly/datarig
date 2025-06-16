@@ -129,6 +129,9 @@ def url_substring_filter(banlist: Union[str, List] = None, banlist_from_fname: s
     ignore_chars = [] if ignore_chars is None else ignore_chars
 
     def filter_fn(page: Dict):
+        if not page.get(URL):
+            return [page]
+        
         url = urlparse(page[URL]).netloc if exact_domain_match else page[URL]
         url = url.lower() if not case_sensitive else url
 

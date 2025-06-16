@@ -8,7 +8,7 @@ from retrie.retrie import Blacklist
 
 from baselines.mappers.core_utils import split_paragraphs, split_words
 from baselines.mappers.fineweb.text import split_into_sentences
-from core.constants import CONTENT, URL, get_lang_from_page, set_filter_reason_if_annotate
+from core.constants import CONTENT, URL, WORDS, get_lang_from_page, set_filter_reason_if_annotate
 from core.factory_utils import factory_function
 from bs4 import BeautifulSoup
 import random
@@ -982,3 +982,30 @@ def line_filtering(line, max_uppercase_ratio, min_word_cnt_per_line) -> tuple[bo
 
 
     return False, 0
+
+
+def cache_split_words_modifier(
+        page: Dict,
+        model='fineweb',
+        language_key: str = 'language_id_whole_page_fasttext',
+        **kwargs) -> List[Dict]:
+    """
+    此函数会将分词后的结果存到 page 的 WORDS key 中，给其他函数使用，避免重复分词
+    """
+    language = get_lang_from_page(page, language_key)
+    try:
+        words = split_words(page[CONTENT], model=model, language=language)
+        page[WORDS] = words
+    except Exception:
+        return [page]
+    return [page]
+
+
+def uncache_split_words_modifier(
+        page: Dict,
+        **kwargs) -> List[Dict]:
+    """
+    删掉函数中的 WORDS
+    """
+    page.pop(WORDS, None)
+    return [page]

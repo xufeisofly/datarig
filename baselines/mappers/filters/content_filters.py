@@ -2,9 +2,10 @@ import os
 from typing import List, Dict, Union, Optional
 import re
 
-from baselines.mappers.core_utils import split_paragraphs, split_sentences, split_words
+from baselines.mappers.core_utils import split_paragraphs, split_sentences, split_words, split_words_of_page
+from baselines.mappers.fineweb.text import split_into_sentences
 from core.factory_utils import factory_function
-from core.constants import CONTENT, get_lang_from_page, set_filter_reason_if_annotate, TERMINAL_PUNCTUATION, PUNCTUATION_SET
+from core.constants import CONTENT, get_lang_from_page, set_filter_reason_if_annotate, TERMINAL_PUNCTUATION, PUNCTUATION_SET, WORDS
 
 from typing import Union, Dict, List, Optional, Tuple
 from collections import Counter
@@ -148,7 +149,7 @@ def massive_web_repetition_filters(page: Dict, skip_paragraph=False, tokenizer='
     """
 
     if use_fineweb_implementation:
-        return fineweb_gopher_repetition_filter(page, language_key=language_key, annotate=annotate)
+        return fineweb_gopher_repetition_filter(page, language_key=language_key, model=tokenizer, annotate=annotate)
 
     cache = {}
     if len(repetition_filter(page, "line", 0.3, count_characters=False, cache=cache, tokenizer=tokenizer, debug=debug, language_key=language_key)) == 0:
@@ -360,7 +361,7 @@ def page_length_filter(page: Dict, length_type: str, min_length: int = 1,
     # TODO: Do we want to cache some of these splits for other methods?
     try:
         if length_type == 'word':
-            split_text = split_words(page[CONTENT], language=get_lang_from_page(page, language_key=language_key), **kwargs)
+            split_text = split_words_of_page(page[CONTENT], language=get_lang_from_page(page, language_key=language_key), **kwargs)
         elif length_type == 'sentence':
             split_text = split_sentences(page[CONTENT], **kwargs)
         elif length_type == 'line':
@@ -660,7 +661,8 @@ def alphabetic_word_ratio_filter(page: Dict, max_ratio: float = 0.2, annotate=Fa
     A list containing the input JSON object if it passes the filter, or an empty list if
     it doesn't.
     """
-    words = split_words(page[CONTENT], language=get_lang_from_page(page, language_key=language_key), model=model, **kwargs)
+    language = get_lang_from_page(page, language_key=language_key)
+    words = split_words(page[CONTENT], language=language, model=model, **kwargs)
     total_words = len(words)
 
     if total_words == 0:
@@ -672,6 +674,7 @@ def alphabetic_word_ratio_filter(page: Dict, max_ratio: float = 0.2, annotate=Fa
     return [page] if non_alpha_word_ratio <= max_ratio else set_filter_reason_if_annotate(page, "alphabetic_word_ratio_filter"+token, annotate)
 
 # ========= Fineweb Custom Filters ==========
+
 
 def fineweb_quality_filter(
         page: Dict,
@@ -716,10 +719,44 @@ def fineweb_quality_filter(
     if ratio > char_duplicates_ratio:
         return set_filter_reason_if_annotate(page, "char_dup_ratio_filter"+token, annotate)    
 
-    words = split_words(page[CONTENT], model=model, language=language)
+    words = split_words_of_page(page[CONTENT], page, model=model, language=language)
     new_line = page[CONTENT].count("\n")
     if new_line / len(words) > new_line_ratio:
         return set_filter_reason_if_annotate(page, "list_ratio_filter"+token, annotate)    
+    return [page]
+
+
+def line_punct_ratio_filter(
+        page: Dict,
+        line_punct_thr: float = 0.12,
+        line_punct_exclude_zero: bool = False,
+        stop_chars = None,
+        high_quality_ratio_value: float = 0.75,
+        high_quality_min_line_num: int = 10,
+        annotate=False,
+        language_key: str = 'language_id_whole_page_fasttext',
+        token="",
+        model='fineweb',
+) -> List[Dict]:
+    lines = page[CONTENT].split("\n")
+    lines = [line for line in lines if line.strip() != ""]
+    if len(lines) == 0:
+        return set_filter_reason_if_annotate(page, "line_punct_ratio_filter"+token, annotate)
+
+    language = get_lang_from_page(page, language_key=language_key)
+    if not stop_chars:
+        stop_chars = tuple(TERMINAL_PUNCTUATION)
+        
+    ratio = sum(1 for line in lines if line.endswith(stop_chars)) / len(lines)
+    if ratio < line_punct_thr and not (ratio == 0 and line_punct_exclude_zero):
+        if high_quality_ratio(
+                lines,
+                model=model,
+                high_quality_min_line_num=high_quality_min_line_num,
+                language=language,
+        ) < high_quality_ratio_value:
+            return set_filter_reason_if_annotate(page, "line_punct_ratio_filter"+token, annotate)
+    
     return [page]
 
 
@@ -782,7 +819,7 @@ def list_ratio_filter(
     if len(lines) == 0:
         return set_filter_reason_if_annotate(page, "list_ratio_filter"+token, annotate)
 
-    words = split_words(page[CONTENT], model=model)
+    words = split_words_of_page(page[CONTENT], page, model=model)
     new_line = page[CONTENT].count("\n")
     if new_line / len(words) > new_line_ratio:
         return set_filter_reason_if_annotate(page, "list_ratio_filter"+token, annotate)
@@ -802,6 +839,7 @@ def fineweb_gopher_repetition_filter(
         top_n_grams = ((2, 0.2), (3, 0.18), (4, 0.16)),
         dup_n_grams = ((5, 0.15), (6, 0.14), (7, 0.13), (8, 0.12), (9, 0.11), (10, 0.10)),
         language_key: str = 'language_id_whole_page_fasttext',
+        model='fineweb',
         annotate=False,
 ) -> List[Dict]:
     language = get_lang_from_page(page, language_key)
@@ -831,7 +869,7 @@ def fineweb_gopher_repetition_filter(
         return set_filter_reason_if_annotate(page, "massive_web_repetition_filters:line_char", annotate)
 
     try:
-        words = split_words(text, model='fineweb', language=language)
+        words = split_words_of_page(text, page, model=model, language=language)
     except Exception:
         if len(text) > 1000:
             return [page]
@@ -909,13 +947,14 @@ def fineweb_gopher_quality_filter(
         whitelist_chars=('(', ')', '%'),
         use_whitelist = False,
         annotate=False,
-        language_key='',
+        model='fineweb',
+        language_key='language_id_whole_page_fasttext',
 ) -> List[Dict]:
         text = page[CONTENT]
         language = get_lang_from_page(page, language_key)
         stop_words = set(STOP_WORDS)
         try:
-            words = split_words(text, model='fineweb', language=language)
+            words = split_words_of_page(text, page, model=model, language=language)
         except Exception:
             if len(text) > 1000:
                 return [page]
@@ -993,3 +1032,93 @@ def check_non_alpha_ratio(words,
     ):
         return False
     return True    
+
+
+
+def fineweb_c4_filter(
+        page: Dict,
+        split_paragraph: bool = True,
+        remove_citations: bool = True,
+        filter_no_terminal_punct: bool = False,
+        min_num_sentences: int = 5,  # set to -1 to disable
+        min_words_per_line: int = 3,  # set to -1 to disable
+        max_word_length: int = 1000,  # set to -1 to disable
+        filter_lorem_ipsum: bool = True,
+        filter_javascript: bool = True,
+        filter_curly_bracket: bool = True,
+        filter_policy: bool = True,
+        annotate=False,
+        model='fineweb',
+        language_key='language_id_whole_page_fasttext',
+) -> List[Dict]:
+    language = get_lang_from_page(page, language_key=language_key)
+    if split_paragraph:
+        lines = page[CONTENT].splitlines()
+    else:
+        try:
+            if model == 'fineweb':
+                lines = split_into_sentences(page[CONTENT], language)
+            else:
+                lines = split_sentences(page[CONTENT], tokenizer=model)
+        except Exception:
+            split_paragraph = True
+            lines = page[CONTENT].splitlines()
+
+    num_sentences = 0
+    kept_lines = []
+    left_sentences = []
+
+    for line in lines:
+        line = line.strip()
+        words = line.split()
+        # check line has too long word
+        if max_word_length != -1 and any(len(word) > max_word_length for word in words):
+            continue
+        # remove citation
+        if remove_citations:
+            line = CITATION_REGEX.sub("", line)
+        # end punctuation
+        if filter_no_terminal_punct and (not line.endswith(END_PUNCTUATION) or line.endswith(ELLIPSIS)):
+            continue
+        # min words per line
+        if len(words) < min_words_per_line:
+            continue
+        line_l = line.lower()
+        # lorem ipsum
+        if filter_lorem_ipsum and "lorem ipsum" in line_l:
+            return set_filter_reason_if_annotate(page, "lorem_ipsum", annotate)
+
+        if filter_javascript and "javascript" in line_l:
+            continue
+        # bracket
+        if filter_curly_bracket and "{" in line:
+            return set_filter_reason_if_annotate(page, "curly_bracket", annotate)
+        # policy
+        if filter_policy and any(p in line_l for p in POLICY_SUBSTRINGS):
+            continue
+        
+        if min_num_sentences != -1:
+            sentences = split_into_sentences(line, language) if split_paragraph else [line]
+            num_sentences += len(sentences)
+            left_sentences += sentences
+            kept_lines.append(line)
+
+    if num_sentences < min_num_sentences:
+        return set_filter_reason_if_annotate(page, "too_few_sentences", annotate)
+
+    page[CONTENT] = ("\n" if split_paragraph else " ").join(kept_lines).strip()
+    return [page]    
+
+
+
+CITATION_REGEX = re.compile(r"\[\d*]|\[edit]|\[citation needed]")
+END_PUNCTUATION = (".", "?", "!", '"', "'")
+ELLIPSIS = "..."
+POLICY_SUBSTRINGS = [
+    "terms of use",
+    "privacy policy",
+    "cookie policy",
+    "uses cookies",
+    "use of cookies",
+    "use cookies",
+]    

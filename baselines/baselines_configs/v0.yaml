@@ -1,7 +1,7 @@
 # V1
 - source: cc
   steps:
-    - func: move_url_modifier   # Necessary because 'url' was not set up in these jsonls, was in page['metadata']['WARC-Target-URI']
+    - func: move_url_modifier
     - func: url_substring_filter
       banlist_from_fname: baselines/mappers/banlists/refinedweb_banned_domains_curated.txt
       exact_domain_match: True
@@ -27,9 +27,8 @@
       keep_languages: [ en ]
       threshold: 0.65
     - func: cache_split_words_modifier
-    - func: line_removal_modifier
     - func: fineweb_gopher_repetition_filter
     - func: fineweb_gopher_quality_filter
-      use_whitelist: True
+    - func: uncache_split_words_modifier	
+    - func: fineweb_c4_filter
     - func: fineweb_quality_filter
-    - func: uncache_split_words_modifier
