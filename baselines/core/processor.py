@@ -249,21 +249,21 @@ def process_single_file(config_data: Dict[str, Any], raw_data_dirpath: str, json
     input_path = os.path.join(raw_data_dirpath, jsonl_relpath)
     
     # 设置默认临时目录（如果未提供）
-    if temp_dir is None:
-        temp_dir = "oss://si002558te8h/dclm/temp_files"
+    # if temp_dir is None:
+    #     temp_dir = "oss://si002558te8h/dclm/temp_files"
     
-    # 检查文件大小并决定是否需要切分
-    file_size_mb = get_file_size(input_path) / (1024 * 1024)
+    # # 检查文件大小并决定是否需要切分
+    # file_size_mb = get_file_size(input_path) / (1024 * 1024)
     
-    temp_files = []
-    if file_size_mb > max_file_size_mb and not is_temp_file:
-        print(f"文件大小为 {file_size_mb:.2f}MB，超过 {max_file_size_mb}MB，将进行文件切分处理")
-        # 切分文件并保存到OSS临时目录
-        temp_files = split_large_file(input_path, max_file_size_mb, temp_dir, workers=split_workers, cache_local_file=cache_local_file)
-        print(f"文件已切分为{len(temp_files)}个子文件，临时存储在{temp_dir}")
+    # temp_files = []
+    # if file_size_mb > max_file_size_mb and not is_temp_file:
+    #     print(f"文件大小为 {file_size_mb:.2f}MB，超过 {max_file_size_mb}MB，将进行文件切分处理")
+    #     # 切分文件并保存到OSS临时目录
+    #     temp_files = split_large_file(input_path, max_file_size_mb, temp_dir, workers=split_workers, cache_local_file=cache_local_file)
+    #     print(f"文件已切分为{len(temp_files)}个子文件，临时存储在{temp_dir}")
         
-        # 返回空结果和临时文件列表，让上层函数处理这些拆分的文件
-        return "", "", 0, 0, temp_files
+    #     # 返回空结果和临时文件列表，让上层函数处理这些拆分的文件
+    #     return "", "", 0, 0, temp_files
     
     print(f"处理文件: {input_path}")
     pages = list(read_jsonl(input_path))
