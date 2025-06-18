@@ -1,0 +1,73 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: datarig1-v4-40
+spec:
+  parallelism: 40
+  completions: 40
+  backoffLimit: 5  # 如果任务失败后不希望重试，则设置为 0；否则设置为需要的重试次数
+  template:
+    metadata:
+      labels:
+        app: dclm-sci
+    spec:
+      imagePullSecrets:
+        - name: cr-docker-registry
+      containers:
+      - name: dclm-sci
+        image: cr.registry.res.cloud.zhejianglab.com/dataprocess/datarig:v4.4
+        resources:
+          requests:
+            cpu: "6"
+            memory: "24Gi"
+          limits:
+            cpu: "7"
+            memory: "28Gi"
+        command: ["/app/dclm-sci/start.sh"]
+        env:
+          - name: RAY_DEDUP_LOGS
+            value: "0"
+          - name: RAY_BACKEND_LOG_LEVEL
+            value: "error"		
+          - name: REDIS_HOST
+            value: "10.200.48.152"
+          - name: REDIS_PORT
+            value: "6380"			
+        args:
+          - "--readable_name"
+          - "s1"
+          - "--output_dir"
+          - "oss://si002558te8h/dclm/output/dclm_pool_prepared/"
+          - "--config_path"
+          - "baselines/baselines_configs/urlfilter.yaml"
+          - "--oss_temp_dir"
+          - "oss://si002558te8h/dclm/temp_dir_500/"
+          - "--source_name"
+          - "cc"
+          - "--max_file_size_mb"
+          - "500"
+          - "--queue_id"
+          - "url"
+          - "--ray_num_cpus"
+          - "1"
+          - "--workers"
+          - "1"
+          - "--split_workers"
+          - "4"		  
+          - "--chunk_size"
+          - "8"
+          - "--output_has_dataset_name"
+          - "--overwrite"
+          - "--use_task"
+          - "--use_redis_task"
+          - "--ignore_failures"
+        volumeMounts:
+          - name: dclm-config-volume
+            mountPath: "/app/dclm-sci/baselines/baselines_configs/urlfilter.yaml"
+            subPath: "urlfilter.yaml"
+        imagePullPolicy: IfNotPresent
+      volumes:
+        - name: dclm-config-volume
+          configMap:
+            name: dclm-config		
+      restartPolicy: OnFailure
