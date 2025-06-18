@@ -33,7 +33,7 @@ for all the ray_process.py to accept.
 
 
 
-def create_task_items(shard_dir: str, mode: str, chunk_size: int) -> List[dict]:
+def create_task_items(shard_dir: str, mode: str, chunk_size: int, only_processed_data=False) -> List[dict]:
     tasks = []
     bucket_name, path = oss.split_file_path(shard_dir) 
     bucket = oss.Bucket(bucket_name)
@@ -70,20 +70,21 @@ def create_task_items(shard_dir: str, mode: str, chunk_size: int) -> List[dict]:
             return tasks
 
     # 如果不是 dedup 模式或者不是 subject= 目录，按原来的逻辑处理
-    file_paths = oss.get_sub_files(bucket, path)
-    if len(file_paths) > 0:
-        if chunk_size == -1:
-            tasks.append(TaskItem(shard_dir, [0, -1], files=file_paths).to_dict())
-        else:
-            total = len(file_paths)
-            start = 0
-            while start < total:
-                end = start+chunk_size
-                if end >= total:
-                    end = total
-                file_range = [start, end]
-                tasks.append(TaskItem(shard_dir, file_range, files=[]).to_dict())
-                start += chunk_size
+    if not only_processed_data or 'processed_data' in path:
+        file_paths = oss.get_sub_files(bucket, path)
+        if len(file_paths) > 0:
+            if chunk_size == -1:
+                tasks.append(TaskItem(shard_dir, [0, -1], files=file_paths).to_dict())
+            else:
+                total = len(file_paths)
+                start = 0
+                while start < total:
+                    end = start+chunk_size
+                    if end >= total:
+                        end = total
+                    file_range = [start, end]
+                    tasks.append(TaskItem(shard_dir, file_range, files=[]).to_dict())
+                    start += chunk_size
 
     # 递归处理子目录
     sub_dirs = oss.get_sub_folders(bucket, path)
@@ -92,12 +93,12 @@ def create_task_items(shard_dir: str, mode: str, chunk_size: int) -> List[dict]:
 
     for sub_dir in sub_dirs:
         sub_dir = os.path.join("oss://" + bucket_name, sub_dir)
-        tasks += create_task_items(sub_dir, mode, chunk_size)
+        tasks += create_task_items(sub_dir, mode, chunk_size, only_processed_data=only_processed_data)
     return tasks
 
     
-def asign_task(parent_dir: str, tasks_file_path: str, mode: str='process', chunk_size=-1, use_redis_task=False, queue_id='default'):
-    all_task_items = create_task_items(parent_dir, mode, chunk_size)
+def asign_task(parent_dir: str, tasks_file_path: str, mode: str='process', chunk_size=-1, use_redis_task=False, queue_id='default', only_processed_data=False):
+    all_task_items = create_task_items(parent_dir, mode, chunk_size, only_processed_data=only_processed_data)
         
     data = all_task_items
 
@@ -138,6 +139,7 @@ if __name__ == '__main__':
     parser.add_argument("--chunk_size", help="", type=int, default=-1)
     parser.add_argument("--mode", help="process/dedup", type=str, default='process')
     parser.add_argument("--queue_id", help="redis task queue id", type=str, default='default')
-    parser.add_argument("--use_redis_task", action="store_true", help="use task 为 true 时，use_redis_task 会使用 redis 作为消息队列，否则使用 oss 文件.")    
+    parser.add_argument("--use_redis_task", action="store_true", help="use task 为 true 时，use_redis_task 会使用 redis 作为消息队列，否则使用 oss 文件.")
+    parser.add_argument("--only_processed_data", action="store_true", help="只摘取子目录中有 processed_data 的")
     args = parser.parse_args()    
-    asign_task(args.parent_dir, args.tasks_file_path, args.mode, args.chunk_size, args.use_redis_task, args.queue_id)
+    asign_task(args.parent_dir, args.tasks_file_path, args.mode, args.chunk_size, args.use_redis_task, args.queue_id, args.only_processed_data)
