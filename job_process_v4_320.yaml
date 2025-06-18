@@ -18,11 +18,11 @@ spec:
         image: cr.registry.res.cloud.zhejianglab.com/dataprocess/datarig:v4.4
         resources:
           requests:
-            cpu: "6"
-            memory: "24Gi"
+            cpu: "4"
+            memory: "20Gi"
           limits:
-            cpu: "7"
-            memory: "28Gi"
+            cpu: "5"
+            memory: "22Gi"
         command: ["/app/dclm-sci/start.sh"]
         env:
           - name: RAY_DEDUP_LOGS
