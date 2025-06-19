@@ -539,6 +539,7 @@ def process_task_item(args, task_item: TaskItem|None, with_init=True):
         return os.path.join(output, args.readable_name, origin_dataset_name, shard_name)    
     
     output_dir = get_output_dir(args.output_dir, shard_name, args.output_has_dataset_name)
+    print(f"[OUTPUT_DIR]: {output_dir} [DATASET_NAME]: {origin_dataset_name} [SHARD_NAME]: {shard_name}")
     source_name = args.source_name
     
     # base output path 去掉 config_name，使用自定义的 readable name 去区分不同的 pipeline
