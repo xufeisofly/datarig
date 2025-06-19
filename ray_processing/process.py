@@ -476,7 +476,9 @@ def process_task_item(args, task_item: TaskItem|None, with_init=True):
     shard_dir = None
 
     def drop_processed_data(path):
-        last_dir = os.path.basename(os.path.normpath(path))
+        path = path.rstrip("/")
+        last_dir = path.split("/")[-1]
+
         if last_dir == "processed_data":
             path = os.path.dirname(path)
         if not path.endswith('/'):
@@ -488,7 +490,7 @@ def process_task_item(args, task_item: TaskItem|None, with_init=True):
         shard_dir = task_item.get_shard_dir() if not origin_shard_dir else origin_shard_dir
 
         shard_dir_no_processed = drop_processed_data(shard_dir)
-        shard_name = shard_dir.split('/')[-2] if '/' in shard_dir_no_processed else shard_dir_no_processed
+        shard_name = shard_dir_no_processed.split('/')[-2] if '/' in shard_dir_no_processed else shard_dir_no_processed
         origin_dataset_name = shard_dir_no_processed.split('/')[-3]
         task_input_dirpath = task_item.get_shard_dir()
         file_range = task_item.get_file_range()
