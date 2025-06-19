@@ -1,7 +1,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: c4noclean-prepare
+  name: c4-noclean-prepare
 spec:
   parallelism: 60 # 5x(4-5)C=20C-25C 5x(10-12)G=50-60G per node, (20C-25C)x89 = 1780C-2225C max: 445pod
   completions: 60
@@ -35,7 +35,7 @@ spec:
             value: "6380"			
         args:
           - "--readable_name"
-          - "c4noclean_prepare"
+          - "c4_noclean_prepare"
           - "--output_dir"
           - "oss://si002558te8h/dclm/output/"
           - "--config_path"
@@ -47,7 +47,7 @@ spec:
           - "--max_file_size_mb"
           - "500"
           - "--queue_id"
-          - "c4noclean_prepare"
+          - "default2"
           - "--ray_num_cpus"
           - "1"
           - "--workers"
