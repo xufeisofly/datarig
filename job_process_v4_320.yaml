@@ -1,10 +1,10 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: datarig1-v4-40
+  name: datarig1-v4-40-2
 spec:
-  parallelism: 1
-  completions: 1
+  parallelism: 39
+  completions: 39
   backoffLimit: 5  # 如果任务失败后不希望重试，则设置为 0；否则设置为需要的重试次数
   template:
     metadata:
