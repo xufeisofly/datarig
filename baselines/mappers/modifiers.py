@@ -704,8 +704,8 @@ def url_removal_modifier(tlds_filepath="baselines/mappers/iana_tlds.txt", annota
         rf'\s{{0,10}}(?:((https?|ftp)://))?[-a-zA-Z0-9@:%._\+~#=]{{1,256}}\.({tlds_regex.pattern})\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)')
 
     # Regex to detect IP addresses
-    ipv4_regex = re.compile(
-        r'\s{0,10}\b((https?|ftp)://)?(?:[0-2]?[0-9]{1,2}\.){3}[0-2]?[0-9]{1,2}[-a-zA-Z0-9()@:%_\+.~#?&//=]*')
+    # ipv4_regex = re.compile(r'\s{0,10}\b((https?|ftp)://)?(?:[0-2]?[0-9]{1,2}\.){3}[0-2]?[0-9]{1,2}[-a-zA-Z0-9()@:%_\+.~#?&//=]*')
+    ipv4_regex = re.compile(r"(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)")
 
     def modify(page: Dict) -> List[Dict]:
         # First, check for URLs based on TLDs
@@ -723,6 +723,64 @@ def url_removal_modifier(tlds_filepath="baselines/mappers/iana_tlds.txt", annota
     return modify
 
 
+@factory_function
+def email_and_phone_removal_modifier(annotate=False, token=""):
+    """removes email addresses and phone numbers from the content of a page
+    This modifier uses a regex to detect email addresses and phone numbers, and removes them from the content.
+
+    Returns:
+    A list containing the input JSON object with email or phone in the text removec
+    """
+    
+    # Regex to detect email addresses
+    email_regex = re.compile(r"\b[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+)*@(?:(?:[A-Za-z0-9](?:["
+            r"A-Za-z0-9-]*[A-Za-z0-9])?\.)+[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?|\[(?:(?:25[0-5]|2[0-4][0-9]|["
+            r"01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?|[A-Za-z0-9-]*[A-Za-z0-9]:)])")
+    
+    # Regex to detect phone numbers
+    phone_regex = re.compile(r'(?:\+\d{1,3}[\s-]?(?:$\d{3}$|\d{3})[\s.-]?\d{3,4}[\s.-]?\d{4}|\d{3}[-.\s]?\d{3}[-.\s]?\d{4}|\b\d{7,}\b)\b')
+    def modify(page: Dict) -> List[Dict]:
+        # First, remove email addresses
+        page[CONTENT] = email_regex.sub("", page[CONTENT])
+    
+        # Next, remove phone numbers
+        page[CONTENT] = phone_regex.sub("", page[CONTENT])
+
+        if page[CONTENT] == '':
+            return set_filter_reason_if_annotate(page, "email_and_phone_removal_modifier"+token, annotate)
+
+        return [page]
+
+    return modify
+
+@factory_function
+def prohibited_words_modifier(ldnoobw_filepath="baselines/mappers/banlists/ldnoobw.txt", annotate=False, token="") -> List[Dict]:
+    """
+    filters the input JSON object - Removes all prohibited words within the content of a page
+    Arguments:
+    
+    ldnoobw_filepath -- Path to a text file where the list of prohibited words is stored. The default is the path
+
+    Returns:
+    A list containing the input JSON object if it passes the filter
+    """
+    with open(ldnoobw_filepath, "r") as file:
+        ldnoobw_list = [ldb.strip() for ldb in file.readlines()]
+
+    def modify(page: Dict) -> List[Dict]:
+        # Check for words based on ldnoobw
+        for word in ldnoobw_list:
+            # Create a regex pattern to match the word
+            pattern = re.compile(word, flags=re.IGNORECASE)
+            # Replace the word with an empty string
+            page[CONTENT] = pattern.sub("", page[CONTENT])
+
+        if page[CONTENT] == '':
+            return set_filter_reason_if_annotate(page, "prohibited_words_modifier"+token, annotate)
+        return [page]
+
+    return modify
+    
 @factory_function
 def counter_line_modifier(annotate=False, token="") -> List[Dict]:
     """
@@ -879,6 +937,12 @@ def line_removal_modifier(
     text = page[CONTENT]
     lines = text.split("\n")
         
+    # line-wise doc filtering
+    for line in new_lines:
+        # line-wise doc filtering
+        if "lorem ipsum" in line.lower():
+            return set_filter_reason_if_annotate(page, "lorem_ipsum"+token, annotate)
+        
     new_lines = []
     fraction_of_words_corrected_in_lines = 0
     num_sentences = 0
@@ -905,11 +969,7 @@ def line_removal_modifier(
     if len(page[CONTENT]) == 0:
         return set_filter_reason_if_annotate(page, "too_few_sentences"+token, annotate)
 
-    # line-wise doc filtering
-    for line in new_lines:
-        # line-wise doc filtering
-        if "lorem ipsum" in line.lower():
-            return set_filter_reason_if_annotate(page, "lorem_ipsum"+token, annotate)
+
     
     for line in new_lines:
         sentences = split_into_sentences(line, language)
@@ -957,6 +1017,10 @@ def line_filtering(line, max_uppercase_ratio, min_word_cnt_per_line) -> tuple[bo
     # if not line_norm.endswith((".", "?", "!", '"')):  # Done: Check if we need to use this
     #     return False, "C4_not_ending_with_terminal_punctuation"
 
+    # 1.3.4 Remove lines with only a few word
+    if word_cnt_line < min_word_cnt_per_line:  # TODO: decide the threshold
+        return True, word_cnt_line  #, "1.3.4_RefinedWeb_line_too_short"
+    
     # 1.2 Remove lines containing word "javascript"
     # if "javascript" in line_norm:  # Done: refine the strategy
     if check_javascript(line_norm):
@@ -978,9 +1042,7 @@ def line_filtering(line, max_uppercase_ratio, min_word_cnt_per_line) -> tuple[bo
     # 1.3.3 Remove lines of counter
     if is_counter(line_norm):
         return True, word_cnt_line  #, "1.3.3_RefinedWeb_is_counter"
-    # 1.3.4 Remove lines with only a few word
-    if word_cnt_line < min_word_cnt_per_line:  # TODO: decide the threshold
-        return True, word_cnt_line  #, "1.3.4_RefinedWeb_line_too_short"
+    
 
 
     return False, 0
