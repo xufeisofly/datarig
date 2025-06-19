@@ -3,8 +3,8 @@ kind: Job
 metadata:
   name: datarig1-v4-40
 spec:
-  parallelism: 40
-  completions: 40
+  parallelism: 1
+  completions: 1
   backoffLimit: 5  # 如果任务失败后不希望重试，则设置为 0；否则设置为需要的重试次数
   template:
     metadata:
