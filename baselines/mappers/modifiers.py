@@ -1012,7 +1012,7 @@ def check_cookie(text):
     "use of cookies",
     "use cookies",
 ]    
-    if any(p in line_l for p in POLICY_SUBSTRINGS):
+    if any(p in text for p in POLICY_SUBSTRINGS):
         return True
     return False
 
