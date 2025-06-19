@@ -69,5 +69,5 @@ spec:
       volumes:
         - name: dclm-config-volume
           configMap:
-            name: dclm-config		
+            name: dclm-config
       restartPolicy: OnFailure
