@@ -474,12 +474,20 @@ def process_task_item(args, task_item: TaskItem|None, with_init=True):
     files = None
     is_temp = False
     shard_dir = None
+
+    def drop_processed_data(path):
+        last_dir = os.path.basename(os.path.normpath(path))
+        if last_dir == "processed_data":
+            return os.path.dirname(path)
+        return path    
     
     if task_item is not None:
         origin_shard_dir = task_item.get_original_shard_dir()
         shard_dir = task_item.get_shard_dir() if not origin_shard_dir else origin_shard_dir
-        shard_name = shard_dir.split('/')[-2] if '/' in shard_dir else shard_dir
-        origin_dataset_name = shard_dir.split('/')[-3]
+
+        shard_dir_no_processed = drop_processed_data(shard_dir)
+        shard_name = shard_dir.split('/')[-2] if '/' in shard_dir_no_processed else shard_dir_no_processed
+        origin_dataset_name = shard_dir_no_processed.split('/')[-3]
         task_input_dirpath = task_item.get_shard_dir()
         file_range = task_item.get_file_range()
         files = task_item.get_files() if hasattr(task_item, 'get_files') else []
@@ -520,19 +528,13 @@ def process_task_item(args, task_item: TaskItem|None, with_init=True):
     config_path = args.config_path
     
     def get_output_dir(output, shard_name, with_dataset_name=False):
-        def drop_processed_data(path):
-            last_dir = os.path.basename(os.path.normpath(path))
-            if last_dir == "processed_data":
-                return os.path.dirname(path)
-            return path
-        
         if shard_name == '':
-            return drop_processed_data(os.path.join(output, args.readable_name))
+            return os.path.join(output, args.readable_name)
         if origin_dataset_name == '' or not with_dataset_name:
             # output dir: oss://si002558te8h/dclm/output/sci_test/CC-MAIN-2014-11/
-            return drop_processed_data(os.path.join(output, args.readable_name, shard_name))
+            return os.path.join(output, args.readable_name, shard_name)
         # output dir: oss://si002558te8h/dclm/output/sci_test/Math/CC-MAIN-2014-11/
-        return drop_processed_data(os.path.join(output, args.readable_name, origin_dataset_name, shard_name))    
+        return os.path.join(output, args.readable_name, origin_dataset_name, shard_name)    
     
     output_dir = get_output_dir(args.output_dir, shard_name, args.output_has_dataset_name)
     source_name = args.source_name
