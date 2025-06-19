@@ -520,13 +520,19 @@ def process_task_item(args, task_item: TaskItem|None, with_init=True):
     config_path = args.config_path
     
     def get_output_dir(output, shard_name, with_dataset_name=False):
+        def drop_processed_data(path):
+            last_dir = os.path.basename(os.path.normpath(path))
+            if last_dir == "processed_data":
+                return os.path.dirname(os.path.normpath(path))
+            return path
+        
         if shard_name == '':
-            return os.path.join(output, args.readable_name)
+            return drop_processed_data(os.path.join(output, args.readable_name))
         if origin_dataset_name == '' or not with_dataset_name:
             # output dir: oss://si002558te8h/dclm/output/sci_test/CC-MAIN-2014-11/
-            return os.path.join(output, args.readable_name, shard_name)
+            return drop_processed_data(os.path.join(output, args.readable_name, shard_name))
         # output dir: oss://si002558te8h/dclm/output/sci_test/Math/CC-MAIN-2014-11/
-        return os.path.join(output, args.readable_name, origin_dataset_name, shard_name)    
+        return drop_processed_data(os.path.join(output, args.readable_name, origin_dataset_name, shard_name))    
     
     output_dir = get_output_dir(args.output_dir, shard_name, args.output_has_dataset_name)
     source_name = args.source_name
