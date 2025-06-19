@@ -978,6 +978,10 @@ def fineweb_gopher_quality_filter(
         if max_avg_word_length and avg_n_words > max_avg_word_length:
             return set_filter_reason_if_annotate(page, "gopher_above_avg_threshold", annotate)
 
+        # stop word filter
+        if min_stop_words and sum(w in stop_words for w in words) < min_stop_words:
+            return set_filter_reason_if_annotate(page, "gopher_enough_stop_words", annotate)
+        
         # symbol-to-word ratio greater than 0.1 for either the hash symbol or the ellipsis
         if max_symbol_word_ratio and text.count("#") / n_words > max_symbol_word_ratio:
             return set_filter_reason_if_annotate(page, "gopher_too_many_hashes", annotate)
@@ -1010,9 +1014,6 @@ def fineweb_gopher_quality_filter(
                                           use_whitelist=use_whitelist)):
             return set_filter_reason_if_annotate(page, "gopher_below_alpha_threshold", annotate)
 
-        # stop word filter
-        if min_stop_words and sum(w in stop_words for w in words) < min_stop_words:
-            return set_filter_reason_if_annotate(page, "gopher_enough_stop_words", annotate)
 
         return [page]
     
