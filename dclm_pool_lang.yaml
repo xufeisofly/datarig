@@ -35,9 +35,9 @@ spec:
             value: "6380"			
         args:
           - "--readable_name"
-          - "dclm_pool_en"
+          - "s2"
           - "--output_dir"
-          - "oss://si002558te8h/dclm/output/"
+          - "oss://si002558te8h/dclm/output/dclm_pool_en/"
           - "--config_path"
           - "baselines/baselines_configs/language.yaml"
           - "--oss_temp_dir"
