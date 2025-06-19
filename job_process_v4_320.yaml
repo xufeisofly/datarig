@@ -61,5 +61,13 @@ spec:
           - "--use_task"
           - "--use_redis_task"
           - "--ignore_failures"
-        imagePullPolicy: IfNotPresent		
+        volumeMounts:
+          - name: dclm-config-volume
+            mountPath: "/app/dclm-sci/baselines/baselines_configs/urlfilter.yaml"
+            subPath: "urlfilter.yaml"
+        imagePullPolicy: IfNotPresent
+      volumes:
+        - name: dclm-config-volume
+          configMap:
+            name: dclm-config
       restartPolicy: OnFailure
