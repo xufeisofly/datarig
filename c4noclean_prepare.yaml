@@ -47,7 +47,7 @@ spec:
           - "--max_file_size_mb"
           - "500"
           - "--queue_id"
-          - "default2"
+          - "url"
           - "--ray_num_cpus"
           - "1"
           - "--workers"
