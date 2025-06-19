@@ -686,6 +686,7 @@ def fineweb_quality_filter(
         short_line_length: int = 30,
         new_line_ratio: float = 0.3,
         char_duplicates_ratio: float = 0.1,
+        min_num_sentences: int = 5, 
         annotate=False,
         language_key: str = 'language_id_whole_page_fasttext',
         token="",
@@ -695,6 +696,16 @@ def fineweb_quality_filter(
     lines = [line for line in lines if line.strip() != ""]
     if len(lines) == 0:
         return set_filter_reason_if_annotate(page, "line_punct_ratio_filter"+token, annotate)
+    
+    # min_num_sentences is used to filter out pages with too few sentences
+    for line in lines:
+        if min_num_sentences != -1:
+            sentences = split_into_sentences(line, language)
+            num_sentences += len(sentences)
+            left_sentences += sentences
+
+    if num_sentences < min_num_sentences:
+        return set_filter_reason_if_annotate(page, "too_few_sentences", annotate)
 
     language = get_lang_from_page(page, language_key=language_key)
     if not stop_chars:
@@ -932,6 +943,18 @@ def find_all_duplicate(words: list[str], n: int) -> int:
     return repeated_chars
 
 STOP_WORDS = ["the", "be", "to", "of", "and", "that", "have", "with"]
+BULLET_POINT_SYMBOLS = (
+    "\u2022",  # bullet point
+    "\u2023",  # triangular bullet point
+    "\u25B6",  # black right pointing triangle
+    "\u25C0",  # black left pointing triangle
+    "\u25E6",  # white bullet point
+    "\u25A0",  # black square
+    "\u25A1",  # white square
+    "\u25AA",  # black small square
+    "\u25AB",  # white small square
+    "\u2013",  # en dash
+)
 
 def fineweb_gopher_quality_filter(
         page: Dict,
@@ -944,6 +967,7 @@ def fineweb_gopher_quality_filter(
         max_ellipsis_lines_ratio: float | None = 0.3,
         max_non_alpha_words_ratio: float | None = 0.8,
         min_stop_words: int | None = 2,
+        min_stop_words_ratio: float | None = 0.09,
         whitelist_chars=('(', ')', '%'),
         use_whitelist = False,
         annotate=False,
@@ -979,6 +1003,7 @@ def fineweb_gopher_quality_filter(
             return set_filter_reason_if_annotate(page, "gopher_above_avg_threshold", annotate)
 
         # stop word filter
+        min_stop_words = round(words*min_stop_words_ratio) if round(words*min_stop_words_ratio) > min_stop_words else min_stop_words
         if min_stop_words and sum(w in stop_words for w in words) < min_stop_words:
             return set_filter_reason_if_annotate(page, "gopher_enough_stop_words", annotate)
         
@@ -991,12 +1016,13 @@ def fineweb_gopher_quality_filter(
         # any document with more than 90 % of lines starting with a bullet point,
         # or more than 30 % ending with an ellipsis.
         lines = text.splitlines()
-        if (
-            max_bullet_lines_ratio
-            and sum(s.lstrip().startswith("•") or s.lstrip().startswith("-") for s in lines) / len(lines)
-            > max_bullet_lines_ratio
-        ):
-            return set_filter_reason_if_annotate(page, "gopher_too_many_bullets", annotate)
+
+        # that 90 % of lines in a document start with a bullet point
+        if max_bullet_lines_ratio:
+            if sum(1 for line in lines if line.lstrip().startswith(BULLET_POINT_SYMBOLS)) / len(lines) > max_bullet_lines_ratio:
+                return set_filter_reason_if_annotate(page, "gopher_too_many_bullets", annotate)
+        
+        # that 30 % of lines in a document end with an ellipsis
         if (
             max_ellipsis_lines_ratio
             and sum(s.rstrip().endswith("...") or s.rstrip().endswith("…") for s in lines) / len(lines)
