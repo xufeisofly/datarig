@@ -478,8 +478,10 @@ def process_task_item(args, task_item: TaskItem|None, with_init=True):
     def drop_processed_data(path):
         last_dir = os.path.basename(os.path.normpath(path))
         if last_dir == "processed_data":
-            return os.path.dirname(path)
-        return path    
+            path = os.path.dirname(path)
+        if not path.endswith('/'):
+            return path + '/'
+        return path
     
     if task_item is not None:
         origin_shard_dir = task_item.get_original_shard_dir()
