@@ -651,7 +651,7 @@ def numeric_ratio_line_modifier(page: Dict, max_ratio=1.0, annotate=False, token
 
 
 @factory_function
-def citation_removal_modifier() -> List[Dict]:
+def citation_removal_modifier(annotate=False, token="") -> List[Dict]:
     """
     Modifies the input JSON object - Remove text related to citations (Wiki-format)
 
@@ -669,7 +669,7 @@ def citation_removal_modifier() -> List[Dict]:
         new_doc = citation_regex.sub("", page[CONTENT])
 
         if new_doc == '':
-            return []
+            return set_filter_reason_if_annotate(page, "citation_removal_modifier"+token, annotate)
 
         page[CONTENT] = new_doc
         return [page]

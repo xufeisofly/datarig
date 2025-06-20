@@ -13,7 +13,7 @@
     - func: bad_words_modifier
       banned_filepath: "baselines/mappers/banlists/en-soft_banned_words.txt"
       remove_word: False
-      redis_record_key: "en_bad_words_doc_count_before"
+      redis_record_key: "en_soft_bad_words_doc_count_before"
     - func: url_removal_modifier
     - func: email_and_phone_removal_modifier
     - func: citation_removal_modifier
@@ -49,4 +49,4 @@
     - func: bad_words_modifier
       banned_filepath: "baselines/mappers/banlists/en-soft_banned_words.txt"
       remove_word: False
-      redis_record_key: "en_bad_words_doc_count_after"
+      redis_record_key: "en_soft_bad_words_doc_count_after"
