@@ -711,8 +711,7 @@ def fineweb_quality_filter(
     lines = page[CONTENT].split("\n")
     lines = [line for line in lines if line.strip() != ""]
     if len(lines) == 0:
-        return set_filter_reason_if_annotate(page, "line_punct_ratio_filter"+token, annotate)
-    
+        return set_filter_reason_if_annotate(page, "line_punct_ratio_filter"+token, annotate)    
 
     language = get_lang_from_page(page, language_key=language_key)
     if not stop_chars:
