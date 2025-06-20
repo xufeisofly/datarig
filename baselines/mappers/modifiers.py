@@ -10,6 +10,7 @@ from baselines.mappers.core_utils import split_paragraphs, split_words
 from baselines.mappers.fineweb.text import split_into_sentences
 from core.constants import CONTENT, URL, WORDS, get_lang_from_page, set_filter_reason_if_annotate
 from core.factory_utils import factory_function
+from baselines.redis import redis
 from bs4 import BeautifulSoup
 import random
 import copy
@@ -754,7 +755,7 @@ def email_and_phone_removal_modifier(annotate=False, token=""):
     return modify
 
 @factory_function
-def prohibited_words_modifier(ldnoobw_filepath="baselines/mappers/banlists/ldnoobw.txt", annotate=False, token="") -> List[Dict]:
+def bad_words_modifier(ldnoobw_filepath="baselines/mappers/banlists/ldnoobw.txt", annotate=False, token="") -> List[Dict]:
     """
     filters the input JSON object - Removes all prohibited words within the content of a page
     Arguments:
@@ -765,15 +766,21 @@ def prohibited_words_modifier(ldnoobw_filepath="baselines/mappers/banlists/ldnoo
     A list containing the input JSON object if it passes the filter
     """
     with open(ldnoobw_filepath, "r") as file:
-        ldnoobw_list = [ldb.strip() for ldb in file.readlines()]
-
+        ldnoobw_list = [re.escape(ldb.strip()) for ldb in file.readlines()]
+    bad_words_regex = re.compile(rf'{"|".join(ldnoobw_list)}', flags=re.IGNORECASE)
+    
+    
     def modify(page: Dict) -> List[Dict]:
         # Check for words based on ldnoobw
         for word in ldnoobw_list:
             # Create a regex pattern to match the word
-            pattern = re.compile(word, flags=re.IGNORECASE)
+            matches = bad_words_regex.findall(page[CONTENT])
+            
+            count_num = len(matches)
             # Replace the word with an empty string
-            page[CONTENT] = pattern.sub("", page[CONTENT])
+            page[CONTENT] = bad_words_regex.sub("", page[CONTENT])
+            # save to redis
+            redis.Client.incrby("ldnoobw_bad_words_count", count_num)
 
         if page[CONTENT] == '':
             return set_filter_reason_if_annotate(page, "prohibited_words_modifier"+token, annotate)
@@ -996,8 +1003,23 @@ def check_javascript(text):
     return False
 
 
+def check_cookie(text):
+    POLICY_SUBSTRINGS = [
+    "terms of use",
+    "privacy policy",
+    "cookie policy",
+    "uses cookies",
+    "use of cookies",
+    "use cookies",
+]    
+    if any(p in text for p in POLICY_SUBSTRINGS):
+        return True
+    return False
+
+    
 def is_counter(input_text):
-    pattern = r'^\d+\s+likes$'
+    # pattern = r'^\d+\s+likes$'
+    pattern =  r'^\W*\d(?:,|\.|\d)*(?:K|k|M|m|B|b)?\s+(?:likes|shares|comments|retweets|reposts|quotes|bookmarks|upvotes|downvotes|downloads|views|followers)\W*$'
     return bool(re.match(pattern, input_text))        
 
 
@@ -1025,6 +1047,10 @@ def line_filtering(line, max_uppercase_ratio, min_word_cnt_per_line) -> tuple[bo
     # if "javascript" in line_norm:  # Done: refine the strategy
     if check_javascript(line_norm):
         return True, 0  #, "1.2_C4_javascript"
+    
+    #  if cookie in line_norm:  # Done: refine the strategy
+    if check_cookie(line_norm):
+        return True, 0
     
     # Set the default for fraction_of_words_corrected_in_lines
     # Do not include the characters corrected by javascript into the counting
