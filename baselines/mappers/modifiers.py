@@ -557,7 +557,7 @@ def line_length_modifier(page: Dict, min_length=0, max_length=float('inf'), anno
     return [page]
 
 
-def word_length_modifier(page: Dict, max_length=1000, language_key="language_id_whole_page_fasttext", **kwargs) -> List[Dict]:
+def word_length_modifier(page: Dict, max_length=1000, language_key="language_id_whole_page_fasttext", annotate=False, token="", **kwargs) -> List[Dict]:
     """
     Filters the input JSON object - Remove lines where the word with the largest length goes
     strictly over max_length. 
@@ -584,7 +584,7 @@ def word_length_modifier(page: Dict, max_length=1000, language_key="language_id_
     new_doc = '\n'.join(lines_within_range)
 
     if new_doc == '':
-        return []
+        return set_filter_reason_if_annotate(page, "word_length_modifier"+token, annotate)
 
     page[CONTENT] = new_doc
     return [page]
@@ -785,10 +785,7 @@ def bad_words_modifier(
     banned_matches = banned_bad_words_regex.findall(page[CONTENT])
     
     if banned_matches:
-        try:
-            redis.Client.incrby(redis_record_key, 1)
-        except Exception:
-            return [page]
+        redis.Client.incrby(redis_record_key, 1)
         if remove_word:
             page[CONTENT] = banned_bad_words_regex.sub("", page[CONTENT])
             
