@@ -975,6 +975,9 @@ def fineweb_gopher_quality_filter(
         language_key='language_id_whole_page_fasttext',
 ) -> List[Dict]:
         text = page[CONTENT]
+        # lorem ipsum filter
+        if "lorem ipsum" in text.lower():
+            return set_filter_reason_if_annotate(page, "gopher_lorem_ipsum", annotate)
         language = get_lang_from_page(page, language_key)
         stop_words = set(STOP_WORDS)
         try:

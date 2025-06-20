@@ -943,13 +943,7 @@ def line_removal_modifier(
     language = get_lang_from_page(page, language_key=language_key)
     text = page[CONTENT]
     lines = text.split("\n")
-        
-    # line-wise doc filtering
-    for line in new_lines:
-        # line-wise doc filtering
-        if "lorem ipsum" in line.lower():
-            return set_filter_reason_if_annotate(page, "lorem_ipsum"+token, annotate)
-        
+              
     new_lines = []
     fraction_of_words_corrected_in_lines = 0
     num_sentences = 0
