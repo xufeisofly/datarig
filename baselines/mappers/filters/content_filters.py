@@ -988,7 +988,7 @@ def fineweb_gopher_quality_filter(
         max_ellipsis_lines_ratio: float | None = 0.3,
         max_non_alpha_words_ratio: float | None = 0.8,
         min_stop_words: int | None = 2,
-        min_stop_words_ratio: float | None = 0.09,
+        min_stop_words_ratio: float | None = 0.0,
         whitelist_chars=('(', ')', '%'),
         use_whitelist = False,
         annotate=False,
