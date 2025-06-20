@@ -676,7 +676,7 @@ def alphabetic_word_ratio_filter(page: Dict, max_ratio: float = 0.2, annotate=Fa
 # ========= Fineweb Custom Filters ==========
 
 
-def min_sentences_filter(page: Dict, min_num_sentences: int = 3, annotate=False, token="", language_key: str = 'language_id_whole_page_fasttext') -> List[Dict]:
+def min_sentences_filter(page: Dict, min_num_sentences: int = 3, annotate=False, language_key: str = 'language_id_whole_page_fasttext') -> List[Dict]:
     lines = page[CONTENT].split("\n")
     lines = [line for line in lines if line.strip() != ""]
     
@@ -686,12 +686,11 @@ def min_sentences_filter(page: Dict, min_num_sentences: int = 3, annotate=False,
         if min_num_sentences != -1:
             sentences = split_into_sentences(line, language)
             num_sentences += len(sentences)
-            left_sentences += sentences
+            if num_sentences >= min_num_sentences:
+                return [page]
 
-    if num_sentences < min_num_sentences:
-        return set_filter_reason_if_annotate(page, "too_few_sentences", annotate)
+    return set_filter_reason_if_annotate(page, "too_few_sentences", annotate)
 
-    return [page]
 
 def fineweb_quality_filter(
         page: Dict,
@@ -961,6 +960,7 @@ BULLET_POINT_SYMBOLS = (
     "\u25AA",  # black small square
     "\u25AB",  # white small square
     "\u2013",  # en dash
+    "-", "–", "•", "●",
 )
 def lorem_ipsum_filter(page: Dict, annotate=False, token="") -> List[Dict]:
     """

@@ -2,8 +2,14 @@
 - source: cc
   steps:
     - func: bad_words_modifier
+      banned_filepath: "baselines/mappers/banlists/ldnoobw.txt"
+      word_remove_key: False
+      redis_record_key: "ldnoobw_bad_words_doc_count"
+    - func: bad_words_modifier
+      banned_filepath: "baselines/mappers/banlists/ldnoobw.txt"
+      word_remove_key: True
+      redis_record_key: "zh_bad_words_doc_count"
     - func: url_removal_modifier
-      ipv4_reg: v2
     - func: citation_removal_modifier
     - func: substring_line_modifier        
       max_length: 10 
@@ -23,8 +29,9 @@
     - func: word_length_modifier
     - func: lorem_ipsum_filter
     - func: min_sentences_filter
+    - func: cache_split_words_modifier
     - func: fineweb_gopher_quality_filter
-      use_whitelist: True
       model: v2
     - func: fineweb_quality_filter
     - func: fineweb_gopher_repetition_filter
+    - func: uncache_split_words_modifier
