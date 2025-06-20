@@ -1,10 +1,10 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: datarig1-v4-160
+  name: datarig1-v4-40-2
 spec:
-  parallelism: 160 # 5x(4-5)C=20C-25C 5x(10-12)G=50-60G per node, (20C-25C)x89 = 1780C-2225C max: 445pod
-  completions: 160
+  parallelism: 39
+  completions: 39
   backoffLimit: 5  # 如果任务失败后不希望重试，则设置为 0；否则设置为需要的重试次数
   template:
     metadata:
@@ -18,11 +18,11 @@ spec:
         image: cr.registry.res.cloud.zhejianglab.com/dataprocess/datarig:v4.4
         resources:
           requests:
-            cpu: "13"
-            memory: "26Gi"
+            cpu: "4"
+            memory: "20Gi"
           limits:
-            cpu: "15"
-            memory: "28Gi"
+            cpu: "5"
+            memory: "22Gi"
         command: ["/app/dclm-sci/start.sh"]
         env:
           - name: RAY_DEDUP_LOGS
@@ -35,11 +35,11 @@ spec:
             value: "6380"			
         args:
           - "--readable_name"
-          - "s2"
+          - "s1"
           - "--output_dir"
-          - "oss://si002558te8h/dclm/output/dclm_pool_en/"
+          - "oss://si002558te8h/dclm/output/dclm_pool_prepared/"
           - "--config_path"
-          - "baselines/baselines_configs/language.yaml"
+          - "baselines/baselines_configs/urlfilter.yaml"
           - "--oss_temp_dir"
           - "oss://si002558te8h/dclm/temp_dir_500/"
           - "--source_name"
@@ -47,7 +47,7 @@ spec:
           - "--max_file_size_mb"
           - "500"
           - "--queue_id"
-          - "default"
+          - "url"
           - "--ray_num_cpus"
           - "1"
           - "--workers"
@@ -63,11 +63,11 @@ spec:
           - "--ignore_failures"
         volumeMounts:
           - name: dclm-config-volume
-            mountPath: "/app/dclm-sci/baselines/baselines_configs/language.yaml"
-            subPath: "language.yaml"
+            mountPath: "/app/dclm-sci/baselines/baselines_configs/urlfilter.yaml"
+            subPath: "urlfilter.yaml"
         imagePullPolicy: IfNotPresent
       volumes:
         - name: dclm-config-volume
           configMap:
-            name: dclm-config		
+            name: dclm-config
       restartPolicy: OnFailure

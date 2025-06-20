@@ -267,8 +267,8 @@ def repetition_filter(page: Dict, granularity: Union[str, int], max_fraction: fl
 
     elif isinstance(granularity, int):
         if 'words' not in cache:
-            cache['words'] = words = split_words(text, ignore_punctuation=True, model=tokenizer,
-                                                 language=get_lang_from_page(page, language_key))
+            cache['words'] = words = split_words_of_page(text, page, ignore_punctuation=True, model=tokenizer, 
+                                                         language=get_lang_from_page(page, language_key))
             cache['words/chars'] = total_chars = sum(len(w) for w in words) # Do not count whitespace/punctuation as characters for words
         else:
             words = cache['words']
@@ -676,6 +676,23 @@ def alphabetic_word_ratio_filter(page: Dict, max_ratio: float = 0.2, annotate=Fa
 # ========= Fineweb Custom Filters ==========
 
 
+def min_sentences_filter(page: Dict, min_num_sentences: int = 3, annotate=False, language_key: str = 'language_id_whole_page_fasttext') -> List[Dict]:
+    lines = page[CONTENT].split("\n")
+    lines = [line for line in lines if line.strip() != ""]
+    
+    # min_num_sentences is used to filter out pages with too few sentences
+    num_sentences = 0
+    language = get_lang_from_page(page, language_key=language_key)
+    for line in lines:
+        if min_num_sentences != -1:
+            sentences = split_into_sentences(line, language)
+            num_sentences += len(sentences)
+            if num_sentences >= min_num_sentences:
+                return [page]
+
+    return set_filter_reason_if_annotate(page, "too_few_sentences", annotate)
+
+
 def fineweb_quality_filter(
         page: Dict,
         line_punct_thr: float = 0.12, line_punct_exclude_zero: bool = False,
@@ -695,6 +712,7 @@ def fineweb_quality_filter(
     lines = [line for line in lines if line.strip() != ""]
     if len(lines) == 0:
         return set_filter_reason_if_annotate(page, "line_punct_ratio_filter"+token, annotate)
+    
 
     language = get_lang_from_page(page, language_key=language_key)
     if not stop_chars:
@@ -932,6 +950,39 @@ def find_all_duplicate(words: list[str], n: int) -> int:
     return repeated_chars
 
 STOP_WORDS = ["the", "be", "to", "of", "and", "that", "have", "with"]
+BULLET_POINT_SYMBOLS = (
+    "\u2022",  # bullet point
+    "\u2023",  # triangular bullet point
+    "\u25B6",  # black right pointing triangle
+    "\u25C0",  # black left pointing triangle
+    "\u25E6",  # white bullet point
+    "\u25A0",  # black square
+    "\u25A1",  # white square
+    "\u25AA",  # black small square
+    "\u25AB",  # white small square
+    "\u2013",  # en dash
+    "-", "–", "•", "●",
+)
+def lorem_ipsum_filter(page: Dict, annotate=False, token="") -> List[Dict]:
+    """
+    Filters the input JSON object based on the presence of "lorem ipsum" in the CONTENT field.
+
+    This function checks if the CONTENT field contains the phrase "lorem ipsum".
+    If it does, it returns an empty list. If it doesn't, it returns a list containing
+    the original JSON object.
+
+    Arguments:
+    page -- A dictionary representing a JSON object. It should have a CONTENT field
+            that contains the text to be analyzed.
+
+    Returns:
+    A list containing the input JSON object if it passes the filter,
+    or an empty list if it doesn't.
+    """
+    if "lorem ipsum" in page[CONTENT].lower():
+        return set_filter_reason_if_annotate(page, "lorem_ipsum_filter"+token, annotate)
+    return [page]
+
 
 def fineweb_gopher_quality_filter(
         page: Dict,
@@ -944,6 +995,7 @@ def fineweb_gopher_quality_filter(
         max_ellipsis_lines_ratio: float | None = 0.3,
         max_non_alpha_words_ratio: float | None = 0.8,
         min_stop_words: int | None = 2,
+        min_stop_words_ratio: float | None = 0.09,
         whitelist_chars=('(', ')', '%'),
         use_whitelist = False,
         annotate=False,
@@ -978,6 +1030,12 @@ def fineweb_gopher_quality_filter(
         if max_avg_word_length and avg_n_words > max_avg_word_length:
             return set_filter_reason_if_annotate(page, "gopher_above_avg_threshold", annotate)
 
+        # stop word filter
+        if model != 'fineweb':
+            min_stop_words = round(n_words*min_stop_words_ratio) if round(n_words*min_stop_words_ratio) > min_stop_words else min_stop_words
+        if min_stop_words and sum(w in stop_words for w in words) < min_stop_words:
+            return set_filter_reason_if_annotate(page, "gopher_enough_stop_words", annotate)
+        
         # symbol-to-word ratio greater than 0.1 for either the hash symbol or the ellipsis
         if max_symbol_word_ratio and text.count("#") / n_words > max_symbol_word_ratio:
             return set_filter_reason_if_annotate(page, "gopher_too_many_hashes", annotate)
@@ -987,12 +1045,21 @@ def fineweb_gopher_quality_filter(
         # any document with more than 90 % of lines starting with a bullet point,
         # or more than 30 % ending with an ellipsis.
         lines = text.splitlines()
-        if (
-            max_bullet_lines_ratio
-            and sum(s.lstrip().startswith("•") or s.lstrip().startswith("-") for s in lines) / len(lines)
-            > max_bullet_lines_ratio
-        ):
-            return set_filter_reason_if_annotate(page, "gopher_too_many_bullets", annotate)
+
+        # that 90 % of lines in a document start with a bullet point 
+        if model == 'fineweb':  
+            if (
+                max_bullet_lines_ratio
+                and sum(s.lstrip().startswith("•") or s.lstrip().startswith("-") for s in lines) / len(lines)
+                > max_bullet_lines_ratio
+            ):
+                return set_filter_reason_if_annotate(page, "gopher_too_many_bullets", annotate)
+        else:
+            max_bullet_count = max_bullet_lines_ratio * len(lines)
+            if sum(1 for line in lines if line.lstrip().startswith(BULLET_POINT_SYMBOLS)) > max_bullet_count:
+                return set_filter_reason_if_annotate(page, "bullet_lines_check", annotate)
+            
+        # that 30 % of lines in a document end with an ellipsis
         if (
             max_ellipsis_lines_ratio
             and sum(s.rstrip().endswith("...") or s.rstrip().endswith("…") for s in lines) / len(lines)
@@ -1010,9 +1077,6 @@ def fineweb_gopher_quality_filter(
                                           use_whitelist=use_whitelist)):
             return set_filter_reason_if_annotate(page, "gopher_below_alpha_threshold", annotate)
 
-        # stop word filter
-        if min_stop_words and sum(w in stop_words for w in words) < min_stop_words:
-            return set_filter_reason_if_annotate(page, "gopher_enough_stop_words", annotate)
 
         return [page]
     

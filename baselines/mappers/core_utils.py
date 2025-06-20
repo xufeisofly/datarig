@@ -113,12 +113,21 @@ def split_sentences(text: str, remove_empty: bool = True, tokenizer='blingfire',
         raise NotImplementedError("remove_empty=False is not implemented yet")
 
 
-def split_words_of_page(text: str, page: Dict, model='fasttext', language=Languages.english) -> List[str]:
+def split_words_of_page(text: str, page: Dict, model='fasttext', language=Languages.english, ignore_punctuation: bool = False, ignore_whitespace: bool = True) -> List[str]:
     words = []
     if WORDS in page:
         words = page.get(WORDS, [])
+        if ignore_punctuation and ignore_whitespace:
+            return list(w for w in words if w[0].isalnum())
+        elif ignore_punctuation:
+           return list(w for w in words if w[0].isalnum() or w[0].isspace())
+        elif ignore_whitespace:
+            return list(w for w in words if w.strip())
+        else:
+            return list(words)        
+        
     if not words:
-        words = split_words(text, model=model, language=language)
+        words = split_words(text, model=model, ignore_punctuation=ignore_punctuation, ignore_whitespace=ignore_whitespace, language=language)
     return words
     
     
