@@ -1030,7 +1030,8 @@ def fineweb_gopher_quality_filter(
             return set_filter_reason_if_annotate(page, "gopher_above_avg_threshold", annotate)
 
         # stop word filter
-        min_stop_words = round(words*min_stop_words_ratio) if round(words*min_stop_words_ratio) > min_stop_words else min_stop_words
+        if model != 'fineweb':
+            min_stop_words = round(words*min_stop_words_ratio) if round(words*min_stop_words_ratio) > min_stop_words else min_stop_words
         if min_stop_words and sum(w in stop_words for w in words) < min_stop_words:
             return set_filter_reason_if_annotate(page, "gopher_enough_stop_words", annotate)
         
