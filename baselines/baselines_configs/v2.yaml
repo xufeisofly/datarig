@@ -1,0 +1,30 @@
+# V2
+- source: cc
+  steps:
+    - func: bad_words_modifier
+    - func: url_removal_modifier
+      ipv4_reg: v2
+    - func: citation_removal_modifier
+    - func: substring_line_modifier        
+      max_length: 10 
+      banlist: "items in cart"
+      remove_substring_only: True
+    - func: substring_line_modifier
+      max_length: 10
+      banlist: "Read more..."
+      location: suffix
+      remove_substring_only: True
+    - func: substring_line_modifier
+      max_length: 10
+      banlist: "Sign-in"
+      location: prefix
+      remove_substring_only: True
+    - func: line_removal_modifier
+    - func: word_length_modifier
+    - func: lorem_ipsum_filter
+    - func: min_sentences_filter
+    - func: fineweb_gopher_quality_filter
+      use_whitelist: True
+      model: v2
+    - func: fineweb_quality_filter
+    - func: fineweb_gopher_repetition_filter

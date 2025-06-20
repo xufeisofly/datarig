@@ -676,6 +676,23 @@ def alphabetic_word_ratio_filter(page: Dict, max_ratio: float = 0.2, annotate=Fa
 # ========= Fineweb Custom Filters ==========
 
 
+def min_sentences_filter(page: Dict, min_num_sentences: int = 3, annotate=False, token="", language_key: str = 'language_id_whole_page_fasttext') -> List[Dict]:
+    lines = page[CONTENT].split("\n")
+    lines = [line for line in lines if line.strip() != ""]
+    
+    # min_num_sentences is used to filter out pages with too few sentences
+    language = get_lang_from_page(page, language_key=language_key)
+    for line in lines:
+        if min_num_sentences != -1:
+            sentences = split_into_sentences(line, language)
+            num_sentences += len(sentences)
+            left_sentences += sentences
+
+    if num_sentences < min_num_sentences:
+        return set_filter_reason_if_annotate(page, "too_few_sentences", annotate)
+
+    return [page]
+
 def fineweb_quality_filter(
         page: Dict,
         line_punct_thr: float = 0.12, line_punct_exclude_zero: bool = False,
@@ -686,7 +703,6 @@ def fineweb_quality_filter(
         short_line_length: int = 30,
         new_line_ratio: float = 0.3,
         char_duplicates_ratio: float = 0.1,
-        min_num_sentences: int = 5, 
         annotate=False,
         language_key: str = 'language_id_whole_page_fasttext',
         token="",
@@ -697,15 +713,6 @@ def fineweb_quality_filter(
     if len(lines) == 0:
         return set_filter_reason_if_annotate(page, "line_punct_ratio_filter"+token, annotate)
     
-    # min_num_sentences is used to filter out pages with too few sentences
-    for line in lines:
-        if min_num_sentences != -1:
-            sentences = split_into_sentences(line, language)
-            num_sentences += len(sentences)
-            left_sentences += sentences
-
-    if num_sentences < min_num_sentences:
-        return set_filter_reason_if_annotate(page, "too_few_sentences", annotate)
 
     language = get_lang_from_page(page, language_key=language_key)
     if not stop_chars:
@@ -955,6 +962,26 @@ BULLET_POINT_SYMBOLS = (
     "\u25AB",  # white small square
     "\u2013",  # en dash
 )
+def lorem_ipsum_filter(page: Dict, annotate=False, token="") -> List[Dict]:
+    """
+    Filters the input JSON object based on the presence of "lorem ipsum" in the CONTENT field.
+
+    This function checks if the CONTENT field contains the phrase "lorem ipsum".
+    If it does, it returns an empty list. If it doesn't, it returns a list containing
+    the original JSON object.
+
+    Arguments:
+    page -- A dictionary representing a JSON object. It should have a CONTENT field
+            that contains the text to be analyzed.
+
+    Returns:
+    A list containing the input JSON object if it passes the filter,
+    or an empty list if it doesn't.
+    """
+    if "lorem ipsum" in page[CONTENT].lower():
+        return set_filter_reason_if_annotate(page, "lorem_ipsum_filter"+token, annotate)
+    return [page]
+
 
 def fineweb_gopher_quality_filter(
         page: Dict,
@@ -975,9 +1002,6 @@ def fineweb_gopher_quality_filter(
         language_key='language_id_whole_page_fasttext',
 ) -> List[Dict]:
         text = page[CONTENT]
-        # lorem ipsum filter
-        if "lorem ipsum" in text.lower():
-            return set_filter_reason_if_annotate(page, "gopher_lorem_ipsum", annotate)
         language = get_lang_from_page(page, language_key)
         stop_words = set(STOP_WORDS)
         try:
@@ -1020,11 +1044,19 @@ def fineweb_gopher_quality_filter(
         # or more than 30 % ending with an ellipsis.
         lines = text.splitlines()
 
-        # that 90 % of lines in a document start with a bullet point
-        if max_bullet_lines_ratio:
-            if sum(1 for line in lines if line.lstrip().startswith(BULLET_POINT_SYMBOLS)) / len(lines) > max_bullet_lines_ratio:
+        # that 90 % of lines in a document start with a bullet point 
+        if model == 'fineweb':  
+            if (
+                max_bullet_lines_ratio
+                and sum(s.lstrip().startswith("•") or s.lstrip().startswith("-") for s in lines) / len(lines)
+                > max_bullet_lines_ratio
+            ):
                 return set_filter_reason_if_annotate(page, "gopher_too_many_bullets", annotate)
-        
+        else:
+            max_bullet_count = max_bullet_lines_ratio * len(lines)
+            if sum(1 for line in lines if line.lstrip().startswith(BULLET_POINT_SYMBOLS)) > max_bullet_count:
+                return set_filter_reason_if_annotate(page, "bullet_lines_check", annotate)
+            
         # that 30 % of lines in a document end with an ellipsis
         if (
             max_ellipsis_lines_ratio

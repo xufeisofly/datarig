@@ -678,7 +678,7 @@ def citation_removal_modifier() -> List[Dict]:
 
 
 @factory_function
-def url_removal_modifier(tlds_filepath="baselines/mappers/iana_tlds.txt", annotate=False, token=""):
+def url_removal_modifier(tlds_filepath="baselines/mappers/iana_tlds.txt", ipv4_reg="fineweb", annotate=False, token=""):
     """
     Modifies the input JSON object - Removes all urls within the content of a page, relying
     on two regexes for finding URLs: one relies upon a "vocab list" of existing top-level domains (TLDs),
@@ -705,8 +705,10 @@ def url_removal_modifier(tlds_filepath="baselines/mappers/iana_tlds.txt", annota
         rf'\s{{0,10}}(?:((https?|ftp)://))?[-a-zA-Z0-9@:%._\+~#=]{{1,256}}\.({tlds_regex.pattern})\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)')
 
     # Regex to detect IP addresses
-    # ipv4_regex = re.compile(r'\s{0,10}\b((https?|ftp)://)?(?:[0-2]?[0-9]{1,2}\.){3}[0-2]?[0-9]{1,2}[-a-zA-Z0-9()@:%_\+.~#?&//=]*')
-    ipv4_regex = re.compile(r"(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)")
+    if ipv4_reg == 'fineweb':
+        ipv4_regex = re.compile(r'\s{0,10}\b((https?|ftp)://)?(?:[0-2]?[0-9]{1,2}\.){3}[0-2]?[0-9]{1,2}[-a-zA-Z0-9()@:%_\+.~#?&//=]*')
+    else:
+        ipv4_regex = re.compile(r"(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)")
 
     def modify(page: Dict) -> List[Dict]:
         # First, check for URLs based on TLDs
@@ -755,7 +757,7 @@ def email_and_phone_removal_modifier(annotate=False, token=""):
     return modify
 
 @factory_function
-def bad_words_modifier(ldnoobw_filepath="baselines/mappers/banlists/ldnoobw.txt", annotate=False, token="") -> List[Dict]:
+def bad_words_modifier(page: Dict, ldnoobw_filepath="baselines/mappers/banlists/ldnoobw.txt", zh_bad_words_filepath ="baselines/mappers/banlists/ldnoobw.txt", annotate=False, token="") -> List[Dict]:
     """
     filters the input JSON object - Removes all prohibited words within the content of a page
     Arguments:
@@ -767,26 +769,30 @@ def bad_words_modifier(ldnoobw_filepath="baselines/mappers/banlists/ldnoobw.txt"
     """
     with open(ldnoobw_filepath, "r") as file:
         ldnoobw_list = [re.escape(ldb.strip()) for ldb in file.readlines()]
-    bad_words_regex = re.compile(rf'{"|".join(ldnoobw_list)}', flags=re.IGNORECASE)
     
+    with open(zh_bad_words_filepath, "r") as file:
+        zh_bad_words_list = [re.escape(zhb.strip()) for zhb in file.readlines()]
+        
+    ldn_bad_words_regex = re.compile(rf'{"|".join(ldnoobw_list)}', flags=re.IGNORECASE)
     
-    def modify(page: Dict) -> List[Dict]:
-        # Check for words based on ldnoobw
-        for word in ldnoobw_list:
-            # Create a regex pattern to match the word
-            matches = bad_words_regex.findall(page[CONTENT])
-            
-            count_num = len(matches)
-            # Replace the word with an empty string
-            page[CONTENT] = bad_words_regex.sub("", page[CONTENT])
-            # save to redis
-            redis.Client.incrby("ldnoobw_bad_words_count", count_num)
+    zh_bad_words_regex = re.compile(rf'{"|".join(zh_bad_words_list)}')
+    
+    # Create a regex pattern to match the word
+    ldn_matches = ldn_bad_words_regex.match(page[CONTENT])
+    zh_matches = zh_bad_words_regex.match(page[CONTENT])
+    
+    if len(ldn_matches) > 0:
+        redis.Client.incrby("ldnoobw_bad_words_doc_count", 1)
+    # Replace the word with an empty string
+    if len(zh_matches) > 0:
+        page[CONTENT] = zh_bad_words_regex.sub("", page[CONTENT])
+        redis.Client.incrby("zh_bad_words_doc_count", 1)
 
-        if page[CONTENT] == '':
-            return set_filter_reason_if_annotate(page, "prohibited_words_modifier"+token, annotate)
-        return [page]
+    if page[CONTENT] == '':
+        return set_filter_reason_if_annotate(page, "bad_words_modifier"+token, annotate)
+    return [page]
 
-    return modify
+
     
 @factory_function
 def counter_line_modifier(annotate=False, token="") -> List[Dict]:
@@ -945,7 +951,7 @@ def line_removal_modifier(
     lines = text.split("\n")
               
     new_lines = []
-    fraction_of_words_corrected_in_lines = 0
+    # fraction_of_words_corrected_in_lines = 0
     num_sentences = 0
         
     for line in lines:
@@ -958,15 +964,15 @@ def line_removal_modifier(
         if not is_filtered:
             new_lines.append(line)
         # 统计被删除的单词数
-        fraction_of_words_corrected_in_lines += removed_words_cnt
+        # fraction_of_words_corrected_in_lines += removed_words_cnt
 
     page[CONTENT] = "\n".join(new_lines)
     if store_new_text:
         page['new_text'] = page[CONTENT]
 
-    total_words_cnt = len(text.split())
-    if total_words_cnt and fraction_of_words_corrected_in_lines / total_words_cnt  > max_removed_ratio:
-        return set_filter_reason_if_annotate(page, "too_many_removed_lines"+token, annotate)
+    # total_words_cnt = len(text.split())
+    # if total_words_cnt and fraction_of_words_corrected_in_lines / total_words_cnt  > max_removed_ratio:
+    #     return set_filter_reason_if_annotate(page, "too_many_removed_lines"+token, annotate)
     if len(page[CONTENT]) == 0:
         return set_filter_reason_if_annotate(page, "too_few_sentences"+token, annotate)
 
@@ -1040,11 +1046,11 @@ def line_filtering(line, max_uppercase_ratio, min_word_cnt_per_line) -> tuple[bo
     # 1.2 Remove lines containing word "javascript"
     # if "javascript" in line_norm:  # Done: refine the strategy
     if check_javascript(line_norm):
-        return True, 0  #, "1.2_C4_javascript"
+        return True, word_cnt_line  #, "1.2_C4_javascript"
     
     #  if cookie in line_norm:  # Done: refine the strategy
     if check_cookie(line_norm):
-        return True, 0
+        return True, word_cnt_line
     
     # Set the default for fraction_of_words_corrected_in_lines
     # Do not include the characters corrected by javascript into the counting
