@@ -988,7 +988,6 @@ def fineweb_gopher_quality_filter(
         max_ellipsis_lines_ratio: float | None = 0.3,
         max_non_alpha_words_ratio: float | None = 0.8,
         min_stop_words: int | None = 2,
-        min_stop_words_ratio: float | None = 0.0,
         whitelist_chars=('(', ')', '%'),
         use_whitelist = False,
         annotate=False,
@@ -1024,8 +1023,6 @@ def fineweb_gopher_quality_filter(
             return set_filter_reason_if_annotate(page, "gopher_above_avg_threshold", annotate)
 
         # stop word filter
-        if model != 'fineweb':
-            min_stop_words = round(n_words*min_stop_words_ratio) if round(n_words*min_stop_words_ratio) > min_stop_words else min_stop_words
         if min_stop_words and sum(w in stop_words for w in words) < min_stop_words:
             return set_filter_reason_if_annotate(page, "gopher_enough_stop_words", annotate)
         
