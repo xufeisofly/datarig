@@ -267,8 +267,8 @@ def repetition_filter(page: Dict, granularity: Union[str, int], max_fraction: fl
 
     elif isinstance(granularity, int):
         if 'words' not in cache:
-            cache['words'] = words = split_words(text, ignore_punctuation=True, model=tokenizer,
-                                                 language=get_lang_from_page(page, language_key))
+            cache['words'] = words = split_words_of_page(text, page, ignore_punctuation=True, model=tokenizer, 
+                                                         language=get_lang_from_page(page, language_key))
             cache['words/chars'] = total_chars = sum(len(w) for w in words) # Do not count whitespace/punctuation as characters for words
         else:
             words = cache['words']

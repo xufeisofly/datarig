@@ -1078,7 +1078,7 @@ def cache_split_words_modifier(
     """
     language = get_lang_from_page(page, language_key)
     try:
-        words = split_words(page[CONTENT], model=model, language=language)
+        words = split_words(page[CONTENT], model=model, language=language, ignore_punctuation=False, ignore_whitespace=False)
         page[WORDS] = words
     except Exception:
         return [page]
