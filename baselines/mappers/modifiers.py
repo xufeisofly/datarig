@@ -754,7 +754,14 @@ def email_and_phone_removal_modifier(annotate=False, token=""):
     return modify
 
 @factory_function
-def bad_words_modifier(page: Dict, banned_filepath="baselines/mappers/banlists/ldnoobw.txt", word_remove_key=False, redis_record_key='ldnoobw_bad_words_doc_count', annotate=False, token="") -> List[Dict]:
+def bad_words_modifier(
+    page: Dict, 
+    banned_filepath="baselines/mappers/banlists/ldnoobw.txt", 
+    banned_language="en",
+    remove_word=False, 
+    redis_record_key='ldnoobw_bad_words_doc_count', 
+    annotate=False,
+    token="") -> List[Dict]:
     """
     filters the input JSON object - Removes all prohibited words within the content of a page
     Arguments:
@@ -765,17 +772,25 @@ def bad_words_modifier(page: Dict, banned_filepath="baselines/mappers/banlists/l
     A list containing the input JSON object if it passes the filter
     """
     with open(banned_filepath, "r") as file:
-        banned_list = [re.escape(ldb.strip()) for ldb in file.readlines()]
+        banned_list = [ldb.strip() for ldb in file.readlines()]
+        
+    if banned_language == "zh":
+        pattern = r'(?:' + '|'.join(re.escape(word) for word in banned_list) + r')'
+    else:
+        pattern = r'\b(?:' + '|'.join(re.escape(word) for word in banned_list) + r')\b'        
      
-    banned_bad_words_regex = re.compile(rf'{"|".join(banned_list)}', flags=re.IGNORECASE)
+    banned_bad_words_regex = re.compile(pattern, flags=re.IGNORECASE)
     
     # Create a regex pattern to match the word
     banned_matches = banned_bad_words_regex.findall(page[CONTENT])
     
-    if banned_matches and len(banned_bad_words_regex) > 0:
-        redis.Client.incrby(redis_record_key, 1)
-        if word_remove_key:
-            page[CONTENT] = banned_matches.sub("", page[CONTENT])
+    if banned_matches:
+        try:
+            redis.Client.incrby(redis_record_key, 1)
+        except Exception:
+            return [page]
+        if remove_word:
+            page[CONTENT] = banned_bad_words_regex.sub("", page[CONTENT])
             
     if page[CONTENT] == '':
         return set_filter_reason_if_annotate(page, "bad_words_modifier"+token, annotate)
