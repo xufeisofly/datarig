@@ -778,13 +778,13 @@ def bad_words_modifier(page: Dict, ldnoobw_filepath="baselines/mappers/banlists/
     zh_bad_words_regex = re.compile(rf'{"|".join(zh_bad_words_list)}')
     
     # Create a regex pattern to match the word
-    ldn_matches = ldn_bad_words_regex.match(page[CONTENT])
-    zh_matches = zh_bad_words_regex.match(page[CONTENT])
+    ldn_matches = ldn_bad_words_regex.findall(page[CONTENT])
+    zh_matches = zh_bad_words_regex.findall(page[CONTENT])
     
-    if len(ldn_matches) > 0:
+    if ldn_matches and len(ldn_matches) > 0:
         redis.Client.incrby("ldnoobw_bad_words_doc_count", 1)
     # Replace the word with an empty string
-    if len(zh_matches) > 0:
+    if zh_matches and len(zh_matches) > 0:
         page[CONTENT] = zh_bad_words_regex.sub("", page[CONTENT])
         redis.Client.incrby("zh_bad_words_doc_count", 1)
 
