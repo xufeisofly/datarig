@@ -681,6 +681,7 @@ def min_sentences_filter(page: Dict, min_num_sentences: int = 3, annotate=False,
     lines = [line for line in lines if line.strip() != ""]
     
     # min_num_sentences is used to filter out pages with too few sentences
+    num_sentences = 0
     language = get_lang_from_page(page, language_key=language_key)
     for line in lines:
         if min_num_sentences != -1:
@@ -1031,7 +1032,7 @@ def fineweb_gopher_quality_filter(
 
         # stop word filter
         if model != 'fineweb':
-            min_stop_words = round(words*min_stop_words_ratio) if round(words*min_stop_words_ratio) > min_stop_words else min_stop_words
+            min_stop_words = round(n_words*min_stop_words_ratio) if round(n_words*min_stop_words_ratio) > min_stop_words else min_stop_words
         if min_stop_words and sum(w in stop_words for w in words) < min_stop_words:
             return set_filter_reason_if_annotate(page, "gopher_enough_stop_words", annotate)
         

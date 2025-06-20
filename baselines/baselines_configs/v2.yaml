@@ -2,12 +2,16 @@
 - source: cc
   steps:
     - func: bad_words_modifier
-      banned_filepath: "baselines/mappers/banlists/ldnoobw.txt"
+      banned_filepath: "baselines/mappers/banlists/zh-badwords.txt"
       banned_language: "zh"
       remove_word: True
       redis_record_key: "zh_bad_words_doc_count"
     - func: bad_words_modifier
-      banned_filepath: "baselines/mappers/banlists/ldnoobw.txt"
+      banned_filepath: "baselines/mappers/banlists/en-badwords.txt"
+      remove_word: False
+      redis_record_key: "en_bad_words_doc_count_before"
+    - func: bad_words_modifier
+      banned_filepath: "baselines/mappers/banlists/en-soft_banned_words.txt"
       remove_word: False
       redis_record_key: "en_bad_words_doc_count_before"
     - func: url_removal_modifier
@@ -38,6 +42,10 @@
     - func: fineweb_gopher_repetition_filter
     - func: uncache_split_words_modifier
     - func: bad_words_modifier
-      banned_filepath: "baselines/mappers/banlists/ldnoobw.txt"
+      banned_filepath: "baselines/mappers/banlists/en-badwords.txt"
+      remove_word: False
+      redis_record_key: "en_bad_words_doc_count_after"
+    - func: bad_words_modifier
+      banned_filepath: "baselines/mappers/banlists/en-soft_banned_words.txt"
       remove_word: False
       redis_record_key: "en_bad_words_doc_count_after"

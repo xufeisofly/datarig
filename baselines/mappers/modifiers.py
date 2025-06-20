@@ -753,7 +753,7 @@ def email_and_phone_removal_modifier(annotate=False, token=""):
 
     return modify
 
-@factory_function
+
 def bad_words_modifier(
     page: Dict, 
     banned_filepath="baselines/mappers/banlists/ldnoobw.txt", 
@@ -978,15 +978,7 @@ def line_removal_modifier(
     if len(page[CONTENT]) == 0:
         return set_filter_reason_if_annotate(page, "too_few_sentences"+token, annotate)
 
-
-    
-    # for line in new_lines:
-    #     sentences = split_into_sentences(line, language)
-    #     num_sentences += len(sentences)
-    #     if num_sentences >= num_of_sentences:
-    #         return [page]
-
-    return set_filter_reason_if_annotate(page, "too_few_sentences"+token, annotate)
+    return [page]
 
 
 def check_javascript(text):
