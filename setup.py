@@ -216,7 +216,7 @@ required = [pkg for pkg in required if pkg.split('==')[0] not in installed]
 
 # setup(
 #     name='baselines',  # Change this to your package name
-#     version='0.0.1',  # Change this to your package version
+#     version='0.0.2',  # Change this to your package version
 #     description='Description of your package',  # Add a brief description
 #     packages=find_packages(),
 #     install_requires=required,
@@ -227,7 +227,7 @@ required = [pkg for pkg in required if pkg.split('==')[0] not in installed]
 
 setup(
     name='sci-cc',
-    version='0.1.2',
+    version='0.1.3',
     description='Your package description',
     packages=find_packages(),
     install_requires=required,

@@ -697,8 +697,6 @@ def fineweb_quality_filter(
         page: Dict,
         line_punct_thr: float = 0.12, line_punct_exclude_zero: bool = False,
         stop_chars = None,
-        high_quality_ratio_value: float = 0.75,
-        high_quality_min_line_num: int = 10,
         short_line_thr: float = 0.67,
         short_line_length: int = 30,
         new_line_ratio: float = 0.3,
@@ -711,8 +709,7 @@ def fineweb_quality_filter(
     lines = page[CONTENT].split("\n")
     lines = [line for line in lines if line.strip() != ""]
     if len(lines) == 0:
-        return set_filter_reason_if_annotate(page, "line_punct_ratio_filter"+token, annotate)
-    
+        return set_filter_reason_if_annotate(page, "line_punct_ratio_filter"+token, annotate)    
 
     language = get_lang_from_page(page, language_key=language_key)
     if not stop_chars:
@@ -720,13 +717,7 @@ def fineweb_quality_filter(
         
     ratio = sum(1 for line in lines if line.endswith(stop_chars)) / len(lines)
     if ratio < line_punct_thr and not (ratio == 0 and line_punct_exclude_zero):
-        if high_quality_ratio(
-                lines,
-                model=model,
-                high_quality_min_line_num=high_quality_min_line_num,
-                language=language,
-        ) < high_quality_ratio_value:
-            return set_filter_reason_if_annotate(page, "line_punct_ratio_filter"+token, annotate)
+        return set_filter_reason_if_annotate(page, "line_punct_ratio_filter"+token, annotate)
 
     ratio = sum(1 for line in lines if len(line) <= short_line_length) / len(lines)
     if ratio > short_line_thr:
@@ -749,8 +740,6 @@ def line_punct_ratio_filter(
         line_punct_thr: float = 0.12,
         line_punct_exclude_zero: bool = False,
         stop_chars = None,
-        high_quality_ratio_value: float = 0.75,
-        high_quality_min_line_num: int = 10,
         annotate=False,
         language_key: str = 'language_id_whole_page_fasttext',
         token="",
@@ -761,19 +750,12 @@ def line_punct_ratio_filter(
     if len(lines) == 0:
         return set_filter_reason_if_annotate(page, "line_punct_ratio_filter"+token, annotate)
 
-    language = get_lang_from_page(page, language_key=language_key)
     if not stop_chars:
         stop_chars = tuple(TERMINAL_PUNCTUATION)
         
     ratio = sum(1 for line in lines if line.endswith(stop_chars)) / len(lines)
     if ratio < line_punct_thr and not (ratio == 0 and line_punct_exclude_zero):
-        if high_quality_ratio(
-                lines,
-                model=model,
-                high_quality_min_line_num=high_quality_min_line_num,
-                language=language,
-        ) < high_quality_ratio_value:
-            return set_filter_reason_if_annotate(page, "line_punct_ratio_filter"+token, annotate)
+        return set_filter_reason_if_annotate(page, "line_punct_ratio_filter"+token, annotate)
     
     return [page]
 
@@ -995,7 +977,6 @@ def fineweb_gopher_quality_filter(
         max_ellipsis_lines_ratio: float | None = 0.3,
         max_non_alpha_words_ratio: float | None = 0.8,
         min_stop_words: int | None = 2,
-        min_stop_words_ratio: float | None = 0.09,
         whitelist_chars=('(', ')', '%'),
         use_whitelist = False,
         annotate=False,
@@ -1031,8 +1012,6 @@ def fineweb_gopher_quality_filter(
             return set_filter_reason_if_annotate(page, "gopher_above_avg_threshold", annotate)
 
         # stop word filter
-        if model != 'fineweb':
-            min_stop_words = round(n_words*min_stop_words_ratio) if round(n_words*min_stop_words_ratio) > min_stop_words else min_stop_words
         if min_stop_words and sum(w in stop_words for w in words) < min_stop_words:
             return set_filter_reason_if_annotate(page, "gopher_enough_stop_words", annotate)
         

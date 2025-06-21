@@ -117,7 +117,7 @@ def write_jsonl(data, file_path: str, mode: str = "w", resumable_write=False):
     else:
         with path.open(mode) as f:
             for item in data:
-                json_str = json.dumps(item)
+                json_str = json.dumps(item, ensure_ascii=False)
                 f.write(f"{json_str}\n")
 
 def makedirs_if_missing(dir_path: str):
