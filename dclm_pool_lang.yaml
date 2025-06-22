@@ -15,7 +15,7 @@ spec:
         - name: cr-docker-registry
       containers:
       - name: dclm-sci
-        image: cr.registry.res.cloud.zhejianglab.com/dataprocess/datarig:v4.5
+        image: cr.registry.res.cloud.zhejianglab.com/dataprocess/datarig:v4.6
         resources:
           requests:
             cpu: "13"
