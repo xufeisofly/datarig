@@ -63,8 +63,8 @@ spec:
           - "--ignore_failures"
         volumeMounts:
           - name: dclm-config-volume
-            mountPath: "/app/dclm-sci/baselines/baselines_configs/refinedweb_rule.yaml"
-            subPath: "refinedweb_rule.yaml"
+            mountPath: "/app/dclm-sci/baselines/baselines_configs/fineweb.yaml"
+            subPath: "fineweb.yaml"
         imagePullPolicy: IfNotPresent
       volumes:
         - name: dclm-config-volume
