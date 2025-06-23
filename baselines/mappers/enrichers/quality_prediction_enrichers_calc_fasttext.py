@@ -8,6 +8,7 @@ import os
 from typing import Dict, List, Callable
 
 import fasttext
+import fcntl
 
 from core.constants import CONTENT
 from core.factory_utils import factory_function
@@ -29,6 +30,41 @@ def load_fasttext_model(model_filename):
     )
 
     return fasttext.load_model(model_path)
+
+
+_global_fasttext_model = None
+_model_lock_file = "/tmp/fasttext_model.lock"
+
+def load_fasttext_model_once(model_filename):
+    global _global_fasttext_model
+    
+    # 使用文件锁确保模型只被加载一次
+    with open(_model_lock_file, 'w') as f:
+        # 获取排他锁
+        fcntl.flock(f, fcntl.LOCK_EX)
+        
+        try:
+            # 检查其他进程是否已加载模型
+            if _global_fasttext_model is None:
+                if os.path.exists(MODEL_SUBDIRECTORY):
+                    model_path = os.path.join(MODEL_SUBDIRECTORY, model_filename)
+                else:
+                    model_path = os.path.join(PROJECT_ROOT, MODEL_SUBDIRECTORY, model_filename)
+
+                assert os.path.exists(model_path), (
+                    f"Model {model_path} does not exist. "
+                    "Please download the model to this path before running a baselines pipeline involving fasttext filtering. "
+                    "See https://github.com/mlfoundations/dclm/blob/main/baselines/README.md#fasttext-filtering for more details."
+                )
+
+                # 加载模型到全局变量
+                _global_fasttext_model = fasttext.load_model(model_path)
+        finally:
+            # 释放锁
+            fcntl.flock(f, fcntl.LOCK_UN)
+    
+    return _global_fasttext_model
+
 
 def classify_fasttext_hq_prob(model: fasttext.FastText._FastText, content: str) -> dict:
     '''
@@ -79,7 +115,7 @@ def classify_fasttext_hq_prob_enricher(model_filename=RPJ_MODEL_FILENAME, key: s
     Returns:
         A function that enriches the given page with the text type (HQ or CC).
     '''
-    model = load_fasttext_model(model_filename)
+    model = load_fasttext_model_once(model_filename)
 
     def enrich(page: Dict) -> List[Dict]:
         assert overwrite or key not in page, f"cannot overwrite an existing key {key}"
