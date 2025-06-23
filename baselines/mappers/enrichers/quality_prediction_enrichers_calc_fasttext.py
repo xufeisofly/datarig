@@ -8,10 +8,7 @@ import os
 from typing import Dict, List, Callable
 
 import fasttext
-import tempfile
-import atexit
-import mmap
-
+import ray
 
 from core.constants import CONTENT
 from core.factory_utils import factory_function
@@ -36,76 +33,32 @@ def load_fasttext_model(model_filename):
     return fasttext.load_model(model_path)
 
 
-# 全局变量存储共享内存信息
-_shared_model_info = None
+MODEL_CACHE_KEY = "fasttext_model"
 
 def load_shared_fasttext_model(model_filename):
-    global _shared_model_info
+    # 检查模型是否已在缓存中
+    if MODEL_CACHE_KEY in ray.get_runtime_context().cache:
+        return ray.get_runtime_context().cache[MODEL_CACHE_KEY]
     
-    # 构建模型路径
+    # 加载模型
     if os.path.exists(MODEL_SUBDIRECTORY):
         model_path = os.path.join(MODEL_SUBDIRECTORY, model_filename)
     else:
         model_path = os.path.join(PROJECT_ROOT, MODEL_SUBDIRECTORY, model_filename)
-    
+
     assert os.path.exists(model_path), (
-        f"模型 {model_path} 不存在。"
-        "请在运行涉及fasttext过滤的基线管道之前，将模型下载到该路径。"
-        "更多详情请查看：https://github.com/mlfoundations/dclm/blob/main/baselines/README.md#fasttext-filtering"
+        f"Model {model_path} does not exist. "
+        "Please download the model to this path before running a baselines pipeline involving fasttext filtering. "
+        "See https://github.com/mlfoundations/dclm/blob/main/baselines/README.md#fasttext-filtering for more details."
     )
+
+    model = fasttext.load_model(model_path)
+    print("========= load model, pid:", os.getpid())
     
-    # 检查是否已创建共享内存映射
-    if _shared_model_info is None:
-        # 创建临时文件用于内存映射
-        temp_fd, temp_path = tempfile.mkstemp(prefix="fasttext_")
-        os.close(temp_fd)
-        
-        # 打开原始模型文件和临时文件
-        with open(model_path, 'rb') as src, open(temp_path, 'wb') as dst:
-            # 复制文件内容到临时文件
-            dst.write(src.read())
-        
-        # 内存映射临时文件
-        with open(temp_path, 'r+b') as f:
-            # 获取文件大小
-            size = os.fstat(f.fileno()).st_size
-            # 创建内存映射
-            mm = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ)
-            
-            # 保存共享内存信息
-            _shared_model_info = {
-                'mmap': mm,
-                'temp_path': temp_path,
-                'size': size
-            }
-        
-        # 注册清理函数，程序退出时释放资源
-        atexit.register(_cleanup_shared_memory)
-    
-    # 创建一个临时文件用于加载模型
-    fd, temp_model_path = tempfile.mkstemp(suffix=".bin", prefix="fasttext_")
-    os.close(fd)
-    
-    # 将内存映射内容写入临时文件
-    with open(temp_model_path, 'wb') as f:
-        f.write(_shared_model_info['mmap'][:_shared_model_info['size']])
-    
-    # 从临时文件加载模型
-    model = fasttext.load_model(temp_model_path)
-    
-    # 加载完成后删除临时文件（模型已在内存中）
-    os.unlink(temp_model_path)
+    # 将模型存入缓存
+    ray.get_runtime_context().cache[MODEL_CACHE_KEY] = model
     
     return model
-
-def _cleanup_shared_memory():
-    global _shared_model_info
-    if _shared_model_info:
-        # 关闭内存映射
-        _shared_model_info['mmap'].close()
-        # 删除临时文件
-        os.unlink(_shared_model_info['temp_path'])
-        _shared_model_info = None
 
 
 def classify_fasttext_hq_prob(model: fasttext.FastText._FastText, content: str) -> dict:
