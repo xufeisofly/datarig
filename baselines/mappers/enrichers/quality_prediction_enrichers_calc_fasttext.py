@@ -157,7 +157,7 @@ def classify_fasttext_hq_prob_enricher(model_filename=RPJ_MODEL_FILENAME, key: s
     Returns:
         A function that enriches the given page with the text type (HQ or CC).
     '''
-    model = load_fasttext_model(model_filename)
+    model = load_shared_fasttext_model(model_filename)
 
     def enrich(page: Dict) -> List[Dict]:
         assert overwrite or key not in page, f"cannot overwrite an existing key {key}"
