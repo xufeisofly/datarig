@@ -696,9 +696,11 @@ def min_sentences_filter(page: Dict, min_num_sentences: int = 3, annotate=False,
 def fineweb_quality_filter(
         page: Dict,
         line_punct_thr: float = 0.12, line_punct_exclude_zero: bool = False,
+        line_punct_thr_lines_num = 9,
         stop_chars = None,
         short_line_thr: float = 0.67,
         short_line_length: int = 30,
+        short_line_ratio_lines_num: int = 12,
         new_line_ratio: float = 0.3,
         char_duplicates_ratio: float = 0.1,
         annotate=False,
@@ -709,18 +711,18 @@ def fineweb_quality_filter(
     lines = page[CONTENT].split("\n")
     lines = [line for line in lines if line.strip() != ""]
     if len(lines) == 0:
-        return set_filter_reason_if_annotate(page, "line_punct_ratio_filter"+token, annotate)    
+        return set_filter_reason_if_annotate(page, "fineweb_quality_filter_zero_lines"+token, annotate)    
 
     language = get_lang_from_page(page, language_key=language_key)
     if not stop_chars:
         stop_chars = tuple(TERMINAL_PUNCTUATION)
         
     ratio = sum(1 for line in lines if line.endswith(stop_chars)) / len(lines)
-    if ratio < line_punct_thr and not (ratio == 0 and line_punct_exclude_zero):
+    if ratio < line_punct_thr and not (ratio == 0 and line_punct_exclude_zero) and len(lines) >= line_punct_thr_lines_num:
         return set_filter_reason_if_annotate(page, "line_punct_ratio_filter"+token, annotate)
 
     ratio = sum(1 for line in lines if len(line) <= short_line_length) / len(lines)
-    if ratio > short_line_thr:
+    if ratio > short_line_thr and len(lines) >= short_line_ratio_lines_num:
         return set_filter_reason_if_annotate(page, "short_line_ratio_filter"+token, annotate)
 
     ratio = find_duplicates(lines)[1] / len(page[CONTENT].replace("\n", ""))
