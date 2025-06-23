@@ -1,7 +1,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: c4-noclean-refinedweb
+  name: c4-noclean-fineweb
 spec:
   parallelism: 60 # 5x(4-5)C=20C-25C 5x(10-12)G=50-60G per node, (20C-25C)x89 = 1780C-2225C max: 445pod
   completions: 60
@@ -15,7 +15,7 @@ spec:
         - name: cr-docker-registry
       containers:
       - name: dclm-sci
-        image: cr.registry.res.cloud.zhejianglab.com/dataprocess/datarig:v4.5
+        image: cr.registry.res.cloud.zhejianglab.com/dataprocess/datarig:v4.6
         resources:
           requests:
             cpu: "13"
@@ -35,11 +35,11 @@ spec:
             value: "6380"			
         args:
           - "--readable_name"
-          - "c4_noclean_refinedweb"
+          - "c4_noclean_fineweb2"
           - "--output_dir"
           - "oss://si002558te8h/dclm/output/"
           - "--config_path"
-          - "baselines/baselines_configs/refinedweb_rule.yaml"
+          - "baselines/baselines_configs/fineweb.yaml"
           - "--oss_temp_dir"
           - "oss://si002558te8h/dclm/pool/temp_dir_500/"
           - "--source_name"
@@ -63,8 +63,8 @@ spec:
           - "--ignore_failures"
         volumeMounts:
           - name: dclm-config-volume
-            mountPath: "/app/dclm-sci/baselines/baselines_configs/refinedweb_rule.yaml"
-            subPath: "refinedweb_rule.yaml"
+            mountPath: "/app/dclm-sci/baselines/baselines_configs/fineweb.yaml"
+            subPath: "fineweb.yaml"
         imagePullPolicy: IfNotPresent
       volumes:
         - name: dclm-config-volume
