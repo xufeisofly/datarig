@@ -44,6 +44,8 @@ def load_shared_fasttext_model(model_filename):
     # 如果已存在对象引用，直接返回
     if MODEL_REF is not None and ray.get(MODEL_REF.exists.remote()):
         return MODEL_REF
+
+    print("=========. reload model")
     
     # 确定模型路径
     if os.path.exists(MODEL_SUBDIRECTORY):
@@ -164,6 +166,8 @@ def classify_fasttext_hq_prob(model: fasttext.FastText._FastText, content: str) 
 
     # Extract the predicted label and its probability
     (pred_label, pred_prob) = pred
+
+    print("--------", pred_label)
     pred_label = pred_label[0]
     hq_prob = pred_prob[0]
 
