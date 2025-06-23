@@ -319,7 +319,6 @@ def process_single_file(config_data: Dict[str, Any], raw_data_dirpath: str, json
     commit_steps = executed_steps = skipped_steps = 0
     early_exit = False
     updated = False
-    print("============0")
     for step in config_data['steps']:
         if annotate:
             step['annotate'] = True
@@ -348,20 +347,15 @@ def process_single_file(config_data: Dict[str, Any], raw_data_dirpath: str, json
         n_pages_before = len(pages)
         counters = {ERRORS_INDEX: 0, REMOVED_INDEX: 0, KEPT_INDEX: 0, SPLIT_INDEX: 0}
         new_pages = []
-        old_page_stats = []
         execution_times = []
         step_stats = {}
 
-        print("============1", old_page_stats)
-
         t4 = time.time()
         if workers > 1:
-            apply_partial_func_parallel(counters, execution_times, new_pages, pages, step, workers, old_page_stats=old_page_stats)
+            apply_partial_func_parallel(counters, execution_times, new_pages, pages, step, workers)
         else:
             partial_func = get_mapper(**step, _profile=True, _safe=True)
-            apply_partial_func_sequential(counters, execution_times, new_pages, pages, partial_func, old_page_stats=old_page_stats)
-
-            print("============", old_page_stats)
+            apply_partial_func_sequential(counters, execution_times, new_pages, pages, partial_func)
             del partial_func
         if counters[ERRORS_INDEX] == len(pages):
             raise RuntimeError(f"Step {step} failed on all pages.")
@@ -431,14 +425,9 @@ def process_single_file(config_data: Dict[str, Any], raw_data_dirpath: str, json
     return output_path, stats_output_path, num_pages_in, len(pages), []
 
 
-def _parse_func_results(results_gen, counters, execution_times, new_pages, old_page_stats=None):
+def _parse_func_results(results_gen, counters, execution_times, new_pages):
     for result, profiling_info in results_gen:
         execution_times.append(profiling_info.execution_time)
-        if old_page_stats is not None and isinstance(result, tuple):
-            print("-----------", len(result))
-            result = result[0]
-            old_page_stats.append(result[1])
-            
         if isinstance(result, list):
             counters[min(len(result), 2)] += 1  # 0 is removed, 1 is kept and 2 is split
             new_pages.extend(result)
@@ -447,8 +436,8 @@ def _parse_func_results(results_gen, counters, execution_times, new_pages, old_p
             print(result)
 
 
-def apply_partial_func_sequential(counters, execution_times, new_pages, pages, partial_func, old_page_stats=None):
-    _parse_func_results(map(partial_func, pages), counters, execution_times, new_pages, old_page_stats)
+def apply_partial_func_sequential(counters, execution_times, new_pages, pages, partial_func):
+    _parse_func_results(map(partial_func, pages), counters, execution_times, new_pages)
 
 
 def _worker(worker_num, step, pages, input_queue, output_list):
@@ -475,7 +464,7 @@ def _worker(worker_num, step, pages, input_queue, output_list):
     print(f"Worker {worker_num} has finished processing jobs.")
 
 
-def apply_partial_func_parallel(counters, execution_times, new_pages, pages, step, n_workers, old_page_stats=None):
+def apply_partial_func_parallel(counters, execution_times, new_pages, pages, step, n_workers):
     # Create the input queue.
     input_queue = multiprocessing.Queue()
 
@@ -503,4 +492,4 @@ def apply_partial_func_parallel(counters, execution_times, new_pages, pages, ste
     for w in workers:
         w.join()
 
-    _parse_func_results(shared_list, counters, execution_times, new_pages, old_page_stats=old_page_stats)
+    _parse_func_results(shared_list, counters, execution_times, new_pages)
