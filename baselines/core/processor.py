@@ -357,6 +357,8 @@ def process_single_file(config_data: Dict[str, Any], raw_data_dirpath: str, json
         else:
             partial_func = get_mapper(**step, _profile=True, _safe=True)
             apply_partial_func_sequential(counters, execution_times, new_pages, pages, partial_func, old_page_stats=old_page_stats)
+
+            print("============", old_page_stats)
             del partial_func
         if counters[ERRORS_INDEX] == len(pages):
             raise RuntimeError(f"Step {step} failed on all pages.")
