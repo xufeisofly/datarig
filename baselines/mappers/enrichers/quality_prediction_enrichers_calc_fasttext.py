@@ -71,9 +71,6 @@ def load_shared_fasttext_model(model_filename):
         def __init__(self, path):
             self.model = fasttext.load_model(path)
         
-        def get_model(self):
-            return self.model
-        
         def predict(self, text):
             return self.model.predict(text)
     
@@ -176,7 +173,27 @@ def classify_fasttext_hq_prob(model: fasttext.FastText._FastText, content: str) 
     # Extract the predicted label and its probability
     (pred_label, pred_prob) = pred
 
-    print("--------", pred_label)
+    pred_label = pred_label[0]
+    hq_prob = pred_prob[0]
+
+    # If the predicted label is 'CC', adjust the probability of it being 'Wikipedia'
+    if pred_label == "__label__cc":
+        hq_prob = 1 - hq_prob
+
+    # Return the output
+    return hq_prob
+
+
+def classify_fasttext_hq_prob_ray(model_holder, content: str) -> dict:
+    # Clean the input text by joining all lines into a single string
+    text = " ".join(content.strip().splitlines())
+
+    # Make the prediction
+    pred = ray.get(model_holder.predict.remote(text))
+
+    # Extract the predicted label and its probability
+    (pred_label, pred_prob) = pred
+
     pred_label = pred_label[0]
     hq_prob = pred_prob[0]
 
@@ -205,13 +222,11 @@ def classify_fasttext_hq_prob_enricher(model_filename=RPJ_MODEL_FILENAME, key: s
     '''
     model_holder = load_shared_fasttext_model(model_filename)
     print("========1")
-    model = ray.get(model_holder.get_model.remote())
-    print("========2")
 
     def enrich(page: Dict) -> List[Dict]:
         assert overwrite or key not in page, f"cannot overwrite an existing key {key}"
         print("========3")
-        page[key] = classify_fasttext_hq_prob(model, page[CONTENT])
+        page[key] = classify_fasttext_hq_prob_ray(model_holder, page[CONTENT])
         print("========4")
         return [page]
 
