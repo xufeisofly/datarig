@@ -35,17 +35,22 @@ def load_fasttext_model(model_filename):
     return fasttext.load_model(model_path)
 
 
-# 全局变量存储模型的对象引用
-MODEL_REF = None
+MODEL_HOLDER_REF = None
 
 def load_shared_fasttext_model(model_filename):
-    global MODEL_REF
+    global MODEL_HOLDER_REF
     
-    # 如果已存在对象引用，直接返回
-    if MODEL_REF is not None and ray.get(MODEL_REF.exists.remote()):
-        return MODEL_REF
-
-    print("=========. reload model")
+    # 如果已经存在模型持有者引用，直接返回
+    if MODEL_HOLDER_REF is not None:
+        try:
+            # 验证 Actor 是否仍然存活
+            ray.get_actor("fasttext_model_holder")
+            print("----------ddd")
+            return MODEL_HOLDER_REF
+        except ValueError:
+            print("----------fff")
+            # Actor 不存在，重置引用
+            MODEL_HOLDER_REF = None
     
     # 确定模型路径
     if os.path.exists(MODEL_SUBDIRECTORY):
@@ -61,7 +66,7 @@ def load_shared_fasttext_model(model_filename):
     )
 
     # 定义模型持有者 Actor
-    @ray.remote(num_cpus=0, resources={"model_holder": 1})
+    @ray.remote(num_cpus=0)  # 使用 0 CPU 资源，不占用计算资源
     class ModelHolder:
         def __init__(self, path):
             self.model = fasttext.load_model(path)
@@ -69,18 +74,22 @@ def load_shared_fasttext_model(model_filename):
         def get_model(self):
             return self.model
         
-        def exists(self):
-            return True
-
-    # 启动或获取已存在的模型持有者
+        def predict(self, text):
+            return self.model.predict(text)
+    
+    # 尝试获取已存在的 Actor
     try:
-        # 尝试获取已存在的 Actor
-        MODEL_REF = ray.get_actor("fasttext_model_holder")
+        MODEL_HOLDER_REF = ray.get_actor("fasttext_model_holder")
+        print("----------1")
     except ValueError:
         # 不存在则创建新的
-        MODEL_REF = ModelHolder.options(name="fasttext_model_holder", lifetime="detached").remote(model_path)
+        MODEL_HOLDER_REF = ModelHolder.options(
+            name="fasttext_model_holder", 
+            lifetime="detached"
+        ).remote(model_path)
+        print("----------2")
     
-    return MODEL_REF
+    return MODEL_HOLDER_REF
 
 
 # 全局变量存储模型
@@ -194,11 +203,16 @@ def classify_fasttext_hq_prob_enricher(model_filename=RPJ_MODEL_FILENAME, key: s
     Returns:
         A function that enriches the given page with the text type (HQ or CC).
     '''
-    model = ray.get(load_shared_fasttext_model(model_filename).get_model.remote())
+    model_holder = load_shared_fasttext_model(model_filename)
+    print("========1")
+    model = ray.get(model_holder.get_model.remote())
+    print("========2")
 
     def enrich(page: Dict) -> List[Dict]:
         assert overwrite or key not in page, f"cannot overwrite an existing key {key}"
+        print("========3")
         page[key] = classify_fasttext_hq_prob(model, page[CONTENT])
+        print("========4")
         return [page]
 
     return enrich
