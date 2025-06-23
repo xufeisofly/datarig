@@ -1,4 +1,4 @@
-from typing import List, Dict, Union
+from typing import List, Dict, Union, Tuple
 import re
 import os
 from urllib.parse import urlparse
@@ -48,6 +48,34 @@ def language_filter(page: Dict, keep_languages: List[str], key='language_id_whol
             return [page]
     else:
         return []
+
+
+def language_filter_with_old_stats(page: Dict, keep_languages: List[str], key='language_id_whole_page_langdetect', threshold=0.0) -> \
+        Tuple[List[Dict], List[Dict]]:
+    """
+    Filter the JSON objects by keeping only the ones that have the specified language, with the option to provide a threshold on
+    the predicted probability
+
+    Arguments:
+    page -- A dictionary representation of the page.
+    keep_languages -- A list of languages to keep.
+    key -- The metadata key for LID, defaults to the key for using langdetect on the whole page
+    threshold -- A probability threshold for detecting a language
+
+    Returns:
+    A list containing the page if the language is in the keep_languages list and exceeds the threshold, otherwise an empty list.
+    """
+    if not isinstance(keep_languages, list):
+        raise TypeError("The keep_languages argument must be a list.")
+
+    assert key in page, f'The input JSON object does not have a {key} field'
+    old_page = page
+    old_page.pop(CONTENT, None)
+    for lang in keep_languages:
+        if lang in page[key] and page[key][lang] > threshold:
+            return [page], [old_page]
+    else:
+        return [], [old_page]    
 
 
 def quality_filter(page: Dict, key: str = 'fasttext_hq_prob', threshold: float=0.0, lower_better: bool=False, key_must_exist: bool=True, annotate=False, token="") -> List[Dict]:
