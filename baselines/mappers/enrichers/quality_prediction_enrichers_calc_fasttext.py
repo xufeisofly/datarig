@@ -45,10 +45,8 @@ def load_shared_fasttext_model(model_filename):
         try:
             # 验证 Actor 是否仍然存活
             ray.get_actor("fasttext_model_holder")
-            print("----------ddd")
             return MODEL_HOLDER_REF
         except ValueError:
-            print("----------fff")
             # Actor 不存在，重置引用
             MODEL_HOLDER_REF = None
     
@@ -77,14 +75,12 @@ def load_shared_fasttext_model(model_filename):
     # 尝试获取已存在的 Actor
     try:
         MODEL_HOLDER_REF = ray.get_actor("fasttext_model_holder")
-        print("----------1")
     except ValueError:
         # 不存在则创建新的
         MODEL_HOLDER_REF = ModelHolder.options(
             name="fasttext_model_holder", 
             lifetime="detached"
         ).remote(model_path)
-        print("----------2")
     
     return MODEL_HOLDER_REF
 
@@ -188,11 +184,9 @@ def classify_fasttext_hq_prob_ray(model_holder, content: str) -> dict:
     # Clean the input text by joining all lines into a single string
     text = " ".join(content.strip().splitlines())
 
-    print("-------- 9")
+
     # Make the prediction
     pred = ray.get(model_holder.predict.remote(text))
-
-    print("-------- 10")
 
     # Extract the predicted label and its probability
     (pred_label, pred_prob) = pred
@@ -200,7 +194,7 @@ def classify_fasttext_hq_prob_ray(model_holder, content: str) -> dict:
     pred_label = pred_label[0]
     hq_prob = pred_prob[0]
 
-    print("-------- pred", pred_label, hq_prob)
+    print("-=-=-=-=-= pred", pred_label, hq_prob)
 
     # If the predicted label is 'CC', adjust the probability of it being 'Wikipedia'
     if pred_label == "__label__cc":
@@ -226,7 +220,6 @@ def classify_fasttext_hq_prob_enricher(model_filename=RPJ_MODEL_FILENAME, key: s
         A function that enriches the given page with the text type (HQ or CC).
     '''
     model_holder = load_shared_fasttext_model(model_filename)
-    print("========1")
 
     def enrich(page: Dict) -> List[Dict]:
         assert overwrite or key not in page, f"cannot overwrite an existing key {key}"
