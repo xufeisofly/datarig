@@ -319,6 +319,7 @@ def process_single_file(config_data: Dict[str, Any], raw_data_dirpath: str, json
     commit_steps = executed_steps = skipped_steps = 0
     early_exit = False
     updated = False
+    print("============0")
     for step in config_data['steps']:
         if annotate:
             step['annotate'] = True
@@ -350,6 +351,8 @@ def process_single_file(config_data: Dict[str, Any], raw_data_dirpath: str, json
         old_page_stats = []
         execution_times = []
         step_stats = {}
+
+        print("============1", old_page_stats)
 
         t4 = time.time()
         if workers > 1:
