@@ -4,7 +4,7 @@
     - func: detect_lang_whole_page_enricher
       model: fasttext
       key_prefix: language_id_whole_page
-    - func: language_filter
+    - func: language_filter_v2
       key: language_id_whole_page_fasttext
       keep_languages: [ en ]
       threshold: 0.65
