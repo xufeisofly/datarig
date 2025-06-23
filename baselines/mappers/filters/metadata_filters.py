@@ -1,4 +1,4 @@
-from typing import List, Dict, Union
+from typing import List, Dict, Union, Tuple
 import re
 import os
 from urllib.parse import urlparse
@@ -47,7 +47,7 @@ def language_filter(page: Dict, keep_languages: List[str], key='language_id_whol
         if lang in page[key] and page[key][lang] > threshold:
             return [page]
     else:
-        return []
+        return []    
 
 
 def quality_filter(page: Dict, key: str = 'fasttext_hq_prob', threshold: float=0.0, lower_better: bool=False, key_must_exist: bool=True, annotate=False, token="") -> List[Dict]:
