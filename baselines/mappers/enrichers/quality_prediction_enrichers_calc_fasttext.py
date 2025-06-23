@@ -197,6 +197,8 @@ def classify_fasttext_hq_prob_ray(model_holder, content: str) -> dict:
     pred_label = pred_label[0]
     hq_prob = pred_prob[0]
 
+    print("-------- pred", pred_label, hq_prob)
+
     # If the predicted label is 'CC', adjust the probability of it being 'Wikipedia'
     if pred_label == "__label__cc":
         hq_prob = 1 - hq_prob
@@ -225,9 +227,7 @@ def classify_fasttext_hq_prob_enricher(model_filename=RPJ_MODEL_FILENAME, key: s
 
     def enrich(page: Dict) -> List[Dict]:
         assert overwrite or key not in page, f"cannot overwrite an existing key {key}"
-        print("========3")
         page[key] = classify_fasttext_hq_prob_ray(model_holder, page[CONTENT])
-        print("========4")
         return [page]
 
     return enrich
