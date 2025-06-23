@@ -188,8 +188,11 @@ def classify_fasttext_hq_prob_ray(model_holder, content: str) -> dict:
     # Clean the input text by joining all lines into a single string
     text = " ".join(content.strip().splitlines())
 
+    print("-------- 9")
     # Make the prediction
     pred = ray.get(model_holder.predict.remote(text))
+
+    print("-------- 10")
 
     # Extract the predicted label and its probability
     (pred_label, pred_prob) = pred
