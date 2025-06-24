@@ -1,10 +1,10 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: c4-noclean-40
+  name: c4-noclean-80
 spec:
-  parallelism: 40 # 5x(4-5)C=20C-25C 5x(10-12)G=50-60G per node, (20C-25C)x89 = 1780C-2225C max: 445pod
-  completions: 40
+  parallelism: 80 # 5x(4-5)C=20C-25C 5x(10-12)G=50-60G per node, (20C-25C)x89 = 1780C-2225C max: 445pod
+  completions: 80
   backoffLimit: 5  # 如果任务失败后不希望重试，则设置为 0；否则设置为需要的重试次数
   template:
     metadata:
@@ -18,11 +18,11 @@ spec:
         image: cr.registry.res.cloud.zhejianglab.com/dataprocess/datarig:v4.8
         resources:
           requests:
-            cpu: "26"
-            memory: "52Gi"
+            cpu: "13"
+            memory: "26Gi"
           limits:
-            cpu: "30"
-            memory: "56Gi"
+            cpu: "15"
+            memory: "28Gi"
         command: ["/app/dclm-sci/start.sh"]
         env:
           - name: RAY_DEDUP_LOGS
@@ -53,9 +53,9 @@ spec:
           - "--workers"
           - "1"
           - "--split_workers"
-          - "8"		  
+          - "4"		  
           - "--chunk_size"
-          - "16"
+          - "8"
           - "--output_has_dataset_name"
           - "--overwrite"
           - "--use_task"
