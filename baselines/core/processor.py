@@ -65,7 +65,7 @@ def _get_output_paths(base_output_path, jsonl_relpath):
     shard_name = shard_name.split("/")[-1] # xufeisofly
     out_path = os.path.join(base_output_path, 'processed_data', shard_name + f'_processed.{file_ext}')
     stats_out_path = os.path.join(base_output_path, 'stats', shard_name + '_stats.jsonl')
-    old_page_out_path = os.path.join(base_output_path, 'old_stats', shard_name + '_stats.jsonl')
+    old_page_out_path = os.path.join(base_output_path, 'old_stats', shard_name + f'_stats.{file_ext}')
 
     makedirs_if_missing(os.path.dirname(out_path))
     makedirs_if_missing(os.path.dirname(stats_out_path))
