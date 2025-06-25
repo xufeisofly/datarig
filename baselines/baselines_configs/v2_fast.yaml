@@ -3,8 +3,8 @@
   steps:
     - func: email_and_phone_removal_modifier
     - func: citation_removal_modifier
-    - func: substring_line_modifier        
-      max_length: 10 
+    - func: substring_line_modifier
+      max_length: 10
       banlist: "items in cart"
       remove_substring_only: True
     - func: substring_line_modifier
@@ -37,4 +37,4 @@
       banned_filepath: "baselines/mappers/banlists/zh-badwords.txt"
       banned_language: "zh"
       remove_word: True
-      redis_record_key: "zh_bad_words_doc_count"	  
+      redis_record_key: "zh_bad_words_doc_count"
