@@ -27,11 +27,11 @@
     - func: lorem_ipsum_filter
     - func: min_sentences_filter
     - func: cache_split_words_modifier
+    - func: massive_web_repetition_filters
+      tokenizer: "fineweb"
     - func: fineweb_gopher_quality_filter
       model: v2
     - func: fineweb_quality_filter
-    - func: massive_web_repetition_filters
-      tokenizer: "fineweb"
     - func: uncache_split_words_modifier
     - func: bad_words_modifier
       banned_filepath: "baselines/mappers/banlists/zh-badwords.txt"
