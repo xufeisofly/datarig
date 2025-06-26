@@ -35,7 +35,7 @@ spec:
             value: "6380"			
         args:
           - "--readable_name"
-          - "c4_noclean_v2_use_fineweb_repetition"
+          - "c4_noclean_v2_min_words3"
           - "--output_dir"
           - "oss://si002558te8h/dclm/output/"
           - "--config_path"
