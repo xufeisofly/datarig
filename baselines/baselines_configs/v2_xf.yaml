@@ -23,7 +23,6 @@
       location: prefix
       remove_substring_only: True
     - func: line_removal_modifier
-      min_word_cnt_per_line: 3
     - func: word_length_modifier
     - func: lorem_ipsum_filter
     - func: min_sentences_filter
@@ -32,7 +31,6 @@
       tokenizer: "fineweb"
     - func: fineweb_gopher_quality_filter
       model: v2
-    - func: fineweb_quality_filter
     - func: uncache_split_words_modifier
     - func: bad_words_modifier
       banned_filepath: "baselines/mappers/banlists/zh-badwords.txt"
