@@ -938,25 +938,23 @@ def join_lines_modifier(page, delimiter='\n'):
 
 def line_removal_modifier(
         page: Dict,
-        max_removed_ratio: float = 0.05,
+        max_removed_ratio: float = -1,
         max_uppercase_ratio: float = 0.99,
         min_word_cnt_per_line: int = 2,
         num_of_sentences: int = 3,
-        language_key: str = 'language_id_whole_page_fasttext',        
+        language_key: str = 'language_id_whole_page_fasttext',       
         annotate=False,
         token="",
 ) -> List[Dict]:   
-    language = get_lang_from_page(page, language_key=language_key)
     text = page[CONTENT]
     lines = text.split("\n")
               
     new_lines = []
-    # fraction_of_words_corrected_in_lines = 0
-    num_sentences = 0
+    fraction_of_words_corrected_in_lines = 0
         
     for line in lines:
         # line removal
-        is_filtered, _ = line_filtering(
+        is_filtered, removed_words_cnt = line_filtering(
             line,
             max_uppercase_ratio=max_uppercase_ratio,
             min_word_cnt_per_line=min_word_cnt_per_line)
@@ -964,14 +962,16 @@ def line_removal_modifier(
         if not is_filtered:
             new_lines.append(line)
         # 统计被删除的单词数
-        # fraction_of_words_corrected_in_lines += removed_words_cnt
+        fraction_of_words_corrected_in_lines += removed_words_cnt
 
     page[CONTENT] = "\n".join(new_lines)
 
 
-    # total_words_cnt = len(text.split())
-    # if total_words_cnt and fraction_of_words_corrected_in_lines / total_words_cnt  > max_removed_ratio:
-    #     return set_filter_reason_if_annotate(page, "too_many_removed_lines"+token, annotate)
+    if max_removed_ratio > 0:
+        total_words_cnt = len(text.split())
+        if total_words_cnt and fraction_of_words_corrected_in_lines / total_words_cnt  > max_removed_ratio:
+            return set_filter_reason_if_annotate(page, "too_many_removed_lines"+token, annotate)
+
     if len(page[CONTENT]) == 0:
         return set_filter_reason_if_annotate(page, "too_few_sentences"+token, annotate)
 
