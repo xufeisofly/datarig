@@ -134,6 +134,7 @@ def classify_fasttext_hq_prob_ray(model_holder, content: str, label_name=None) -
     # 如果用户指定了某个标签名称，尝试找到它的概率
     if label_name:
         for lab, p in zip(pred_label, pred_prob):
+            print("======0", lab)
             if lab == label_name:
                 return p
 
