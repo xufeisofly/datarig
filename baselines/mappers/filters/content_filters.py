@@ -703,6 +703,8 @@ def fineweb_quality_filter(
         short_line_ratio_lines_num: int = 12,
         new_line_ratio: float = 0.3,
         char_duplicates_ratio: float = 0.1,
+        high_quality_ratio_value: float = 0.75,
+        high_quality_min_line_num: int = 10,
         annotate=False,
         language_key: str = 'language_id_whole_page_fasttext',
         token="",
@@ -719,7 +721,11 @@ def fineweb_quality_filter(
         
     ratio = sum(1 for line in lines if line.endswith(stop_chars)) / len(lines)
     if ratio < line_punct_thr and not (ratio == 0 and line_punct_exclude_zero) and len(lines) >= line_punct_thr_lines_num:
-        return set_filter_reason_if_annotate(page, "line_punct_ratio_filter"+token, annotate)
+        if high_quality_ratio(lines,
+                              model=model,
+                              high_quality_min_line_num=high_quality_min_line_num,
+                              language=language) < high_quality_ratio_value: 
+            return set_filter_reason_if_annotate(page, "line_punct_ratio_filter"+token, annotate)
 
     ratio = sum(1 for line in lines if len(line) <= short_line_length) / len(lines)
     if ratio > short_line_thr and len(lines) >= short_line_ratio_lines_num:

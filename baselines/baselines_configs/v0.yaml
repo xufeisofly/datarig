@@ -32,3 +32,4 @@
     - func: uncache_split_words_modifier	
     - func: fineweb_c4_filter
     - func: fineweb_quality_filter
+      high_quality_ratio_value: 999
