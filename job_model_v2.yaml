@@ -14,7 +14,7 @@ spec:
       imagePullSecrets:
         - name: cr-docker-registry
       initContainers:
-      - name: download-model
+      - name: download-model-v1
         image: cr.registry.res.cloud.zhejianglab.com/dataprocess/datarig:v4.8
         command: ["/bin/sh", "-c"]
         args:
