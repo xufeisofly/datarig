@@ -34,7 +34,7 @@ spec:
           - name: OSS_BUCKET
             value: "si002558te8h"
           - name: OSS_OBJECT
-            value: "dclm/model/model.bin"
+            value: "model.bin"
           - name: TARGET_DIR
             value: "/app/dclm-sci/baselines/mappers/enrichers/quality_prediction_enrichment_models/"
         volumeMounts:
