@@ -730,7 +730,12 @@ def fineweb_quality_filter(
 
     ratio = sum(1 for line in lines if len(line) <= short_line_length) / len(lines)
     if ratio > short_line_thr:
-        return set_filter_reason_if_annotate(page, "short_line_ratio_filter"+token, annotate)
+        if high_quality_ratio_value > 0 and \
+           high_quality_ratio(lines,
+                              model=model,
+                              high_quality_min_line_num=high_quality_min_line_num,
+                              language=language) < high_quality_ratio_value:        
+            return set_filter_reason_if_annotate(page, "short_line_ratio_filter"+token, annotate)
 
     ratio = find_duplicates(lines)[1] / len(page[CONTENT].replace("\n", ""))
 
@@ -741,6 +746,32 @@ def fineweb_quality_filter(
     new_line = page[CONTENT].count("\n")
     if new_line / len(words) > new_line_ratio:
         return set_filter_reason_if_annotate(page, "list_ratio_filter"+token, annotate)    
+    return [page]
+
+
+def high_quality_ratio_filter(
+        page: Dict,
+        high_quality_ratio_value: float = 0.75,
+        high_quality_min_line_num: int = 10,
+        annotate=False,
+        language_key: str = 'language_id_whole_page_fasttext',
+        token="",
+        model='fasttext',
+) -> List[Dict]:
+    
+    lines = page[CONTENT].split("\n")
+    lines = [line for line in lines if line.strip() != ""]
+    if len(lines) == 0:
+        return set_filter_reason_if_annotate(page, "high_quality_ratio_filter_zero_lines"+token, annotate)
+
+    language = get_lang_from_page(page, language_key=language_key)
+    if high_quality_ratio_value > 0 and \
+       high_quality_ratio(lines,
+                          model=model,
+                          high_quality_min_line_num=high_quality_min_line_num,
+                          language=language) < high_quality_ratio_value:
+        return set_filter_reason_if_annotate(page, "high_quality_ratio_filter"+token, annotate)
+
     return [page]
 
 
