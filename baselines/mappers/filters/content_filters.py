@@ -720,7 +720,7 @@ def fineweb_quality_filter(
         stop_chars = tuple(TERMINAL_PUNCTUATION)
         
     ratio = sum(1 for line in lines if line.endswith(stop_chars)) / len(lines)
-    if ratio < line_punct_thr and not (ratio == 0 and line_punct_exclude_zero) and len(lines) >= line_punct_thr_lines_num:
+    if ratio < line_punct_thr and not (ratio == 0 and line_punct_exclude_zero):
         if high_quality_ratio_value > 0 and \
            high_quality_ratio(lines,
                               model=model,
@@ -729,7 +729,7 @@ def fineweb_quality_filter(
             return set_filter_reason_if_annotate(page, "line_punct_ratio_filter"+token, annotate)
 
     ratio = sum(1 for line in lines if len(line) <= short_line_length) / len(lines)
-    if ratio > short_line_thr and len(lines) >= short_line_ratio_lines_num:
+    if ratio > short_line_thr:
         return set_filter_reason_if_annotate(page, "short_line_ratio_filter"+token, annotate)
 
     ratio = find_duplicates(lines)[1] / len(page[CONTENT].replace("\n", ""))
