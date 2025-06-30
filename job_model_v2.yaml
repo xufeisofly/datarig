@@ -14,7 +14,7 @@ spec:
       imagePullSecrets:
         - name: cr-docker-registry
       initContainers:
-      - name: download-model-v1
+      - name: download-model-v2
         image: cr.registry.res.cloud.zhejianglab.com/dataprocess/datarig:v4.8
         command: ["/bin/sh", "-c"]
         args:
@@ -34,12 +34,12 @@ spec:
           - name: OSS_BUCKET
             value: "si002558te8h"
           - name: OSS_OBJECT
-            value: "model.bin"
+            value: "equipment.bin"
           - name: TARGET_DIR
             value: "/app/dclm-sci/baselines/mappers/enrichers/quality_prediction_enrichment_models/"
         volumeMounts:
           - name: model-volume
-            mountPath: /app/models
+            mountPath: /app/dclm-sci/baselines/mappers/enrichers/quality_prediction_enrichment_models/
       containers:
       - name: dclm-sci
         image: cr.registry.res.cloud.zhejianglab.com/dataprocess/datarig:v4.8
@@ -93,7 +93,7 @@ spec:
             mountPath: "/app/dclm-sci/baselines/baselines_configs/equipment_fasttext_filter.yaml"
             subPath: "equipment_fasttext_filter.yaml"
           - name: model-volume
-            mountPath: /app/models
+            mountPath: /app/dclm-sci/baselines/mappers/enrichers/quality_prediction_enrichment_models/
         imagePullPolicy: IfNotPresent
       volumes:
         - name: dclm-config-volume

@@ -1,7 +1,7 @@
 - source: cc
   steps:
     - func: classify_fasttext_hq_prob_enricher
-      model_filename: model.bin
+      model_filename: equipment.bin
       key: equip_score
     - func: quality_filter
       key: equip_score
