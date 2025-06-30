@@ -1,8 +1,8 @@
 - source: cc
   steps:
     - func: classify_fasttext_hq_prob_enricher
-      model_filename: qwen77_per1000.bin
-      key: qwen77
+      model_filename: model.bin
+      key: equip_score
     - func: quality_filter
-      key: qwen77
+      key: equip_score
       threshold: 0.9
