@@ -1,10 +1,10 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: datarig1-v4-60
+  name: datarig1-v4-88
 spec:
-  parallelism: 60
-  completions: 60
+  parallelism: 88
+  completions: 88
   backoffLimit: 5
   template:
     metadata:
@@ -15,7 +15,7 @@ spec:
         - name: cr-docker-registry
       initContainers:
       - name: download-model-v2
-        image: cr.registry.res.cloud.zhejianglab.com/dataprocess/datarig:v4.8
+        image: cr.registry.res.cloud.zhejianglab.com/dataprocess/datarig:v4.9
         command: ["/bin/sh", "-c"]
         args:
           - |
@@ -42,7 +42,7 @@ spec:
             mountPath: /app/dclm-sci/baselines/mappers/enrichers/quality_prediction_enrichment_models/
       containers:
       - name: dclm-sci
-        image: cr.registry.res.cloud.zhejianglab.com/dataprocess/datarig:v4.8
+        image: cr.registry.res.cloud.zhejianglab.com/dataprocess/datarig:v4.9
         resources:
           requests:
             cpu: "26"
