@@ -107,6 +107,7 @@ def classify_fasttext_hq_prob(model: fasttext.FastText._FastText, content: str, 
         for lab, p in zip(pred_label, pred_prob):
             if lab == label_name:
                 return p
+        return -999
 
 
     pred_label = pred_label[0]
@@ -136,7 +137,7 @@ def classify_fasttext_hq_prob_ray(model_holder, content: str, label_name=None) -
         for lab, p in zip(pred_label, pred_prob):
             if lab == label_name:
                 return p
-            return -999
+        return -999
 
     pred_label = pred_label[0]
     hq_prob = pred_prob[0]    
@@ -146,7 +147,6 @@ def classify_fasttext_hq_prob_ray(model_holder, content: str, label_name=None) -
         hq_prob = 1 - hq_prob
 
     # Return the output
-    print("======1", pred_label)
     return hq_prob
 
 
