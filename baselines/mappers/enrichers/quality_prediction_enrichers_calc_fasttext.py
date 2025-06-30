@@ -106,7 +106,7 @@ def classify_fasttext_hq_prob(model: fasttext.FastText._FastText, content: str, 
     if label_name:
         for lab, p in zip(pred_label, pred_prob):
             if lab == label_name:
-                return {"hq_prob": p}
+                return p
 
 
     pred_label = pred_label[0]
