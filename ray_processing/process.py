@@ -516,13 +516,17 @@ def process_task_item(args, task_item: TaskItem|None, with_init=True):
     
     if with_init:
         if args.ray_use_working_dir:
-            ray.init(address=args.ray_address, runtime_env={"working_dir": "./", "excludes": ["tests/"],
+            ray.init(address=args.ray_address,
+                     namespace="datarig",
+                     runtime_env={"working_dir": "./", "excludes": ["tests/"],
                                                             "env_vars": {
                                                                 "REDIS_HOST": os.getenv("REDIS_HOST"),
                                                                 "REDIS_PORT": os.getenv("REDIS_PORT"),
                                                             }})
         else:
-            ray.init(address=args.ray_address, runtime_env={
+            ray.init(address=args.ray_address,
+                     namespace="datarig",
+                     runtime_env={
                 "env_vars": {
                     "REDIS_HOST": os.getenv("REDIS_HOST"),
                     "REDIS_PORT": os.getenv("REDIS_PORT"),
