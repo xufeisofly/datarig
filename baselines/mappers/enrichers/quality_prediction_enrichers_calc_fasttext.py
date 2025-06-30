@@ -145,6 +145,7 @@ def classify_fasttext_hq_prob_ray(model_holder, content: str, label_name=None) -
         hq_prob = 1 - hq_prob
 
     # Return the output
+    print("======1", pred_label)
     return hq_prob
 
 
