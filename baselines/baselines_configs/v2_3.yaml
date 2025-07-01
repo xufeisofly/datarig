@@ -3,5 +3,5 @@
   steps:
     - func: fineweb_quality_filter
       line_punct_thr: 0.2
-      high_quality_ratio_value: 0.73
+      high_quality_ratio_value: -1
       short_line_thr: 0.6167
