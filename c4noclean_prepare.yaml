@@ -35,11 +35,11 @@ spec:
             value: "6380"			
         args:
           - "--readable_name"
-          - "c4_noclean_v2_3_sampled"
+          - "c4_noclean_v2_raw_min_word_3"
           - "--output_dir"
           - "oss://si002558te8h/dclm/output/"
           - "--config_path"
-          - "baselines/baselines_configs/v2_3.yaml"
+          - "baselines/baselines_configs/v2_xf2.yaml"
           - "--oss_temp_dir"
           - "oss://si002558te8h/dclm/pool/temp_dir_500/"
           - "--source_name"
@@ -63,8 +63,8 @@ spec:
           - "--ignore_failures"
         volumeMounts:
           - name: dclm-config-volume
-            mountPath: "/app/dclm-sci/baselines/baselines_configs/v2_3.yaml"
-            subPath: "v2_3.yaml"
+            mountPath: "/app/dclm-sci/baselines/baselines_configs/v2_xf2.yaml"
+            subPath: "v2_xf2.yaml"
         imagePullPolicy: IfNotPresent
       volumes:
         - name: dclm-config-volume
