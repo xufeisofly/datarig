@@ -2,6 +2,4 @@
 - source: cc
   steps:
     - func: fineweb_quality_filter
-      line_punct_thr: 0.22
-      high_quality_ratio_value: 0.7
-      short_line_thr: 0.6
+      high_quality_ratio_value: -1
