@@ -51,7 +51,7 @@ spec:
           - "--ray_num_cpus"
           - "1"
           - "--workers"
-          - "5"
+          - "1"
           - "--split_workers"
           - "8"		  
           - "--chunk_size"
