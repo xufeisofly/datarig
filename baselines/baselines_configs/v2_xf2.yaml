@@ -23,7 +23,7 @@
       location: prefix
       remove_substring_only: True
     - func: line_removal_modifier
-      min_word_cnt_per_line: 4
+      min_word_cnt_per_line: 6
     - func: word_length_modifier
     - func: lorem_ipsum_filter
     - func: min_sentences_filter

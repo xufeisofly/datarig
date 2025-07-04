@@ -35,7 +35,7 @@ spec:
             value: "6380"			
         args:
           - "--readable_name"
-          - "c4_noclean_v2_min_word_4_sampled"
+          - "c4_noclean_v2_min_word_6_sampled"
           - "--output_dir"
           - "oss://si002558te8h/dclm/output/"
           - "--config_path"
