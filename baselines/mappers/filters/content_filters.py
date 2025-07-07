@@ -703,7 +703,7 @@ def fineweb_quality_filter(
         short_line_ratio_lines_num: int = 12,
         new_line_ratio: float = 0.3,
         char_duplicates_ratio: float = 0.1,
-        high_quality_ratio_value: float = 0.75,
+        high_quality_ratio_value: float = -1,
         high_quality_min_line_num: int = 10,
         annotate=False,
         language_key: str = 'language_id_whole_page_fasttext',
