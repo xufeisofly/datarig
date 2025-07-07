@@ -24,7 +24,7 @@
       location: prefix
       remove_substring_only: True
     - func: line_removal_modifier
-      min_word_cnt_per_line: 3
+      min_word_cnt_per_line: 1
     - func: word_length_modifier
     - func: lorem_ipsum_filter
     - func: min_sentences_filter
