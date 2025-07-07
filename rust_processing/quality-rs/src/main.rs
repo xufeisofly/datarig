@@ -1,12 +1,21 @@
 use anyhow::{anyhow, Error, Result};
+use async_compression::tokio::bufread::GzipDecoder as asyncGZ;
+use async_compression::tokio::bufread::ZstdDecoder as asyncZstd;
 use clap::Parser;
+use flate2::read::MultiGzDecoder;
 use indicatif::{ProgressBar, ProgressStyle};
 use io::expand_dirs;
+use oss::{get_reader_from_oss, is_oss};
+use std::fs::{create_dir_all, OpenOptions};
+use std::io::{BufRead, BufReader, BufWriter, Cursor, Write};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::thread::available_parallelism;
 use std::time::Instant;
 use threadpool::ThreadPool;
+use vtext::tokenize::{Tokenizer, VTextTokenizerParams};
+use zstd::stream::read::Decoder as ZstDecoder;
+use zstd::stream::write::Encoder as ZstdEncoder;
 
 pub mod io;
 pub mod oss;
@@ -104,7 +113,44 @@ async fn quality_filtering(
     output_file: PathBuf,
     pbar_option: Option<Arc<Mutex<ProgressBar>>>,
 ) -> Result<(), Error> {
-    println!("{input_file:?}, {output_file:?}");
+    println!("INPUT: {input_file:?}, OUTPUT: {output_file:?}");
+
+    let docs: Box<dyn Iterator<Item = Result<String, Error>>> = if is_oss(&input_file) {
+        Box::new(
+            get_reader_from_oss(input_file, None)
+                .await
+                .unwrap()
+                .lines()
+                .map(|r| r.map_err(Error::from)),
+        )
+    } else {
+        let ext = input_file.extension().unwrap().to_str().unwrap();
+        let input_file = OpenOptions::new()
+            .read(true)
+            .write(false)
+            .create(false)
+            .open(&input_file)?;
+
+        match ext {
+            "zstd" | "zst" => Box::new(
+                BufReader::with_capacity(1024 * 1024, ZstDecoder::new(input_file).unwrap())
+                    .lines()
+                    .map(|r| r.map_err(Error::from)),
+            ),
+            "gz" => Box::new(
+                BufReader::with_capacity(1024 * 1024, MultiGzDecoder::new(input_file))
+                    .lines()
+                    .map(|r| r.map_err(Error::from)),
+            ),
+            _ => Box::new(
+                BufReader::with_capacity(1024 * 1024, input_file)
+                    .lines()
+                    .map(|r| r.map_err(Error::from)),
+            ),
+        }
+    };
+
+    // TODO process docs
 
     match pbar_option {
         Some(pbar) => {
@@ -114,6 +160,15 @@ async fn quality_filtering(
         None => (),
     }
     Ok(())
+}
+
+fn split_words(text: &str, lang: &str) -> Result<Vec<String>, Error> {
+    let tok = VTextTokenizerParams::default().lang(lang).build()?;
+
+    let tokens: Vec<String> = tok.tokenize(text).map(|s| s.to_string()).collect();
+
+    println!("tokens: {:?}", tokens);
+    Ok(tokens)
 }
 
 /*==============================================================
