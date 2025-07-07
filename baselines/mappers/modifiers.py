@@ -494,7 +494,6 @@ def substring_line_modifier(banlist: Union[str, List], case_sensitive=False,
     return modify
 
 
-@factory_function
 def short_line_modifier(page: Dict,
                         banned_filepath='',
                         line_ratio=1/3,
@@ -503,6 +502,7 @@ def short_line_modifier(page: Dict,
     """
     process short lines in the page content.
     """
+    
     def modifier_short_line(line_list, short_line_words=5):
         if not line_list:
             return []
@@ -517,9 +517,6 @@ def short_line_modifier(page: Dict,
                     long_lines.remove(last_short_line)
                 long_lines.append(line)
         return long_lines
-
-            
-            
         
     page_lines = page[CONTENT].split('\n')
     total_length = len(page_lines)
