@@ -494,6 +494,54 @@ def substring_line_modifier(banlist: Union[str, List], case_sensitive=False,
     return modify
 
 
+def short_line_modifier(page: Dict,
+                        banned_filepath='',
+                        line_ratio=1/3,
+                        annotate=False,
+                        token="") -> List[Dict]:
+    """
+    process short lines in the page content.
+    """
+    
+    def modifier_short_line(line_list, short_line_words=5):
+        if not line_list:
+            return []
+        long_lines = []
+        line_length = len(line_list)
+        for index, line in enumerate(line_list):
+            line_words = line.split()
+            if len(line_words) > short_line_words:             
+                long_lines.append(line)
+            else:
+                next_index = index + 1
+                if next_index >= line_length:
+                    long_lines.append(line)
+                else:
+                    next_line = line_list[next_index]
+                    if len(next_line.split()) > short_line_words:
+                        long_lines.append(line)
+        return long_lines
+        
+    page_lines = page[CONTENT].split('\n')
+    page_lines = [i for i in page_lines if i.strip() != '']  # Remove empty lines
+    total_length = len(page_lines)
+    if total_length == 0:
+        return set_filter_reason_if_annotate(page, "short_line_modifier"+token, annotate)
+    split1 = int(total_length * line_ratio)
+    split2 = total_length - split1
+    
+    left_page_list = modifier_short_line(page_lines[:split1])
+    middle_page_list = modifier_short_line(page_lines[split1:split2], short_line_words=2)
+    right_page_list = modifier_short_line(page_lines[split2:])
+    new_doc = '\n'.join(left_page_list + middle_page_list + right_page_list).strip()
+    if new_doc == '':
+            return set_filter_reason_if_annotate(page, "short_line_modifier"+token, annotate)
+        
+    page[CONTENT] = new_doc
+    return [page]
+
+
+
 @factory_function
 def punctuation_line_modifier(remove_ellipses=False):
     """
@@ -938,25 +986,23 @@ def join_lines_modifier(page, delimiter='\n'):
 
 def line_removal_modifier(
         page: Dict,
-        max_removed_ratio: float = 0.05,
+        max_removed_ratio: float = -1,
         max_uppercase_ratio: float = 0.99,
         min_word_cnt_per_line: int = 2,
         num_of_sentences: int = 3,
-        language_key: str = 'language_id_whole_page_fasttext',        
+        language_key: str = 'language_id_whole_page_fasttext',       
         annotate=False,
         token="",
 ) -> List[Dict]:   
-    language = get_lang_from_page(page, language_key=language_key)
     text = page[CONTENT]
     lines = text.split("\n")
               
     new_lines = []
-    # fraction_of_words_corrected_in_lines = 0
-    num_sentences = 0
+    fraction_of_words_corrected_in_lines = 0
         
     for line in lines:
         # line removal
-        is_filtered, _ = line_filtering(
+        is_filtered, removed_words_cnt = line_filtering(
             line,
             max_uppercase_ratio=max_uppercase_ratio,
             min_word_cnt_per_line=min_word_cnt_per_line)
@@ -964,14 +1010,16 @@ def line_removal_modifier(
         if not is_filtered:
             new_lines.append(line)
         # 统计被删除的单词数
-        # fraction_of_words_corrected_in_lines += removed_words_cnt
+        fraction_of_words_corrected_in_lines += removed_words_cnt
 
     page[CONTENT] = "\n".join(new_lines)
 
 
-    # total_words_cnt = len(text.split())
-    # if total_words_cnt and fraction_of_words_corrected_in_lines / total_words_cnt  > max_removed_ratio:
-    #     return set_filter_reason_if_annotate(page, "too_many_removed_lines"+token, annotate)
+    if max_removed_ratio > 0:
+        total_words_cnt = len(text.split())
+        if total_words_cnt and fraction_of_words_corrected_in_lines / total_words_cnt  > max_removed_ratio:
+            return set_filter_reason_if_annotate(page, "too_many_removed_lines"+token, annotate)
+
     if len(page[CONTENT]) == 0:
         return set_filter_reason_if_annotate(page, "too_few_sentences"+token, annotate)
 

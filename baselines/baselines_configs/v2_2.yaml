@@ -1,0 +1,9 @@
+# V2
+- source: cc
+  steps:
+    - func: fineweb_quality_filter
+      line_punct_thr: 0.2
+      high_quality_ratio_value: 0.73
+      short_line_thr: 1
+    - func: high_quality_ratio_filter
+      high_quality_ratio_value: 0.73

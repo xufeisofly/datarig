@@ -40,7 +40,7 @@ KEPT_INDEX = 1
 SPLIT_INDEX = 2
 
 
-def commit(pages, stats, output_path, stats_output_path):
+def commit(pages, stats, output_path, stats_output_path, old_pages_output_path, old_pages=None):
     print(f"committing pages to {output_path} (and stats to {stats_output_path})")
     t = time.time()
     write_jsonl(pages, output_path, resumable_write=True)
@@ -49,6 +49,10 @@ def commit(pages, stats, output_path, stats_output_path):
     write_jsonl(stats, stats_output_path, 'a')
 
     stats.clear()
+    
+    if old_pages:
+        print(f"committing old pages to {old_pages_output_path}")
+        write_jsonl(old_pages, old_pages_output_path, resumable_write=True)
     print(f"commit took {time.time() - t} seconds")
 
 
@@ -61,10 +65,12 @@ def _get_output_paths(base_output_path, jsonl_relpath):
     shard_name = shard_name.split("/")[-1] # xufeisofly
     out_path = os.path.join(base_output_path, 'processed_data', shard_name + f'_processed.{file_ext}')
     stats_out_path = os.path.join(base_output_path, 'stats', shard_name + '_stats.jsonl')
+    old_page_out_path = os.path.join(base_output_path, 'old_stats', shard_name + f'_stats.{file_ext}')
 
     makedirs_if_missing(os.path.dirname(out_path))
     makedirs_if_missing(os.path.dirname(stats_out_path))
-    return out_path, stats_out_path
+    makedirs_if_missing(os.path.dirname(old_page_out_path))
+    return out_path, stats_out_path, old_page_out_path
 
 def _is_step_stats(line):
     """
@@ -271,7 +277,7 @@ def process_single_file(config_data: Dict[str, Any], raw_data_dirpath: str, json
     jsonl_load_secs = time.time() - t1
 
     # Assumption #3 - for each input shard, there is a specific stats file that accompanies it
-    output_path, stats_output_path = _get_output_paths(base_output_path, jsonl_relpath)
+    output_path, stats_output_path, old_pages_output_path = _get_output_paths(base_output_path, jsonl_relpath)
 
     # If a jsonl is empty (e.g., due to another chunk), the page will be skipped  
     num_pages_in = len(pages)
@@ -347,6 +353,7 @@ def process_single_file(config_data: Dict[str, Any], raw_data_dirpath: str, json
         n_pages_before = len(pages)
         counters = {ERRORS_INDEX: 0, REMOVED_INDEX: 0, KEPT_INDEX: 0, SPLIT_INDEX: 0}
         new_pages = []
+        old_pages = []
         execution_times = []
         step_stats = {}
 
@@ -355,7 +362,7 @@ def process_single_file(config_data: Dict[str, Any], raw_data_dirpath: str, json
             apply_partial_func_parallel(counters, execution_times, new_pages, pages, step, workers)
         else:
             partial_func = get_mapper(**step, _profile=True, _safe=True)
-            apply_partial_func_sequential(counters, execution_times, new_pages, pages, partial_func)
+            apply_partial_func_sequential(counters, execution_times, new_pages, pages, partial_func, old_pages=old_pages)
             del partial_func
         if counters[ERRORS_INDEX] == len(pages):
             raise RuntimeError(f"Step {step} failed on all pages.")
@@ -415,7 +422,7 @@ def process_single_file(config_data: Dict[str, Any], raw_data_dirpath: str, json
 
     print('Finished processing all steps, committing.')
     if updated:
-        commit(pages, stats, output_path, stats_output_path)
+        commit(pages, stats, output_path, stats_output_path, old_pages=old_pages, old_pages_output_path=old_pages_output_path)
 
     # 如果是临时文件，处理完成后删除
     if is_temp_file and is_exists(input_path):
@@ -425,9 +432,13 @@ def process_single_file(config_data: Dict[str, Any], raw_data_dirpath: str, json
     return output_path, stats_output_path, num_pages_in, len(pages), []
 
 
-def _parse_func_results(results_gen, counters, execution_times, new_pages):
+def _parse_func_results(results_gen, counters, execution_times, new_pages, old_pages=None):
     for result, profiling_info in results_gen:
         execution_times.append(profiling_info.execution_time)
+        if old_pages is not None and isinstance(result, tuple) and len(result) == 2:
+            result, extra_list = result
+            old_pages.extend(extra_list)
+                    
         if isinstance(result, list):
             counters[min(len(result), 2)] += 1  # 0 is removed, 1 is kept and 2 is split
             new_pages.extend(result)
@@ -436,8 +447,8 @@ def _parse_func_results(results_gen, counters, execution_times, new_pages):
             print(result)
 
 
-def apply_partial_func_sequential(counters, execution_times, new_pages, pages, partial_func):
-    _parse_func_results(map(partial_func, pages), counters, execution_times, new_pages)
+def apply_partial_func_sequential(counters, execution_times, new_pages, pages, partial_func, old_pages=None):
+    _parse_func_results(map(partial_func, pages), counters, execution_times, new_pages, old_pages)
 
 
 def _worker(worker_num, step, pages, input_queue, output_list):

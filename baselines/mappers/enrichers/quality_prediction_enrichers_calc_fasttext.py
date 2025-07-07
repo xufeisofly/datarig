@@ -83,7 +83,7 @@ def load_shared_fasttext_model(model_filename):
     return MODEL_HOLDER_REF
 
 
-def classify_fasttext_hq_prob(model: fasttext.FastText._FastText, content: str) -> dict:
+def classify_fasttext_hq_prob(model: fasttext.FastText._FastText, content: str, label_name=None) -> dict:
     '''
     This function classifies a given text as either 'CC' or 'Wikipedia' and returns the label along with its probability.
 
@@ -99,22 +99,29 @@ def classify_fasttext_hq_prob(model: fasttext.FastText._FastText, content: str) 
 
     # Make the prediction
     pred = model.predict(text)
-
     # Extract the predicted label and its probability
     (pred_label, pred_prob) = pred
 
+    # 如果用户指定了某个标签名称，尝试找到它的概率
+    if label_name:
+        for lab, p in zip(pred_label, pred_prob):
+            if lab == label_name:
+                return p
+        return -999
+
+
     pred_label = pred_label[0]
-    hq_prob = pred_prob[0]
+    hq_prob = pred_prob[0]        
 
     # If the predicted label is 'CC', adjust the probability of it being 'Wikipedia'
     if pred_label == "__label__cc":
-        hq_prob = 1 - hq_prob
+        hq_prob = 1 - pred_prob
 
     # Return the output
     return hq_prob
 
 
-def classify_fasttext_hq_prob_ray(model_holder, content: str) -> dict:
+def classify_fasttext_hq_prob_ray(model_holder, content: str, label_name=None) -> dict:
     # Clean the input text by joining all lines into a single string
     text = " ".join(content.strip().splitlines())
 
@@ -125,8 +132,15 @@ def classify_fasttext_hq_prob_ray(model_holder, content: str) -> dict:
     # Extract the predicted label and its probability
     (pred_label, pred_prob) = pred
 
+    # 如果用户指定了某个标签名称，尝试找到它的概率
+    if label_name:
+        for lab, p in zip(pred_label, pred_prob):
+            if lab == label_name:
+                return p
+        return -999
+
     pred_label = pred_label[0]
-    hq_prob = pred_prob[0]
+    hq_prob = pred_prob[0]    
 
     # If the predicted label is 'CC', adjust the probability of it being 'Wikipedia'
     if pred_label == "__label__cc":
@@ -137,7 +151,7 @@ def classify_fasttext_hq_prob_ray(model_holder, content: str) -> dict:
 
 
 @factory_function
-def classify_fasttext_hq_prob_enricher(model_filename=RPJ_MODEL_FILENAME, key: str = "fasttext_hq_prob", overwrite: bool = False, **kwargs) -> Callable[
+def classify_fasttext_hq_prob_enricher(model_filename=RPJ_MODEL_FILENAME, key: str = "fasttext_hq_prob", overwrite: bool = False, label_name=None, **kwargs) -> Callable[
     [Dict], List[Dict]]:
     '''
     Enriches the given page with the text type (CC or Wikipedia).
@@ -155,7 +169,7 @@ def classify_fasttext_hq_prob_enricher(model_filename=RPJ_MODEL_FILENAME, key: s
 
     def enrich(page: Dict) -> List[Dict]:
         assert overwrite or key not in page, f"cannot overwrite an existing key {key}"
-        page[key] = classify_fasttext_hq_prob_ray(model_holder, page[CONTENT])
+        page[key] = classify_fasttext_hq_prob_ray(model_holder, page[CONTENT], label_name=label_name)
         return [page]
 
     return enrich

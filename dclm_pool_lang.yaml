@@ -1,10 +1,10 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: dclm-pool-lang-40
+  name: dclm-pool-lang-25
 spec:
-  parallelism: 40 # 5x(4-5)C=20C-25C 5x(10-12)G=50-60G per node, (20C-25C)x89 = 1780C-2225C max: 445pod
-  completions: 40
+  parallelism: 25 # 5x(4-5)C=20C-25C 5x(10-12)G=50-60G per node, (20C-25C)x89 = 1780C-2225C max: 445pod
+  completions: 25
   backoffLimit: 5  # 如果任务失败后不希望重试，则设置为 0；否则设置为需要的重试次数
   template:
     metadata:
@@ -15,7 +15,7 @@ spec:
         - name: cr-docker-registry
       containers:
       - name: dclm-sci
-        image: cr.registry.res.cloud.zhejianglab.com/dataprocess/datarig:v4.6
+        image: cr.registry.res.cloud.zhejianglab.com/dataprocess/datarig:v4.8
         resources:
           requests:
             cpu: "26"
@@ -63,8 +63,8 @@ spec:
           - "--ignore_failures"
         volumeMounts:
           - name: dclm-config-volume
-            mountPath: "/app/dclm-sci/baselines/baselines_configs/fineweb.yaml"
-            subPath: "fineweb.yaml"
+            mountPath: "/app/dclm-sci/baselines/baselines_configs/v2_fast.yaml"
+            subPath: "v2_fast.yaml"
         imagePullPolicy: IfNotPresent
       volumes:
         - name: dclm-config-volume
