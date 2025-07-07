@@ -495,6 +495,52 @@ def substring_line_modifier(banlist: Union[str, List], case_sensitive=False,
 
 
 @factory_function
+def short_line_modifier(page: Dict,
+                        banned_filepath='',
+                        line_ratio=1/3,
+                        annotate=False,
+                        token="") -> List[Dict]:
+    """
+    process short lines in the page content.
+    """
+    def modifier_short_line(line_list, short_line_words=5):
+        if not line_list:
+            return []
+        long_lines = []
+        last_short_line = [item for item in line_list if len(item.split()) <= short_line_words][-1]
+        for line in line_list:
+            line_words = line.split()
+            if len(line_words) > short_line_words:             
+                long_lines.append(line)
+            if line == last_short_line:
+                if last_short_line in long_lines:
+                    long_lines.remove(last_short_line)
+                long_lines.append(line)
+        return long_lines
+
+            
+            
+        
+    page_lines = page[CONTENT].split('\n')
+    total_length = len(page_lines)
+    if total_length == 0:
+        return set_filter_reason_if_annotate(page, "short_line_modifier"+token, annotate)
+    split1 = int(total_length * line_ratio)
+    split2 = total_length - split1
+    
+    left_page_list = modifier_short_line(page_lines[:split1])
+    middle_page_list = modifier_short_line(page_lines[split1:split2], short_line_words=2)
+    right_page_list = modifier_short_line(page_lines[split2:])
+    new_doc = '\n'.join(left_page_list + middle_page_list + right_page_list).strip()
+    if new_doc == '':
+            return set_filter_reason_if_annotate(page, "short_line_modifier"+token, annotate)
+        
+    page[CONTENT] = new_doc
+    return [page]
+
+
+
+@factory_function
 def punctuation_line_modifier(remove_ellipses=False):
     """
     Filters the input JSON object - Remove lines if they do not end in a punctuation mark
