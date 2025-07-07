@@ -507,18 +507,23 @@ def short_line_modifier(page: Dict,
         if not line_list:
             return []
         long_lines = []
-        last_short_line = [item for item in line_list if len(item.split()) <= short_line_words][-1]
-        for line in line_list:
+        line_length = len(line_list)
+        for index, line in enumerate(line_list):
             line_words = line.split()
             if len(line_words) > short_line_words:             
                 long_lines.append(line)
-            if line == last_short_line:
-                if last_short_line in long_lines:
-                    long_lines.remove(last_short_line)
-                long_lines.append(line)
+            else:
+                next_index = index + 1
+                if next_index >= line_length:
+                    long_lines.append(line)
+                else:
+                    next_line = line_list[next_index]
+                    if len(next_line.split()) > short_line_words:
+                        long_lines.append(line)
         return long_lines
         
     page_lines = page[CONTENT].split('\n')
+    page_lines = [i for i in page_lines if i.strip() != '']  # Remove empty lines
     total_length = len(page_lines)
     if total_length == 0:
         return set_filter_reason_if_annotate(page, "short_line_modifier"+token, annotate)
