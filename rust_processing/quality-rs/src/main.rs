@@ -1,11 +1,15 @@
 use anyhow::{anyhow, Error, Result};
-use async_compression::tokio::bufread::GzipDecoder as asyncGZ;
-use async_compression::tokio::bufread::ZstdDecoder as asyncZstd;
 use clap::Parser;
 use flate2::read::MultiGzDecoder;
+use flate2::write::GzEncoder;
+use flate2::Compression;
 use indicatif::{ProgressBar, ProgressStyle};
 use io::expand_dirs;
+use oss::split_oss_path;
 use oss::{get_reader_from_oss, is_oss};
+use oss_rust_sdk::async_object::*;
+use serde_json::Value;
+use std::collections::{HashMap, HashSet};
 use std::fs::{create_dir_all, OpenOptions};
 use std::io::{BufRead, BufReader, BufWriter, Cursor, Write};
 use std::path::PathBuf;
@@ -149,8 +153,49 @@ async fn quality_filtering(
             ),
         }
     };
+    let mut output_data: Vec<u8> = Vec::new();
+    let mut fully_skipped = 0;
+    let mut count = 0;
 
-    // TODO process docs
+    for doc in docs {
+        let doc = doc?;
+        count += 1;
+        let mut data: Value = serde_json::from_str(&doc).unwrap();
+        process_data(&mut data)?;
+
+        if let Some(text) = data.get("text") {
+            if Some(text).unwrap().as_str().unwrap().trim().is_empty() {
+                fully_skipped += 1
+            } else {
+                output_data.extend(serde_json::to_vec(&data).unwrap());
+                output_data.extend(b"\n");
+            }
+        } else {
+            continue;
+        }
+    }
+
+    let output_data = compress_data(output_data, &output_file);
+    if fully_skipped < count {
+        if is_oss(&output_file) {
+            let (output_bucket, output_key) = split_oss_path(output_file);
+            let client = oss::get_bucket(output_bucket);
+            let mut headers = HashMap::new();
+            headers.insert("content-type", "text/plain");
+            let data: &[u8] = &output_data;
+            let _ = client
+                .put_object(data, output_key.clone(), headers, None)
+                .await;
+        } else {
+            let mut output_file = OpenOptions::new()
+                .read(false)
+                .write(true)
+                .create(true)
+                .truncate(true)
+                .open(&output_file)?;
+            output_file.write_all(&output_data)?;
+        }
+    }
 
     match pbar_option {
         Some(pbar) => {
@@ -162,13 +207,283 @@ async fn quality_filtering(
     Ok(())
 }
 
+fn clear_text_key(data: &mut Value) {
+    if let Value::Object(ref mut map) = data {
+        map.remove("text");
+    }
+}
+
+fn process_data(data: &mut Value) -> Result<bool, Error> {
+    if let Ok(false) = fineweb_quality_filter(data, 0.12, 30, 0.67, 0.1, 0.3) {
+        clear_text_key(data);
+    }
+    Ok(true)
+}
+
+pub static TERMINAL_PUNCTUATION: [&str; 159] = [
+    "᪩",
+    "？",
+    "⁈",
+    "𑩂",
+    "．",
+    "꩞",
+    "𑅃",
+    "﹗",
+    "𑂾",
+    "\u{1B7D}",
+    "፧",
+    "𑅂",
+    "꡶",
+    "꘎",
+    "⁉",
+    "࠾",
+    "᪨",
+    "𑊩",
+    "𑱂",
+    "᱿",
+    "𖩮",
+    "᥅",
+    "\u{11F43}",
+    "\u{11F44}",
+    "﹒",
+    "𑈹",
+    "𑈸",
+    "።",
+    "܂",
+    "؞",
+    "꛳",
+    "\u{10F88}",
+    "𑗍",
+    "𐩖",
+    "𑙂",
+    "\u{061D}",
+    "꩟",
+    "᠉",
+    "\u{1B7E}",
+    "𑗗",
+    "᰼",
+    "𑻸",
+    "？",
+    "𑪜",
+    "꧉",
+    "𑗉",
+    "𐽙",
+    "𖫵",
+    "𖬷",
+    "܀",
+    "꓿",
+    "᜵",
+    "𑗏",
+    "𑁇",
+    "𑗓",
+    "𑥄",
+    "៖",
+    "𑥆",
+    "𑗑",
+    "𑗒",
+    "꯫",
+    "۔",
+    "𐩗",
+    "\u{10F86}",
+    "꡷",
+    "\u{2E54}",
+    "｡",
+    "៕",
+    "߹",
+    "⸮",
+    ".",
+    "𑇅",
+    "࠹",
+    "𛲟",
+    "꫰",
+    "꤯",
+    "𐽗",
+    "᭞",
+    "𑜼",
+    "፨",
+    "𑃁",
+    "꣏",
+    "𑇟",
+    "𖬸",
+    "𑪛",
+    "𑜾",
+    "࠷",
+    "𝪈",
+    "?",
+    "𑃀",
+    "𑗃",
+    "！",
+    "։",
+    "꣎",
+    "॥",
+    "𑗖",
+    "᭛",
+    "᠃",
+    "!",
+    "၊",
+    "𖺘",
+    "⁇",
+    "𑗌",
+    "𑑋",
+    "𖭄",
+    "᭟",
+    "𑅁",
+    "𑙁",
+    "⸼",
+    "꩝",
+    "𑗋",
+    "。",
+    "꧈",
+    "꫱",
+    "𑜽",
+    "𐽖",
+    "𑂿",
+    "᙮",
+    "។",
+    "꛷",
+    "\u{10F89}",
+    "៚",
+    "᥄",
+    "𑗕",
+    "𑗎",
+    "᪪",
+    "᭚",
+    "࠽",
+    "𑇞",
+    "𑗊",
+    "𐽘",
+    "\u{2E53}",
+    "𑗔",
+    "𖩯",
+    "𑇍",
+    "𑻷",
+    "𐽕",
+    "𑩃",
+    "।",
+    "𑗂",
+    "𑇆",
+    "𑁈",
+    "။",
+    "᱾",
+    "𑱁",
+    "꘏",
+    "܁",
+    "᜶",
+    "‼",
+    "𑈻",
+    "‽",
+    "᪫",
+    "﹖",
+    "𑑌",
+    "𑈼",
+    "\u{10F87}",
+    "𑗐",
+    "៙",
+    "᰻",
+];
+
+fn fineweb_quality_filter(
+    data: &mut Value,
+    line_punct_thr: f64,
+    short_line_length: usize,
+    short_line_thr: f64,
+    char_duplicates_ratio: f64,
+    new_line_ratio: f64,
+) -> Result<bool, Error> {
+    let text = data["text"].as_str().unwrap();
+    let lines: Vec<&str> = text
+        .split("\n")
+        .map(|l| l.trim())
+        .filter(|l| !l.is_empty())
+        .collect();
+    if lines.len() == 0 {
+        return Ok(false);
+    }
+    let stop_chars = TERMINAL_PUNCTUATION;
+    let total = lines.len();
+    if total == 0 {
+        return Ok(false);
+    }
+    let count = lines
+        .iter()
+        .filter(|l| stop_chars.iter().any(|ch| l.ends_with(ch)))
+        .count();
+
+    if (count as f64 / total as f64) < line_punct_thr {
+        return Ok(false);
+    }
+
+    if (lines
+        .iter()
+        .filter(|l| l.len() <= short_line_length)
+        .count() as f64
+        / total as f64)
+        < short_line_thr
+    {
+        return Ok(false);
+    }
+
+    let (_, dup_chars) = find_duplicates(&lines);
+    if (dup_chars as f64 / text.replace("\n", "").len() as f64) > char_duplicates_ratio {
+        return Ok(false);
+    }
+
+    let result = split_words(text, "en");
+    match result {
+        Ok(tokens) => {
+            if text.matches('\n').count() as f64 / tokens.len() as f64 > new_line_ratio {
+                return Ok(false);
+            }
+        }
+        Err(e) => {
+            println!("split words failed: {}", e);
+            return Err(e);
+        }
+    }
+
+    Ok(true)
+}
+
+fn find_duplicates(x: &[&str]) -> (usize, usize) {
+    let mut unique_x = HashSet::new();
+    let mut duplicate_elements = 0;
+    let mut duplicate_chars = 0;
+
+    for &element in x {
+        if unique_x.contains(element) {
+            duplicate_elements += 1;
+            duplicate_chars += element.len();
+        } else {
+            unique_x.insert(element);
+        }
+    }
+
+    (duplicate_elements, duplicate_chars)
+}
+
 fn split_words(text: &str, lang: &str) -> Result<Vec<String>, Error> {
     let tok = VTextTokenizerParams::default().lang(lang).build()?;
-
     let tokens: Vec<String> = tok.tokenize(text).map(|s| s.to_string()).collect();
 
-    println!("tokens: {:?}", tokens);
     Ok(tokens)
+}
+
+fn compress_data(data: Vec<u8>, filename: &PathBuf) -> Vec<u8> {
+    // 安全获取扩展名，防止无扩展名文件导致的崩溃
+    let output_data = match filename.extension().and_then(|ext| ext.to_str()) {
+        Some("gz") => {
+            let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
+            encoder.write_all(&data).unwrap();
+            encoder.finish().unwrap()
+        }
+        Some("zstd") | Some("zst") => {
+            let mut encoder = ZstdEncoder::new(Vec::new(), 0).unwrap();
+            encoder.write_all(&data).unwrap();
+            encoder.finish().unwrap()
+        }
+        _ => data,
+    };
+    output_data
 }
 
 /*==============================================================
@@ -186,7 +501,7 @@ fn main() -> Result<()> {
         args.threads
     };
 
-    println!("Main thread id: {:?}", std::thread::current().id());
     let _ = process_files(args.input, &args.output, &threads, false);
+
     Ok(())
 }
