@@ -71,7 +71,6 @@ fn process_files(
         };
 
         threadpool.execute(move || {
-            println!("Worker thread id: {:?}", std::thread::current().id());
             if no_progress_bar {
                 println!("Processing {input_file:?}...");
             }
@@ -117,8 +116,6 @@ async fn quality_filtering(
     output_file: PathBuf,
     pbar_option: Option<Arc<Mutex<ProgressBar>>>,
 ) -> Result<(), Error> {
-    println!("INPUT: {input_file:?}, OUTPUT: {output_file:?}");
-
     let docs: Box<dyn Iterator<Item = Result<String, Error>>> = if is_oss(&input_file) {
         Box::new(
             get_reader_from_oss(input_file, None)
@@ -505,3 +502,4 @@ fn main() -> Result<()> {
 
     Ok(())
 }
+ 
