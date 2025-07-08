@@ -87,9 +87,7 @@ fn process_files(
             ));
 
             match result {
-                Ok(_) => {
-                    println!("success");
-                }
+                Ok(_) => {}
                 Err(err) => {
                     eprintln!("Error processing {:?}; {:?}", input_file, err);
                 }
