@@ -434,7 +434,7 @@ def html_content_extraction_modifier(page: Dict) -> List[Dict]:
 
 
 @factory_function
-def substring_line_modifier(banlist: Union[str, List], case_sensitive=False,
+def substring_line_modifier(banlist: Union[str, List], case_sensitive=False, banlist_file = '',
                             location='any', max_length=None, remove_substring_only=False, annotate=False, token="") -> List[Dict]:
     """
     Filters the input JSON object - Remove lines that contain the given substring
@@ -454,8 +454,11 @@ def substring_line_modifier(banlist: Union[str, List], case_sensitive=False,
     """
     assert location in {'prefix', 'suffix', 'any'}
 
-    if isinstance(banlist, str):
+    if banlist and isinstance(banlist, str):
         banlist = [banlist]
+    elif banlist_file:
+        with open(banlist_file, "r") as file:
+            banlist = [keyword.strip() for keyword in file.readlines()]
     banlist = banlist if case_sensitive else [b.lower() for b in banlist]
 
     pattern = f"(?:{'|'.join(banlist)})"
@@ -495,7 +498,6 @@ def substring_line_modifier(banlist: Union[str, List], case_sensitive=False,
 
 
 def short_line_modifier(page: Dict,
-                        banned_filepath='',
                         line_ratio=1/3,
                         annotate=False,
                         token="") -> List[Dict]:
