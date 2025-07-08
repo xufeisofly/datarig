@@ -332,7 +332,7 @@ async fn quality_filtering(
         }
     }
 
-    let output_data = compress_data(output_data, &output_file);
+    let output_data = io::compress_data(output_data, &output_file);
     if fully_skipped < count {
         if is_oss(&output_file) {
             let (output_bucket, output_key) = split_oss_path(output_file);
@@ -481,24 +481,6 @@ fn split_words(
     }
 
     Ok(tokens)
-}
-
-fn compress_data(data: Vec<u8>, filename: &PathBuf) -> Vec<u8> {
-    // 安全获取扩展名，防止无扩展名文件导致的崩溃
-    let output_data = match filename.extension().and_then(|ext| ext.to_str()) {
-        Some("gz") => {
-            let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
-            encoder.write_all(&data).unwrap();
-            encoder.finish().unwrap()
-        }
-        Some("zstd") | Some("zst") => {
-            let mut encoder = ZstdEncoder::new(Vec::new(), 0).unwrap();
-            encoder.write_all(&data).unwrap();
-            encoder.finish().unwrap()
-        }
-        _ => data,
-    };
-    output_data
 }
 
 /*==============================================================

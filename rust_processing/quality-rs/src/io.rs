@@ -174,7 +174,7 @@ pub(crate) fn write_mem_to_pathbuf(contents: &[u8], output_file: &PathBuf) -> Re
     Ok(())
 }
 
-fn compress_data(data: Vec<u8>, filename: &PathBuf) -> Vec<u8> {
+pub(crate) fn compress_data(data: Vec<u8>, filename: &PathBuf) -> Vec<u8> {
     // Given a filename with an extension, compresses a bytestream accordingly
     // {zst, zstd} -> zstandard, {gz} -> gzip, anything else -> nothing
     let output_data = match filename.extension().unwrap().to_str() {
