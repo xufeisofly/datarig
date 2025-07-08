@@ -1,8 +1,6 @@
-use anyhow::{anyhow, Error, Result};
+use anyhow::{Error, Result};
 use clap::Parser;
 use flate2::read::MultiGzDecoder;
-use flate2::write::GzEncoder;
-use flate2::Compression;
 use indicatif::{ProgressBar, ProgressStyle};
 use io::expand_dirs;
 use oss::split_oss_path;
@@ -10,8 +8,8 @@ use oss::{get_reader_from_oss, is_oss};
 use oss_rust_sdk::async_object::*;
 use serde_json::Value;
 use std::collections::{HashMap, HashSet};
-use std::fs::{create_dir_all, OpenOptions};
-use std::io::{BufRead, BufReader, BufWriter, Cursor, Write};
+use std::fs::OpenOptions;
+use std::io::{BufRead, BufReader, Write};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::thread::available_parallelism;
@@ -19,7 +17,6 @@ use std::time::Instant;
 use threadpool::ThreadPool;
 use vtext::tokenize::{Tokenizer, VTextTokenizerParams};
 use zstd::stream::read::Decoder as ZstDecoder;
-use zstd::stream::write::Encoder as ZstdEncoder;
 
 pub mod io;
 pub mod oss;

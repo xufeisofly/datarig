@@ -67,6 +67,7 @@ pub(crate) fn split_oss_path<P: AsRef<Path>>(path: P) -> (String, String) {
     (bucket.to_string(), key.to_string())
 }
 
+#[allow(dead_code)]
 pub(crate) async fn write_cursor_to_oss(
     oss_uri: &PathBuf,
     cursor: Cursor<Vec<u8>>,
@@ -151,6 +152,7 @@ pub(crate) async fn expand_oss_dir(
     Ok(oss_files)
 }
 
+#[allow(dead_code)]
 pub(crate) async fn count_oss_dirsize(oss_uri: &PathBuf) -> Result<usize, OSSError> {
     let (bucket, prefix) = split_oss_path(oss_uri);
     let client = get_bucket(bucket);
