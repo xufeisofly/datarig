@@ -22,7 +22,12 @@
       max_length: 10
       banlist: "Sign-in"
       location: prefix
-      remove_substring_only: True
+    - func: substring_line_modifier
+      max_length: 5
+      banlist: ""
+      banlist_file: "baselines/mappers/banlists/short_line_keywords.txt"
+      location: prefix
+      remove_substring_only: False
     - func: line_removal_modifier
       min_word_cnt_per_line: 1
     - func: word_length_modifier
