@@ -24,197 +24,6 @@ use zstd::stream::write::Encoder as ZstdEncoder;
 pub mod io;
 pub mod oss;
 
-/*======================================================
-=                              ARGS                    =
-======================================================*/
-
-#[derive(Parser, Debug)]
-struct Args {
-    #[arg(required = true, long)]
-    input: Vec<PathBuf>,
-
-    #[arg(required = true, long)]
-    output: PathBuf,
-
-    #[arg(long, default_value_t = 0)]
-    threads: usize,
-}
-
-fn process_files(
-    input: Vec<PathBuf>,
-    output: &PathBuf,
-    threads: &usize,
-    no_progress_bar: bool,
-) -> Result<()> {
-    let input_files = expand_dirs(input, None).unwrap();
-    // Setup progress bar
-    let pbar = ProgressBar::new(input_files.len() as u64)
-        .with_style(
-            ProgressStyle::with_template(
-                "Files {human_pos}/{human_len} [{elapsed_precise}/{duration_precise}] [{wide_bar:.cyan/blue}]",
-            ).unwrap()
-        );
-    let pbar = Arc::new(Mutex::new(pbar));
-    if !no_progress_bar {
-        pbar.lock().unwrap().inc(0); // Makes pbar show up with 0/N files complete
-    }
-
-    let loop_start_time = Instant::now();
-    let threadpool = ThreadPool::new(*threads);
-
-    for input_file in input_files {
-        let output_file = get_output_filename(&input_file, output);
-        let pbar_option: Option<Arc<Mutex<ProgressBar>>> = if no_progress_bar {
-            None
-        } else {
-            Some(pbar.clone())
-        };
-
-        threadpool.execute(move || {
-            if no_progress_bar {
-                println!("Processing {input_file:?}...");
-            }
-
-            let rt = tokio::runtime::Builder::new_current_thread()
-                .enable_all()
-                .build()
-                .unwrap();
-
-            let result = rt.block_on(quality_filtering(
-                input_file.clone(),
-                output_file.clone(),
-                pbar_option.clone(),
-            ));
-
-            match result {
-                Ok(_) => {}
-                Err(err) => {
-                    eprintln!("Error processing {:?}; {:?}", input_file, err);
-                }
-            }
-        });
-    }
-
-    threadpool.join();
-    println!(
-        "Complete filtering all files in {:?} seconds",
-        loop_start_time.elapsed().as_secs()
-    );
-
-    Ok(())
-}
-
-fn get_output_filename(input_filename: &PathBuf, output_directory: &PathBuf) -> PathBuf {
-    let file_name = input_filename.file_name().unwrap();
-    output_directory.clone().join(file_name)
-}
-
-async fn quality_filtering(
-    input_file: PathBuf,
-    output_file: PathBuf,
-    pbar_option: Option<Arc<Mutex<ProgressBar>>>,
-) -> Result<(), Error> {
-    let docs: Box<dyn Iterator<Item = Result<String, Error>>> = if is_oss(&input_file) {
-        Box::new(
-            get_reader_from_oss(input_file, None)
-                .await
-                .unwrap()
-                .lines()
-                .map(|r| r.map_err(Error::from)),
-        )
-    } else {
-        let ext = input_file.extension().unwrap().to_str().unwrap();
-        let input_file = OpenOptions::new()
-            .read(true)
-            .write(false)
-            .create(false)
-            .open(&input_file)?;
-
-        match ext {
-            "zstd" | "zst" => Box::new(
-                BufReader::with_capacity(1024 * 1024, ZstDecoder::new(input_file).unwrap())
-                    .lines()
-                    .map(|r| r.map_err(Error::from)),
-            ),
-            "gz" => Box::new(
-                BufReader::with_capacity(1024 * 1024, MultiGzDecoder::new(input_file))
-                    .lines()
-                    .map(|r| r.map_err(Error::from)),
-            ),
-            _ => Box::new(
-                BufReader::with_capacity(1024 * 1024, input_file)
-                    .lines()
-                    .map(|r| r.map_err(Error::from)),
-            ),
-        }
-    };
-    let mut output_data: Vec<u8> = Vec::new();
-    let mut fully_skipped = 0;
-    let mut count = 0;
-
-    for doc in docs {
-        let doc = doc?;
-        count += 1;
-        let mut data: Value = serde_json::from_str(&doc).unwrap();
-        process_data(&mut data)?;
-
-        if let Some(text) = data.get("text") {
-            if Some(text).unwrap().as_str().unwrap().trim().is_empty() {
-                fully_skipped += 1
-            } else {
-                output_data.extend(serde_json::to_vec(&data).unwrap());
-                output_data.extend(b"\n");
-            }
-        } else {
-            continue;
-        }
-    }
-
-    let output_data = compress_data(output_data, &output_file);
-    if fully_skipped < count {
-        if is_oss(&output_file) {
-            let (output_bucket, output_key) = split_oss_path(output_file);
-            let client = oss::get_bucket(output_bucket);
-            let mut headers = HashMap::new();
-            headers.insert("content-type", "text/plain");
-            let data: &[u8] = &output_data;
-            let _ = client
-                .put_object(data, output_key.clone(), headers, None)
-                .await;
-        } else {
-            let mut output_file = OpenOptions::new()
-                .read(false)
-                .write(true)
-                .create(true)
-                .truncate(true)
-                .open(&output_file)?;
-            output_file.write_all(&output_data)?;
-        }
-    }
-
-    match pbar_option {
-        Some(pbar) => {
-            let pb = pbar.lock().unwrap();
-            pb.inc(1);
-        }
-        None => (),
-    }
-    Ok(())
-}
-
-fn clear_text_key(data: &mut Value) {
-    if let Value::Object(ref mut map) = data {
-        map.remove("text");
-    }
-}
-
-fn process_data(data: &mut Value) -> Result<bool, Error> {
-    if let Ok(false) = fineweb_quality_filter(data, 0.12, 30, 0.67, 0.1, 0.3) {
-        clear_text_key(data);
-    }
-    Ok(true)
-}
-
 pub static TERMINAL_PUNCTUATION: [&str; 159] = [
     "᪩",
     "？",
@@ -377,6 +186,197 @@ pub static TERMINAL_PUNCTUATION: [&str; 159] = [
     "᰻",
 ];
 
+/*======================================================
+=                              ARGS                    =
+======================================================*/
+
+#[derive(Parser, Debug)]
+struct Args {
+    #[arg(required = true, long)]
+    input: Vec<PathBuf>,
+
+    #[arg(required = true, long)]
+    output: PathBuf,
+
+    #[arg(long, default_value_t = 0)]
+    threads: usize,
+}
+
+fn process_files(
+    input: Vec<PathBuf>,
+    output: &PathBuf,
+    threads: &usize,
+    no_progress_bar: bool,
+) -> Result<()> {
+    let input_files = expand_dirs(input, None).unwrap();
+    // Setup progress bar
+    let pbar = ProgressBar::new(input_files.len() as u64)
+        .with_style(
+            ProgressStyle::with_template(
+                "Files {human_pos}/{human_len} [{elapsed_precise}/{duration_precise}] [{wide_bar:.cyan/blue}]",
+            ).unwrap()
+        );
+    let pbar = Arc::new(Mutex::new(pbar));
+    if !no_progress_bar {
+        pbar.lock().unwrap().inc(0); // Makes pbar show up with 0/N files complete
+    }
+
+    let loop_start_time = Instant::now();
+    let threadpool = ThreadPool::new(*threads);
+
+    for input_file in input_files.into_iter() {
+        let output_file = get_output_filename(&input_file, output);
+        let pbar_option: Option<Arc<Mutex<ProgressBar>>> = if no_progress_bar {
+            None
+        } else {
+            Some(pbar.clone())
+        };
+
+        threadpool.execute(move || {
+            if no_progress_bar {
+                println!("Processing {input_file:?}...");
+            }
+
+            let rt = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .unwrap();
+
+            let result = rt.block_on(quality_filtering(
+                input_file.clone(),
+                output_file.clone(),
+                pbar_option.clone(),
+            ));
+
+            match result {
+                Ok(_) => {}
+                Err(err) => {
+                    eprintln!("Error processing {:?}; {:?}", input_file, err);
+                }
+            }
+        });
+    }
+
+    threadpool.join();
+    println!(
+        "Complete filtering all files in {:?} seconds",
+        loop_start_time.elapsed().as_secs()
+    );
+
+    Ok(())
+}
+
+fn get_output_filename(input_filename: &PathBuf, output_directory: &PathBuf) -> PathBuf {
+    let file_name = input_filename.file_name().unwrap();
+    output_directory.clone().join(file_name)
+}
+
+async fn quality_filtering(
+    input_file: PathBuf,
+    output_file: PathBuf,
+    pbar_option: Option<Arc<Mutex<ProgressBar>>>,
+) -> Result<(), Error> {
+    let docs: Box<dyn Iterator<Item = Result<String, Error>>> = if is_oss(&input_file) {
+        Box::new(
+            get_reader_from_oss(input_file, None)
+                .await
+                .unwrap()
+                .lines()
+                .map(|r| r.map_err(Error::from)),
+        )
+    } else {
+        let ext = input_file.extension().unwrap().to_str().unwrap();
+        let input_file = OpenOptions::new()
+            .read(true)
+            .write(false)
+            .create(false)
+            .open(&input_file)?;
+
+        match ext {
+            "zstd" | "zst" => Box::new(
+                BufReader::with_capacity(1024 * 1024, ZstDecoder::new(input_file).unwrap())
+                    .lines()
+                    .map(|r| r.map_err(Error::from)),
+            ),
+            "gz" => Box::new(
+                BufReader::with_capacity(1024 * 1024, MultiGzDecoder::new(input_file))
+                    .lines()
+                    .map(|r| r.map_err(Error::from)),
+            ),
+            _ => Box::new(
+                BufReader::with_capacity(1024 * 1024, input_file)
+                    .lines()
+                    .map(|r| r.map_err(Error::from)),
+            ),
+        }
+    };
+    let mut output_data: Vec<u8> = Vec::new();
+    let mut fully_skipped = 0;
+    let mut count = 0;
+
+    for doc in docs {
+        let doc = doc?;
+        count += 1;
+        let mut data: Value = serde_json::from_str(&doc).unwrap();
+        process_data(&mut data)?;
+
+        if let Some(text) = data.get("text") {
+            if Some(text).unwrap().as_str().unwrap().trim().is_empty() {
+                fully_skipped += 1
+            } else {
+                output_data.extend(serde_json::to_vec(&data).unwrap());
+                output_data.extend(b"\n");
+            }
+        } else {
+            continue;
+        }
+    }
+
+    let output_data = compress_data(output_data, &output_file);
+    if fully_skipped < count {
+        if is_oss(&output_file) {
+            let (output_bucket, output_key) = split_oss_path(output_file);
+            let client = oss::get_bucket(output_bucket);
+            let mut headers = HashMap::new();
+            headers.insert("content-type", "text/plain");
+            let data: &[u8] = &output_data;
+            let _ = client
+                .put_object(data, output_key.clone(), headers, None)
+                .await;
+        } else {
+            let mut output_file = OpenOptions::new()
+                .read(false)
+                .write(true)
+                .create(true)
+                .truncate(true)
+                .open(&output_file)?;
+            output_file.write_all(&output_data)?;
+        }
+    }
+
+    match pbar_option {
+        Some(pbar) => {
+            let pb = pbar.lock().unwrap();
+            pb.inc(1);
+        }
+        None => (),
+    }
+    Ok(())
+}
+
+fn clear_text_key(data: &mut Value) {
+    if let Value::Object(ref mut map) = data {
+        map.remove("text");
+    }
+}
+
+fn process_data(data: &mut Value) -> Result<bool, Error> {
+    if let Ok(false) = fineweb_quality_filter(data, 0.12, 30, 0.67, 0.1, 0.3) {
+        clear_text_key(data);
+    }
+    Ok(true)
+}
+
 fn fineweb_quality_filter(
     data: &mut Value,
     line_punct_thr: f64,
@@ -413,7 +413,7 @@ fn fineweb_quality_filter(
         .filter(|l| l.len() <= short_line_length)
         .count() as f64
         / total as f64)
-        < short_line_thr
+        > short_line_thr
     {
         return Ok(false);
     }
@@ -423,7 +423,7 @@ fn fineweb_quality_filter(
         return Ok(false);
     }
 
-    let result = split_words(text, "en");
+    let result = split_words(text, "en", false, true);
     match result {
         Ok(tokens) => {
             if text.matches('\n').count() as f64 / tokens.len() as f64 > new_line_ratio {
@@ -456,9 +456,29 @@ fn find_duplicates(x: &[&str]) -> (usize, usize) {
     (duplicate_elements, duplicate_chars)
 }
 
-fn split_words(text: &str, lang: &str) -> Result<Vec<String>, Error> {
+fn split_words(
+    text: &str,
+    lang: &str,
+    ignore_punctuation: bool,
+    ignore_whitespace: bool,
+) -> Result<Vec<String>, Error> {
     let tok = VTextTokenizerParams::default().lang(lang).build()?;
-    let tokens: Vec<String> = tok.tokenize(text).map(|s| s.to_string()).collect();
+    let mut tokens: Vec<String> = tok.tokenize(text).map(|s| s.to_string()).collect();
+
+    if ignore_whitespace {
+        tokens = tokens.iter().map(|w| w.trim().to_string()).collect();
+    }
+    if ignore_punctuation {
+        tokens = tokens
+            .into_iter()
+            .filter(|w| {
+                w.chars()
+                    .next()
+                    .map(|c| c.is_alphanumeric() || (!ignore_whitespace && c.is_whitespace()))
+                    .unwrap_or(false)
+            })
+            .collect();
+    }
 
     Ok(tokens)
 }
