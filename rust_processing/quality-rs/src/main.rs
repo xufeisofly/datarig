@@ -113,7 +113,6 @@ async fn quality_filtering(
     output_file: PathBuf,
     pbar_option: Option<Arc<Mutex<ProgressBar>>>,
 ) -> Result<(), Error> {
-    let start_time = Instant::now();
     let filename = input_file.file_name().unwrap_or_default().to_os_string();
     let docs: Box<dyn Iterator<Item = Result<String, Error>>> = if is_oss(&input_file) {
         Box::new(
@@ -153,11 +152,18 @@ async fn quality_filtering(
     let mut fully_skipped = 0;
     let mut count = 0;
 
+    // let start_time = Instant::now();
     for doc in docs {
         let doc = doc?;
         count += 1;
         let mut data: Value = serde_json::from_str(&doc).unwrap();
+
+        let start_time = Instant::now();
         let process_result = process_data(&mut data);
+        println!(
+            "filtering doc in {:?} seconds",
+            start_time.elapsed().as_secs()
+        );
 
         match process_result {
             Ok(true) => {
@@ -168,6 +174,11 @@ async fn quality_filtering(
             Err(_) => {}
         }
     }
+    // println!(
+    //     "filtering file {:?} in {:?} seconds",
+    //     filename,
+    //     start_time.elapsed().as_secs()
+    // );
 
     let output_data = io::compress_data(output_data, &output_file);
     if fully_skipped < count {
@@ -199,11 +210,6 @@ async fn quality_filtering(
         None => (),
     }
 
-    println!(
-        "filtering file {:?} in {:?} seconds",
-        filename,
-        start_time.elapsed().as_secs()
-    );
     Ok(())
 }
 

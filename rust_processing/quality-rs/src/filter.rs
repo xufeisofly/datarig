@@ -9,6 +9,7 @@ pub trait Filter {
     fn name(&self) -> &str;
 }
 
+#[allow(dead_code)]
 pub struct CacheTokenFilter {
     pub lang: String,
 }
@@ -43,6 +44,7 @@ impl Filter for CacheTokenFilter {
     }
 }
 
+#[allow(dead_code)]
 pub struct UncacheTokenFilter;
 
 impl Filter for UncacheTokenFilter {
@@ -57,6 +59,7 @@ impl Filter for UncacheTokenFilter {
 }
 
 // gopher repetition
+#[allow(dead_code)]
 pub struct GopherRepetitionFilter {
     pub dup_line_frac: f64,
     pub dup_para_frac: f64,
@@ -137,7 +140,28 @@ impl Filter for GopherRepetitionFilter {
     }
 }
 
+#[allow(dead_code)]
+pub struct GopherQualityFilter {
+    pub min_doc_words: usize,
+    pub max_doc_words: usize,
+    pub min_avg_word_length: usize,
+    pub max_avg_word_length: usize,
+    pub max_symbol_word_ratio: f64,
+    pub max_bullet_lines_ratio: f64,
+    pub max_ellipsis_lines_ratio: f64,
+    pub max_non_alpha_words_ratio: f64,
+    pub min_stop_words: usize,
+    pub lang: String,
+}
+
+impl Filter for GopherQualityFilter {
+	fn filter(&self, data: &mut Value) -> Result<bool, Error> {
+		
+	}
+}
+
 // fineweb quality 规则
+#[allow(dead_code)]
 pub struct FinewebQualityFilter {
     pub line_punct_thr: f64,
     pub short_line_length: usize,
