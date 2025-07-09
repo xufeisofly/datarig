@@ -155,9 +155,13 @@ pub struct GopherQualityFilter {
 }
 
 impl Filter for GopherQualityFilter {
-	fn filter(&self, data: &mut Value) -> Result<bool, Error> {
-		
-	}
+    fn filter(&self, data: &mut Value) -> Result<bool, Error> {
+        Ok(true)
+    }
+
+    fn name(&self) -> &str {
+        "GopherQualityFilter"
+    }
 }
 
 // fineweb quality 规则
