@@ -172,34 +172,95 @@ pub static TERMINAL_PUNCTUATION: [&str; 159] = [
 ];
 
 pub fn find_duplicates(x: &[&str]) -> (usize, usize) {
-    let mut unique_x = HashSet::new();
-    let mut duplicate_elements = 0;
-    let mut duplicate_chars = 0;
+    let mut unique = HashSet::with_capacity(x.len());
+    let mut dup_cnt = 0;
+    let mut dup_chars = 0;
 
-    for &element in x {
-        if unique_x.contains(element) {
-            duplicate_elements += 1;
-            duplicate_chars += element.len();
-        } else {
-            unique_x.insert(element);
+    for &e in x {
+        if !unique.insert(e) {
+            dup_cnt += 1;
+            dup_chars += e.len();
         }
     }
-
-    (duplicate_elements, duplicate_chars)
+    (dup_cnt, dup_chars)
 }
 
 pub fn find_top_duplicate(x: &[String]) -> usize {
-    let mut counter: HashMap<&str, usize> = HashMap::new();
+    let mut counter = HashMap::with_capacity(x.len());
 
-    for element in x {
-        *counter.entry(element.as_str()).or_insert(0) += 1;
+    // 只做一次哈希查找
+    for s in x {
+        *counter.entry(s.as_str()).or_insert(0) += 1;
     }
 
-    if let Some((word, count)) = counter.into_iter().max_by_key(|&(_, count)| count) {
-        word.len() * count
-    } else {
-        0
+    // 查找 max
+    counter
+        .into_iter()
+        .map(|(word, cnt)| word.len() * cnt)
+        .max()
+        .unwrap_or(0)
+}
+
+pub fn find_all_duplicate_fast(words: &[String], n: usize) -> usize {
+    let m = words.len();
+    if m < n || n == 0 {
+        return 0;
     }
+
+    // 1. 先把每个 word 哈希成 u64
+    let mut word_hashes: Vec<u64> = Vec::with_capacity(m);
+    for w in words {
+        let mut h: u64 = 0;
+        for &b in w.as_bytes() {
+            // 这里给常量加上 u64 后缀
+            h = h.wrapping_mul(1315423911u64).wrapping_add(b as u64);
+        }
+        word_hashes.push(h);
+    }
+
+    // 2. 预计算 base^i，也都是 u64
+    let mut pow: Vec<u64> = Vec::with_capacity(m + 1);
+    pow.push(1u64); // 这里的 1u64
+    for i in 1..=m {
+        // 这里的 wrapping_mul 也是 u64
+        pow.push(pow[i - 1].wrapping_mul(1315423911u64));
+    }
+
+    // 3. 前缀哈希，类型都是 u64
+    let mut pref: Vec<u64> = Vec::with_capacity(m + 1);
+    pref.push(0u64); // 明确是 u64
+    for i in 0..m {
+        pref.push(
+            pref[i]
+                .wrapping_mul(1315423911u64)
+                .wrapping_add(word_hashes[i]),
+        );
+    }
+
+    // 4. 预存每个 word 长度
+    let lens: Vec<usize> = words.iter().map(|w| w.len()).collect();
+
+    // 5. 滑窗检测
+    let mut seen = HashSet::with_capacity(m);
+    let mut dup_chars = 0;
+    let mut i = 0;
+
+    while i + n <= m {
+        // 计算 window [i, i+n) 的哈希
+        // 这里 wrapping_sub 也是 u64
+        let h = pref[i + n].wrapping_sub(pref[i].wrapping_mul(pow[n]));
+
+        if !seen.insert(h) {
+            // 只有重复时才计算长度
+            let window_len: usize = lens[i..i + n].iter().sum();
+            dup_chars += window_len;
+            i += n;
+        } else {
+            i += 1;
+        }
+    }
+
+    dup_chars
 }
 
 pub fn find_all_duplicate(words: &[String], n: usize) -> usize {

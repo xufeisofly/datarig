@@ -117,7 +117,7 @@ impl Filter for GopherRepetitionFilter {
                 }
 
                 for &(n, n_frac) in &self.dup_n_grams {
-                    let n_duplicates_char = util::find_all_duplicate(&words, n as usize);
+                    let n_duplicates_char = util::find_all_duplicate_fast(&words, n as usize);
                     if n_duplicates_char as f64 / text_len > n_frac {
                         return Ok(false);
                     }
