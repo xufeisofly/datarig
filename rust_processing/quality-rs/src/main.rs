@@ -246,9 +246,9 @@ fn process_data(data: &mut Value) -> Result<bool, Error> {
         }
 
         println!(
-            "{:?} filtering all files in {:?} seconds",
+            "{:?} filtering all files in {:?} milliseconds",
             f.name(),
-            start_time.elapsed().as_secs()
+            start_time.elapsed().as_millis()
         );
 
         util::clear_key(data, util::TEXT_KEY);
