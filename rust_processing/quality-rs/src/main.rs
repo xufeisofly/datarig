@@ -114,6 +114,7 @@ async fn quality_filtering(
     pbar_option: Option<Arc<Mutex<ProgressBar>>>,
 ) -> Result<(), Error> {
     let start_time = Instant::now();
+    let filename = input_file.file_name().unwrap_or_default().to_os_string();
     let docs: Box<dyn Iterator<Item = Result<String, Error>>> = if is_oss(&input_file) {
         Box::new(
             get_reader_from_oss(input_file, None)
@@ -199,7 +200,8 @@ async fn quality_filtering(
     }
 
     println!(
-        "filtering all files in {:?} seconds",
+        "filtering file {:?} in {:?} seconds",
+        filename,
         start_time.elapsed().as_secs()
     );
     Ok(())
