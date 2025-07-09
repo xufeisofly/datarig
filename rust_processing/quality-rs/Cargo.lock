@@ -1470,6 +1470,7 @@ dependencies = [
  "log",
  "oss-rust-sdk",
  "rand 0.8.5",
+ "regex",
  "rustc-hash",
  "serde",
  "serde_json",

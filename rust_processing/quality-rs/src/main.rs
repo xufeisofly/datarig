@@ -204,6 +204,22 @@ async fn quality_filtering(
 fn process_data(data: &mut Value) -> Result<bool, Error> {
     let mut filters: Vec<Box<dyn filter::Filter>> = Vec::new();
     // TODO 在这里注册更多的 Filter Trait
+    filters.push(Box::new(filter::GopherRepetitionFilter {
+        dup_line_frac: 0.3,
+        dup_para_frac: 0.3,
+        dup_line_char_frac: 0.2,
+        dup_para_char_frac: 0.2,
+        top_n_grams: vec![(2, 0.2), (3, 0.18), (4, 0.16)],
+        dup_n_grams: vec![
+            (5, 0.15),
+            (6, 0.14),
+            (7, 0.13),
+            (8, 0.12),
+            (9, 0.11),
+            (10, 0.10),
+        ],
+        lang: "en".to_string(),
+    }));
     filters.push(Box::new(filter::FinewebQualityFilter {
         line_punct_thr: 0.12,
         short_line_length: 30,

@@ -1,6 +1,7 @@
 use anyhow::{Error, Result};
+use regex::Regex;
 use serde_json::Value;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use vtext::tokenize::{Tokenizer, VTextTokenizerParams};
 
 pub static TERMINAL_PUNCTUATION: [&str; 159] = [
@@ -182,6 +183,44 @@ pub fn find_duplicates(x: &[&str]) -> (usize, usize) {
     (duplicate_elements, duplicate_chars)
 }
 
+pub fn find_top_duplicate(x: &[String]) -> usize {
+    let mut counter: HashMap<&str, usize> = HashMap::new();
+
+    for element in x {
+        *counter.entry(element.as_str()).or_insert(0) += 1;
+    }
+
+    if let Some((word, count)) = counter.into_iter().max_by_key(|&(_, count)| count) {
+        word.len() * count
+    } else {
+        0
+    }
+}
+
+pub fn find_all_duplicate(words: &[String], n: usize) -> usize {
+    let mut unique = HashSet::new();
+    let mut repeated_chars = 0;
+    let mut idx = 0;
+    let n_words = words.len();
+
+    while idx + n <= n_words {
+        let n_gram = words[idx..idx + n].join("");
+
+        if unique.contains(&n_gram) {
+            repeated_chars += n_gram.len();
+            idx += n;
+        } else {
+            unique.insert(n_gram);
+            idx += 1;
+        }
+    }
+
+    let total_chars: usize = words.iter().map(|w| w.len()).sum();
+    assert!(repeated_chars <= total_chars);
+
+    repeated_chars
+}
+
 pub fn split_words(
     text: &str,
     lang: &str,
@@ -209,8 +248,32 @@ pub fn split_words(
     Ok(tokens)
 }
 
+pub fn split_paragraphs(text: &str) -> Vec<&str> {
+    let para_exp = Regex::new(r"\n{2,}").unwrap();
+    let text = text.trim();
+
+    para_exp.split(text).collect()
+}
+
+pub fn split_lines(text: &str) -> Vec<&str> {
+    let line_exp = Regex::new(r"\n+").unwrap();
+    let text = text.trim();
+
+    line_exp.split(text).collect()
+}
+
 pub fn clear_text_key(data: &mut Value) {
     if let Value::Object(ref mut map) = data {
         map.remove("text");
     }
+}
+
+pub fn get_n_grams(words: &[String], n: usize) -> Vec<String> {
+    if words.len() < n {
+        return vec![];
+    }
+
+    (0..=words.len() - n)
+        .map(|i| words[i..i + n].join(" "))
+        .collect()
 }
