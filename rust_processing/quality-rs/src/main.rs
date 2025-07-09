@@ -1,8 +1,6 @@
-use anyhow::{anyhow, Error, Result};
+use anyhow::{Error, Result};
 use clap::Parser;
 use flate2::read::MultiGzDecoder;
-use flate2::write::GzEncoder;
-use flate2::Compression;
 use indicatif::{ProgressBar, ProgressStyle};
 use io::expand_dirs;
 use oss::split_oss_path;
@@ -10,8 +8,8 @@ use oss::{get_reader_from_oss, is_oss};
 use oss_rust_sdk::async_object::*;
 use serde_json::Value;
 use std::collections::{HashMap, HashSet};
-use std::fs::{create_dir_all, OpenOptions};
-use std::io::{BufRead, BufReader, BufWriter, Cursor, Write};
+use std::fs::OpenOptions;
+use std::io::{BufRead, BufReader, Write};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::thread::available_parallelism;
@@ -19,7 +17,6 @@ use std::time::Instant;
 use threadpool::ThreadPool;
 use vtext::tokenize::{Tokenizer, VTextTokenizerParams};
 use zstd::stream::read::Decoder as ZstDecoder;
-use zstd::stream::write::Encoder as ZstdEncoder;
 
 pub mod io;
 pub mod oss;
@@ -332,7 +329,7 @@ async fn quality_filtering(
         }
     }
 
-    let output_data = compress_data(output_data, &output_file);
+    let output_data = io::compress_data(output_data, &output_file);
     if fully_skipped < count {
         if is_oss(&output_file) {
             let (output_bucket, output_key) = split_oss_path(output_file);
@@ -481,24 +478,6 @@ fn split_words(
     }
 
     Ok(tokens)
-}
-
-fn compress_data(data: Vec<u8>, filename: &PathBuf) -> Vec<u8> {
-    // 安全获取扩展名，防止无扩展名文件导致的崩溃
-    let output_data = match filename.extension().and_then(|ext| ext.to_str()) {
-        Some("gz") => {
-            let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
-            encoder.write_all(&data).unwrap();
-            encoder.finish().unwrap()
-        }
-        Some("zstd") | Some("zst") => {
-            let mut encoder = ZstdEncoder::new(Vec::new(), 0).unwrap();
-            encoder.write_all(&data).unwrap();
-            encoder.finish().unwrap()
-        }
-        _ => data,
-    };
-    output_data
 }
 
 /*==============================================================

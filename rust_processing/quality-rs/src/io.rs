@@ -57,6 +57,7 @@ pub(crate) fn expand_dirs(
     Ok(files)
 }
 
+#[allow(dead_code)]
 pub(crate) fn count_dirsize(dirname: &PathBuf) -> Result<usize, Error> {
     if is_oss(dirname) {
         let rt = tokio::runtime::Builder::new_current_thread()
@@ -70,6 +71,7 @@ pub(crate) fn count_dirsize(dirname: &PathBuf) -> Result<usize, Error> {
     }
 }
 
+#[allow(dead_code)]
 fn count_local_dirsize(path: &PathBuf) -> Result<usize, Error> {
     let mut total_size: usize = 0;
     for entry in fs::read_dir(path).unwrap() {
@@ -87,6 +89,7 @@ fn count_local_dirsize(path: &PathBuf) -> Result<usize, Error> {
 =                           Reading files                            =
 ====================================================================*/
 
+#[allow(dead_code)]
 pub(crate) fn read_pathbuf_to_mem(
     input_file: &PathBuf,
 ) -> Result<BufReader<Cursor<Vec<u8>>>, Error> {
@@ -111,6 +114,7 @@ pub(crate) fn read_pathbuf_to_mem(
     Ok(reader)
 }
 
+#[allow(dead_code)]
 fn read_local_file_into_memory(input_file: &PathBuf) -> Result<Cursor<Vec<u8>>, Error> {
     // Takes a local file (must be local!) and reads it into a Cursor of bytes
     let mut file = File::open(input_file).expect("Failed to open file");
@@ -145,7 +149,7 @@ fn read_local_file_into_memory(input_file: &PathBuf) -> Result<Cursor<Vec<u8>>, 
 /*====================================================================
 =                          Writing files                             =
 ====================================================================*/
-
+#[allow(dead_code)]
 pub(crate) fn write_mem_to_pathbuf(contents: &[u8], output_file: &PathBuf) -> Result<(), Error> {
     let compressed_data = compress_data(contents.to_vec(), output_file);
     if is_oss(output_file) {
@@ -174,7 +178,7 @@ pub(crate) fn write_mem_to_pathbuf(contents: &[u8], output_file: &PathBuf) -> Re
     Ok(())
 }
 
-fn compress_data(data: Vec<u8>, filename: &PathBuf) -> Vec<u8> {
+pub(crate) fn compress_data(data: Vec<u8>, filename: &PathBuf) -> Vec<u8> {
     // Given a filename with an extension, compresses a bytestream accordingly
     // {zst, zstd} -> zstandard, {gz} -> gzip, anything else -> nothing
     let output_data = match filename.extension().unwrap().to_str() {
