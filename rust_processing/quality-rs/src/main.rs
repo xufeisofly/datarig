@@ -238,17 +238,9 @@ fn process_data(data: &mut Value) -> Result<bool, Error> {
     filters.push(Box::new(filter::UncacheTokenFilter {}));
 
     for f in filters {
-        let start_time = TokioInstant::now();
         if let Ok(false) = f.filter(data) {
-            // util::clear_key(data, util::TEXT_KEY);
             return Ok(false);
         }
-
-        println!(
-            "{:?} filtering all files in {:?} milliseconds",
-            f.name(),
-            start_time.elapsed().as_millis()
-        );
     }
     Ok(true)
 }
