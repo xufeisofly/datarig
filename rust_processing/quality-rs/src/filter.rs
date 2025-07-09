@@ -65,27 +65,25 @@ impl Filter for GopherRepetitionFilter {
 
         let paragraphs = util::split_paragraphs(text);
 
-        if paragraphs.is_empty() {
-            return Ok(false);
-        }
-        let (para_duplicates, para_char_duplicates) = util::find_duplicates(&paragraphs);
-        if para_duplicates as f64 / paragraphs.len() as f64 > self.dup_para_frac {
-            return Ok(false);
-        }
-        if para_char_duplicates as f64 / text.len() as f64 > self.dup_para_char_frac {
-            return Ok(false);
+        if !paragraphs.is_empty() {
+            let (para_duplicates, para_char_duplicates) = util::find_duplicates(&paragraphs);
+            if para_duplicates as f64 / paragraphs.len() as f64 > self.dup_para_frac {
+                return Ok(false);
+            }
+            if para_char_duplicates as f64 / text.len() as f64 > self.dup_para_char_frac {
+                return Ok(false);
+            }
         }
 
         let lines = util::split_lines(text);
-        if lines.is_empty() {
-            return Ok(false);
-        }
-        let (line_duplicates, line_char_duplicates) = util::find_duplicates(&lines);
-        if line_duplicates as f64 / lines.len() as f64 > self.dup_line_frac {
-            return Ok(false);
-        }
-        if line_char_duplicates as f64 / text.len() as f64 > self.dup_line_char_frac {
-            return Ok(false);
+        if !lines.is_empty() {
+            let (line_duplicates, line_char_duplicates) = util::find_duplicates(&lines);
+            if line_duplicates as f64 / lines.len() as f64 > self.dup_line_frac {
+                return Ok(false);
+            }
+            if line_char_duplicates as f64 / text.len() as f64 > self.dup_line_char_frac {
+                return Ok(false);
+            }
         }
 
         let words_result = util::split_words(text, Some(data), &self.lang, false, true);
@@ -93,7 +91,7 @@ impl Filter for GopherRepetitionFilter {
             Ok(words) => {
                 for (n, n_frac) in self.top_n_grams.iter() {
                     let n_grams = util::get_n_grams(&words, *n as usize);
-                    if n_grams.len() == 0 {
+                    if n_grams.is_empty() {
                         continue;
                     }
                     let top_char_length = util::find_top_duplicate(&n_grams);
