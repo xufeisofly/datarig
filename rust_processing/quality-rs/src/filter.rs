@@ -5,6 +5,7 @@ use serde_json::Value;
 // 想要添加规则，新建一个 Filter struct 实现这个 trait 就好
 pub trait Filter {
     fn filter(&self, data: &mut Value) -> Result<bool, Error>;
+    fn name(&self) -> &str;
 }
 
 pub struct CacheTokenFilter {
@@ -34,6 +35,10 @@ impl Filter for CacheTokenFilter {
         }
         Ok(true)
     }
+
+    fn name(&self) -> &str {
+        "CacheTokenFilter"
+    }
 }
 
 pub struct UncacheTokenFilter;
@@ -42,6 +47,10 @@ impl Filter for UncacheTokenFilter {
     fn filter(&self, data: &mut Value) -> Result<bool, Error> {
         util::clear_key(data, util::WORDS_KEY);
         Ok(true)
+    }
+
+    fn name(&self) -> &str {
+        "UncacheTokenFilter"
     }
 }
 
@@ -118,6 +127,10 @@ impl Filter for GopherRepetitionFilter {
 
         Ok(true)
     }
+
+    fn name(&self) -> &str {
+        "GopherRepetitionFilter"
+    }
 }
 
 // fineweb quality 规则
@@ -186,5 +199,9 @@ impl Filter for FinewebQualityFilter {
         }
 
         Ok(true)
+    }
+
+    fn name(&self) -> &str {
+        "FinewebQualityFilter"
     }
 }
