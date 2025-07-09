@@ -242,11 +242,14 @@ pub fn split_words(
             })
             .unwrap_or_default(),
         None => {
-            println!("=== split_words");
-            let tok = VTextTokenizerParams::default().lang(lang).build()?;
-            tok.tokenize(text).map(|s| s.to_string()).collect()
+            vec![]
         }
     };
+
+    if tokens.is_empty() {
+        let tok = VTextTokenizerParams::default().lang(lang).build()?;
+        tokens = tok.tokenize(text).map(|s| s.to_string()).collect();
+    }
 
     if ignore_whitespace {
         tokens = tokens.iter().map(|w| w.trim().to_string()).collect();
