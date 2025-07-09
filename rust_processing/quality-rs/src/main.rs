@@ -161,8 +161,8 @@ async fn quality_filtering(
         let start_time = Instant::now();
         let process_result = process_data(&mut data);
         println!(
-            "filtering doc in {:?} seconds",
-            start_time.elapsed().as_secs()
+            "filtering doc in {:?} milliseconds",
+            start_time.elapsed().as_millis()
         );
 
         match process_result {
