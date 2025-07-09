@@ -235,14 +235,14 @@ fn process_data(data: &mut Value) -> Result<bool, Error> {
     for f in filters {
         let start_time = Instant::now();
         if let Ok(false) = f.filter(data) {
-            println!(
-                "Filter: {:?} filtering all files in {:?} seconds",
-                f.name().to_string(),
-                start_time.elapsed().as_secs()
-            );
-            util::clear_key(data, util::TEXT_KEY);
             return Ok(false);
         }
+        println!(
+            "Filter: {:?} filtering all files in {:?} seconds",
+            f.name().to_string(),
+            start_time.elapsed().as_secs()
+        );
+        util::clear_key(data, util::TEXT_KEY);
     }
     Ok(true)
 }
