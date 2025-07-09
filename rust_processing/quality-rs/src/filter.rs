@@ -16,7 +16,7 @@ pub struct CacheTokenFilter {
 impl Filter for CacheTokenFilter {
     fn filter(&self, data: &mut Value) -> Result<bool, Error> {
         let text = match data.get(util::TEXT_KEY).and_then(Value::as_str) {
-            Some(s) if !s.is_empty() => s,
+            Some(s) if !s.trim().is_empty() => s.trim(),
             _ => return Ok(false),
         };
 
@@ -70,9 +70,11 @@ pub struct GopherRepetitionFilter {
 impl Filter for GopherRepetitionFilter {
     fn filter(&self, data: &mut Value) -> Result<bool, Error> {
         let text = match data.get(util::TEXT_KEY).and_then(Value::as_str) {
-            Some(s) if !s.is_empty() => s,
+            Some(s) if !s.trim().is_empty() => s.trim(),
             _ => return Ok(false),
         };
+
+        let text_len = text.len() as f64;
 
         let paragraphs = util::split_paragraphs(text);
 
@@ -81,7 +83,7 @@ impl Filter for GopherRepetitionFilter {
             if para_duplicates as f64 / paragraphs.len() as f64 > self.dup_para_frac {
                 return Ok(false);
             }
-            if para_char_duplicates as f64 / text.len() as f64 > self.dup_para_char_frac {
+            if para_char_duplicates as f64 / text_len > self.dup_para_char_frac {
                 return Ok(false);
             }
         }
@@ -92,7 +94,7 @@ impl Filter for GopherRepetitionFilter {
             if line_duplicates as f64 / lines.len() as f64 > self.dup_line_frac {
                 return Ok(false);
             }
-            if line_char_duplicates as f64 / text.len() as f64 > self.dup_line_char_frac {
+            if line_char_duplicates as f64 / text_len > self.dup_line_char_frac {
                 return Ok(false);
             }
         }
@@ -100,27 +102,27 @@ impl Filter for GopherRepetitionFilter {
         let words_result = util::split_words(text, Some(data), &self.lang, false, true);
         match words_result {
             Ok(words) => {
-                for (n, n_frac) in self.top_n_grams.iter() {
-                    let n_grams = util::get_n_grams(&words, *n as usize);
+                for &(n, n_frac) in &self.top_n_grams {
+                    let n_grams = util::get_n_grams(&words, n as usize);
                     if n_grams.is_empty() {
                         continue;
                     }
                     let top_char_length = util::find_top_duplicate(&n_grams);
-                    if top_char_length as f64 / text.len() as f64 > *n_frac {
+                    if top_char_length as f64 / text_len > n_frac {
                         return Ok(false);
                     }
                 }
 
-                for (n, n_frac) in self.dup_n_grams.iter() {
-                    let n_duplicates_char = util::find_all_duplicate(&words, *n as usize);
-                    if n_duplicates_char as f64 / text.len() as f64 > *n_frac {
+                for &(n, n_frac) in &self.dup_n_grams {
+                    let n_duplicates_char = util::find_all_duplicate(&words, n as usize);
+                    if n_duplicates_char as f64 / text_len > n_frac {
                         return Ok(false);
                     }
                 }
             }
             Err(e) => {
                 println!("split words failed, error: {}", e);
-                if text.len() > 1000 {
+                if text_len as usize > 1000 {
                     return Ok(true);
                 }
                 return Ok(false);
@@ -147,9 +149,10 @@ pub struct FinewebQualityFilter {
 impl Filter for FinewebQualityFilter {
     fn filter(&self, data: &mut Value) -> Result<bool, Error> {
         let text = match data.get(util::TEXT_KEY).and_then(Value::as_str) {
-            Some(s) if !s.is_empty() => s,
+            Some(s) if !s.trim().is_empty() => s.trim(),
             _ => return Ok(false),
         };
+
         let lines: Vec<&str> = text
             .split("\n")
             .map(|l| l.trim())

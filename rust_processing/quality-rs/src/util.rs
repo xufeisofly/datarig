@@ -1,4 +1,5 @@
 use anyhow::{Error, Result};
+use once_cell::sync::Lazy;
 use regex::Regex;
 use serde_json::Value;
 use std::collections::{HashMap, HashSet};
@@ -6,6 +7,8 @@ use vtext::tokenize::{Tokenizer, VTextTokenizerParams};
 
 pub const WORDS_KEY: &str = "words";
 pub const TEXT_KEY: &str = "text";
+static PARAGRAPH_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"\n{2,}").unwrap());
+static LINE_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"\n+").unwrap());
 pub static TERMINAL_PUNCTUATION: [&str; 159] = [
     "᪩",
     "？",
@@ -270,17 +273,11 @@ pub fn split_words(
 }
 
 pub fn split_paragraphs(text: &str) -> Vec<&str> {
-    let para_exp = Regex::new(r"\n{2,}").unwrap();
-    let text = text.trim();
-
-    para_exp.split(text).collect()
+    PARAGRAPH_RE.split(text).collect()
 }
 
 pub fn split_lines(text: &str) -> Vec<&str> {
-    let line_exp = Regex::new(r"\n+").unwrap();
-    let text = text.trim();
-
-    line_exp.split(text).collect()
+    LINE_RE.split(text).collect()
 }
 
 pub fn clear_key(data: &mut Value, key: &str) {
