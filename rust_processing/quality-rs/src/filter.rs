@@ -14,7 +14,7 @@ pub struct CacheTokenFilter {
 
 impl Filter for CacheTokenFilter {
     fn filter(&self, data: &mut Value) -> Result<bool, Error> {
-        let text = match data.get("text").and_then(Value::as_str) {
+        let text = match data.get(util::TEXT_KEY).and_then(Value::as_str) {
             Some(s) if !s.is_empty() => s,
             _ => return Ok(false),
         };
@@ -68,7 +68,7 @@ pub struct GopherRepetitionFilter {
 
 impl Filter for GopherRepetitionFilter {
     fn filter(&self, data: &mut Value) -> Result<bool, Error> {
-        let text = match data.get("text").and_then(Value::as_str) {
+        let text = match data.get(util::TEXT_KEY).and_then(Value::as_str) {
             Some(s) if !s.is_empty() => s,
             _ => return Ok(false),
         };
@@ -145,7 +145,7 @@ pub struct FinewebQualityFilter {
 
 impl Filter for FinewebQualityFilter {
     fn filter(&self, data: &mut Value) -> Result<bool, Error> {
-        let text = match data.get("text").and_then(Value::as_str) {
+        let text = match data.get(util::TEXT_KEY).and_then(Value::as_str) {
             Some(s) if !s.is_empty() => s,
             _ => return Ok(false),
         };
