@@ -157,17 +157,15 @@ async fn quality_filtering(
         let doc = doc?;
         count += 1;
         let mut data: Value = serde_json::from_str(&doc).unwrap();
-        process_data(&mut data)?;
+        let process_result = process_data(&mut data);
 
-        if let Some(text) = data.get("text") {
-            if Some(text).unwrap().as_str().unwrap().trim().is_empty() {
-                fully_skipped += 1
-            } else {
+        match process_result {
+            Ok(true) => {
                 output_data.extend(serde_json::to_vec(&data).unwrap());
                 output_data.extend(b"\n");
             }
-        } else {
-            continue;
+            Ok(false) => fully_skipped += 1,
+            Err(_) => {}
         }
     }
 
@@ -242,6 +240,7 @@ fn process_data(data: &mut Value) -> Result<bool, Error> {
     for f in filters {
         let start_time = TokioInstant::now();
         if let Ok(false) = f.filter(data) {
+            // util::clear_key(data, util::TEXT_KEY);
             return Ok(false);
         }
 
@@ -250,8 +249,6 @@ fn process_data(data: &mut Value) -> Result<bool, Error> {
             f.name(),
             start_time.elapsed().as_millis()
         );
-
-        util::clear_key(data, util::TEXT_KEY);
     }
     Ok(true)
 }
