@@ -33,6 +33,7 @@ impl Filter for CacheTokenFilter {
                 return Ok(false);
             }
         }
+
         Ok(true)
     }
 
