@@ -152,18 +152,13 @@ async fn quality_filtering(
     let mut fully_skipped = 0;
     let mut count = 0;
 
-    // let start_time = Instant::now();
+    let start_time = Instant::now();
     for doc in docs {
         let doc = doc?;
         count += 1;
         let mut data: Value = serde_json::from_str(&doc).unwrap();
 
-        let start_time = Instant::now();
         let process_result = process_data(&mut data);
-        println!(
-            "filtering doc in {:?} milliseconds",
-            start_time.elapsed().as_millis()
-        );
 
         match process_result {
             Ok(true) => {
@@ -174,11 +169,11 @@ async fn quality_filtering(
             Err(_) => {}
         }
     }
-    // println!(
-    //     "filtering file {:?} in {:?} seconds",
-    //     filename,
-    //     start_time.elapsed().as_secs()
-    // );
+    println!(
+        "filtering file {:?} in {:?} seconds",
+        filename,
+        start_time.elapsed().as_secs()
+    );
 
     let output_data = io::compress_data(output_data, &output_file);
     if fully_skipped < count {
