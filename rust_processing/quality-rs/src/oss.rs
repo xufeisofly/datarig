@@ -28,6 +28,7 @@ pub fn get_bucket(bucket_name: String) -> OSS<'static> {
 }
 
 /// 获取本机局域网 IP 地址（不返回 127.0.0.1）
+#[allow(dead_code)]
 fn get_local_ip() -> String {
     if let Ok(socket) = UdpSocket::bind("0.0.0.0:0") {
         if socket.connect("8.8.8.8:80").is_ok() {
@@ -40,6 +41,7 @@ fn get_local_ip() -> String {
 }
 
 /// 根据本机 IP 和进程号生成唯一标识
+#[allow(dead_code)]
 pub fn get_worker_key() -> String {
     format!("{}_{}", get_local_ip(), process::id())
 }

@@ -7,7 +7,7 @@ use oss::split_oss_path;
 use oss::{get_reader_from_oss, is_oss};
 use oss_rust_sdk::async_object::*;
 use serde_json::Value;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::fs::OpenOptions;
 use std::io::{BufRead, BufReader, Write};
 use std::path::PathBuf;
@@ -15,173 +15,13 @@ use std::sync::{Arc, Mutex};
 use std::thread::available_parallelism;
 use std::time::Instant;
 use threadpool::ThreadPool;
-use vtext::tokenize::{Tokenizer, VTextTokenizerParams};
+
 use zstd::stream::read::Decoder as ZstDecoder;
 
-pub mod io;
-pub mod oss;
-
-pub static TERMINAL_PUNCTUATION: [&str; 159] = [
-    "᪩",
-    "？",
-    "⁈",
-    "𑩂",
-    "．",
-    "꩞",
-    "𑅃",
-    "﹗",
-    "𑂾",
-    "\u{1B7D}",
-    "፧",
-    "𑅂",
-    "꡶",
-    "꘎",
-    "⁉",
-    "࠾",
-    "᪨",
-    "𑊩",
-    "𑱂",
-    "᱿",
-    "𖩮",
-    "᥅",
-    "\u{11F43}",
-    "\u{11F44}",
-    "﹒",
-    "𑈹",
-    "𑈸",
-    "።",
-    "܂",
-    "؞",
-    "꛳",
-    "\u{10F88}",
-    "𑗍",
-    "𐩖",
-    "𑙂",
-    "\u{061D}",
-    "꩟",
-    "᠉",
-    "\u{1B7E}",
-    "𑗗",
-    "᰼",
-    "𑻸",
-    "？",
-    "𑪜",
-    "꧉",
-    "𑗉",
-    "𐽙",
-    "𖫵",
-    "𖬷",
-    "܀",
-    "꓿",
-    "᜵",
-    "𑗏",
-    "𑁇",
-    "𑗓",
-    "𑥄",
-    "៖",
-    "𑥆",
-    "𑗑",
-    "𑗒",
-    "꯫",
-    "۔",
-    "𐩗",
-    "\u{10F86}",
-    "꡷",
-    "\u{2E54}",
-    "｡",
-    "៕",
-    "߹",
-    "⸮",
-    ".",
-    "𑇅",
-    "࠹",
-    "𛲟",
-    "꫰",
-    "꤯",
-    "𐽗",
-    "᭞",
-    "𑜼",
-    "፨",
-    "𑃁",
-    "꣏",
-    "𑇟",
-    "𖬸",
-    "𑪛",
-    "𑜾",
-    "࠷",
-    "𝪈",
-    "?",
-    "𑃀",
-    "𑗃",
-    "！",
-    "։",
-    "꣎",
-    "॥",
-    "𑗖",
-    "᭛",
-    "᠃",
-    "!",
-    "၊",
-    "𖺘",
-    "⁇",
-    "𑗌",
-    "𑑋",
-    "𖭄",
-    "᭟",
-    "𑅁",
-    "𑙁",
-    "⸼",
-    "꩝",
-    "𑗋",
-    "。",
-    "꧈",
-    "꫱",
-    "𑜽",
-    "𐽖",
-    "𑂿",
-    "᙮",
-    "។",
-    "꛷",
-    "\u{10F89}",
-    "៚",
-    "᥄",
-    "𑗕",
-    "𑗎",
-    "᪪",
-    "᭚",
-    "࠽",
-    "𑇞",
-    "𑗊",
-    "𐽘",
-    "\u{2E53}",
-    "𑗔",
-    "𖩯",
-    "𑇍",
-    "𑻷",
-    "𐽕",
-    "𑩃",
-    "।",
-    "𑗂",
-    "𑇆",
-    "𑁈",
-    "။",
-    "᱾",
-    "𑱁",
-    "꘏",
-    "܁",
-    "᜶",
-    "‼",
-    "𑈻",
-    "‽",
-    "᪫",
-    "﹖",
-    "𑑌",
-    "𑈼",
-    "\u{10F87}",
-    "𑗐",
-    "៙",
-    "᰻",
-];
+mod filter;
+mod io;
+mod oss;
+mod util;
 
 /*======================================================
 =                              ARGS                    =
@@ -361,123 +201,23 @@ async fn quality_filtering(
     Ok(())
 }
 
-fn clear_text_key(data: &mut Value) {
-    if let Value::Object(ref mut map) = data {
-        map.remove("text");
-    }
-}
-
 fn process_data(data: &mut Value) -> Result<bool, Error> {
-    if let Ok(false) = fineweb_quality_filter(data, 0.12, 30, 0.67, 0.1, 0.3) {
-        clear_text_key(data);
+    let mut filters: Vec<Box<dyn filter::Filter>> = Vec::new();
+    // TODO 在这里注册更多的 Filter Trait
+    filters.push(Box::new(filter::FinewebQualityFilter {
+        line_punct_thr: 0.12,
+        short_line_length: 30,
+        short_line_thr: 0.67,
+        char_duplicates_ratio: 0.1,
+        new_line_ratio: 0.3,
+    }));
+
+    for f in filters {
+        if let Ok(false) = f.filter(data) {
+            util::clear_text_key(data);
+        }
     }
     Ok(true)
-}
-
-fn fineweb_quality_filter(
-    data: &mut Value,
-    line_punct_thr: f64,
-    short_line_length: usize,
-    short_line_thr: f64,
-    char_duplicates_ratio: f64,
-    new_line_ratio: f64,
-) -> Result<bool, Error> {
-    let text = data["text"].as_str().unwrap();
-    let lines: Vec<&str> = text
-        .split("\n")
-        .map(|l| l.trim())
-        .filter(|l| !l.is_empty())
-        .collect();
-    if lines.len() == 0 {
-        return Ok(false);
-    }
-    let stop_chars = TERMINAL_PUNCTUATION;
-    let total = lines.len();
-    if total == 0 {
-        return Ok(false);
-    }
-    let count = lines
-        .iter()
-        .filter(|l| stop_chars.iter().any(|ch| l.ends_with(ch)))
-        .count();
-
-    if (count as f64 / total as f64) < line_punct_thr {
-        return Ok(false);
-    }
-
-    if (lines
-        .iter()
-        .filter(|l| l.len() <= short_line_length)
-        .count() as f64
-        / total as f64)
-        > short_line_thr
-    {
-        return Ok(false);
-    }
-
-    let (_, dup_chars) = find_duplicates(&lines);
-    if (dup_chars as f64 / text.replace("\n", "").len() as f64) > char_duplicates_ratio {
-        return Ok(false);
-    }
-
-    let result = split_words(text, "en", false, true);
-    match result {
-        Ok(tokens) => {
-            if text.matches('\n').count() as f64 / tokens.len() as f64 > new_line_ratio {
-                return Ok(false);
-            }
-        }
-        Err(e) => {
-            println!("split words failed: {}", e);
-            return Err(e);
-        }
-    }
-
-    Ok(true)
-}
-
-fn find_duplicates(x: &[&str]) -> (usize, usize) {
-    let mut unique_x = HashSet::new();
-    let mut duplicate_elements = 0;
-    let mut duplicate_chars = 0;
-
-    for &element in x {
-        if unique_x.contains(element) {
-            duplicate_elements += 1;
-            duplicate_chars += element.len();
-        } else {
-            unique_x.insert(element);
-        }
-    }
-
-    (duplicate_elements, duplicate_chars)
-}
-
-fn split_words(
-    text: &str,
-    lang: &str,
-    ignore_punctuation: bool,
-    ignore_whitespace: bool,
-) -> Result<Vec<String>, Error> {
-    let tok = VTextTokenizerParams::default().lang(lang).build()?;
-    let mut tokens: Vec<String> = tok.tokenize(text).map(|s| s.to_string()).collect();
-
-    if ignore_whitespace {
-        tokens = tokens.iter().map(|w| w.trim().to_string()).collect();
-    }
-    if ignore_punctuation {
-        tokens = tokens
-            .into_iter()
-            .filter(|w| {
-                w.chars()
-                    .next()
-                    .map(|c| c.is_alphanumeric() || (!ignore_whitespace && c.is_whitespace()))
-                    .unwrap_or(false)
-            })
-            .collect();
-    }
-
-    Ok(tokens)
 }
 
 /*==============================================================
