@@ -121,13 +121,22 @@ def count_n_word_line(file_name):
     
     
 if __name__ == '__main__':
-    oss_dir = "oss://si002558te8h/dclm/output/dclm_pool_en/s2/s1=1/s2=0/processed_data/"
+    oss_dir = "oss://si002558te8h/code/"
     bucket_name, path = oss.split_file_path(oss_dir)
     bucket = oss.Bucket(bucket_name)
-    files_list = oss.get_sub_files(bucket, path)
-    # print(len(files_list))
-    count_n_word_line(files_list[0])
+    output_folder = "/mnt/nas/zh_data/"  # 本地输出文件夹
+    # 下载OSS文件到本地
+    # oss.download_file('oss://si002558te8h/code/2beval.zip', output_folder, bucket)
+    bucket.get_object_to_file('code/lfu-14b-pretrain-v3-z2000_code.zip', "/mnt/nas/zh_data/lfu-14b-pretrain-v3-z2000_code.zip")
     
+    # ------------------------------------------------------------------
+    # oss_dir = "oss://si002558te8h/dclm/output/dclm_pool_en/s2/s1=1/s2=0/processed_data/"
+    # bucket_name, path = oss.split_file_path(oss_dir)
+    # bucket = oss.Bucket(bucket_name)
+    # files_list = oss.get_sub_files(bucket, path)
+    # # print(len(files_list))
+    # count_n_word_line(files_list[0])
+    # ------------------------------------------------------------------
     # subject_paths = oss.get_sub_folders(bucket, path)
     # # print(subject_paths)
     # for subject_path in tqdm(subject_paths):
