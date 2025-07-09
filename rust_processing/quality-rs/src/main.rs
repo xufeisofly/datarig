@@ -15,7 +15,6 @@ use std::sync::{Arc, Mutex};
 use std::thread::available_parallelism;
 use std::time::Instant;
 use threadpool::ThreadPool;
-use tokio::time::Instant as TokioInstant;
 
 use zstd::stream::read::Decoder as ZstDecoder;
 
@@ -114,7 +113,7 @@ async fn quality_filtering(
     output_file: PathBuf,
     pbar_option: Option<Arc<Mutex<ProgressBar>>>,
 ) -> Result<(), Error> {
-    let start_time = TokioInstant::now();
+    let start_time = Instant::now();
     let docs: Box<dyn Iterator<Item = Result<String, Error>>> = if is_oss(&input_file) {
         Box::new(
             get_reader_from_oss(input_file, None)
