@@ -7,6 +7,44 @@ pub trait Filter {
     fn filter(&self, data: &mut Value) -> Result<bool, Error>;
 }
 
+pub struct CacheTokenFilter {
+    pub lang: String,
+}
+
+impl Filter for CacheTokenFilter {
+    fn filter(&self, data: &mut Value) -> Result<bool, Error> {
+        let text = match data.get("text").and_then(Value::as_str) {
+            Some(s) if !s.is_empty() => s,
+            _ => return Ok(false),
+        };
+
+        let words_result = util::split_words(text, Some(data), &self.lang, false, true);
+        match words_result {
+            Ok(words) => {
+                data[util::WORDS_KEY] =
+                    Value::Array(words.into_iter().map(|w| Value::String(w)).collect());
+            }
+            Err(e) => {
+                println!("split words failed, error: {}", e);
+                if text.len() > 1000 {
+                    data[util::WORDS_KEY] = Value::Array(vec![]);
+                }
+                return Ok(false);
+            }
+        }
+        Ok(true)
+    }
+}
+
+pub struct UncacheTokenFilter;
+
+impl Filter for UncacheTokenFilter {
+    fn filter(&self, data: &mut Value) -> Result<bool, Error> {
+        util::clear_key(data, util::WORDS_KEY);
+        Ok(true)
+    }
+}
+
 // gopher repetition
 pub struct GopherRepetitionFilter {
     pub dup_line_frac: f64,
@@ -50,7 +88,7 @@ impl Filter for GopherRepetitionFilter {
             return Ok(false);
         }
 
-        let words_result = util::split_words(text, &self.lang, false, true);
+        let words_result = util::split_words(text, Some(data), &self.lang, false, true);
         match words_result {
             Ok(words) => {
                 for (n, n_frac) in self.top_n_grams.iter() {
@@ -136,7 +174,7 @@ impl Filter for FinewebQualityFilter {
             return Ok(false);
         }
 
-        let result = util::split_words(text, "en", false, true);
+        let result = util::split_words(text, Some(data), "en", false, true);
         match result {
             Ok(tokens) => {
                 if text.matches('\n').count() as f64 / tokens.len() as f64 > self.new_line_ratio {

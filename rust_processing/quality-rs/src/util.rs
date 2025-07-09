@@ -4,6 +4,8 @@ use serde_json::Value;
 use std::collections::{HashMap, HashSet};
 use vtext::tokenize::{Tokenizer, VTextTokenizerParams};
 
+pub const WORDS_KEY: &str = "words";
+pub const TEXT_KEY: &str = "text";
 pub static TERMINAL_PUNCTUATION: [&str; 159] = [
     "᪩",
     "？",
@@ -223,12 +225,28 @@ pub fn find_all_duplicate(words: &[String], n: usize) -> usize {
 
 pub fn split_words(
     text: &str,
+    data: Option<&Value>,
     lang: &str,
     ignore_punctuation: bool,
     ignore_whitespace: bool,
 ) -> Result<Vec<String>, Error> {
-    let tok = VTextTokenizerParams::default().lang(lang).build()?;
-    let mut tokens: Vec<String> = tok.tokenize(text).map(|s| s.to_string()).collect();
+    let mut tokens: Vec<String> = match data {
+        Some(page) => page
+            .get(WORDS_KEY)
+            .and_then(Value::as_array)
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(Value::as_str)
+                    .map(str::to_string)
+                    .collect()
+            })
+            .unwrap_or_default(),
+        None => {
+            println!("=== split_words");
+            let tok = VTextTokenizerParams::default().lang(lang).build()?;
+            tok.tokenize(text).map(|s| s.to_string()).collect()
+        }
+    };
 
     if ignore_whitespace {
         tokens = tokens.iter().map(|w| w.trim().to_string()).collect();
@@ -262,9 +280,9 @@ pub fn split_lines(text: &str) -> Vec<&str> {
     line_exp.split(text).collect()
 }
 
-pub fn clear_text_key(data: &mut Value) {
+pub fn clear_key(data: &mut Value, key: &str) {
     if let Value::Object(ref mut map) = data {
-        map.remove("text");
+        map.remove(key);
     }
 }
 

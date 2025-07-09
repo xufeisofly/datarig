@@ -204,6 +204,9 @@ async fn quality_filtering(
 fn process_data(data: &mut Value) -> Result<bool, Error> {
     let mut filters: Vec<Box<dyn filter::Filter>> = Vec::new();
     // TODO 在这里注册更多的 Filter Trait
+    filters.push(Box::new(filter::CacheTokenFilter {
+        lang: "en".to_string(),
+    }));
     filters.push(Box::new(filter::GopherRepetitionFilter {
         dup_line_frac: 0.3,
         dup_para_frac: 0.3,
@@ -227,10 +230,11 @@ fn process_data(data: &mut Value) -> Result<bool, Error> {
         char_duplicates_ratio: 0.1,
         new_line_ratio: 0.3,
     }));
+    filters.push(Box::new(filter::UncacheTokenFilter {}));
 
     for f in filters {
         if let Ok(false) = f.filter(data) {
-            util::clear_text_key(data);
+            util::clear_key(data, util::TEXT_KEY);
         }
     }
     Ok(true)
