@@ -43,6 +43,20 @@ pub static PUNCTUATION_SET: Lazy<HashSet<char>> = Lazy::new(|| {
     set
 });
 
+pub static BULLET_POINT_SYMBOLS: [&str; 14] = [
+    "\u{2022}", // bullet point
+    "\u{2023}", // triangular bullet point
+    "\u{25B6}", // black right pointing triangle
+    "\u{25C0}", // left pointing triangle
+    "\u{25E6}", // bullet point
+    "\u{25A0}", // square
+    "\u{25A1}", // square
+    "\u{25AA}", // small square
+    "\u{25AB}", // small square
+    "\u{2013}", // dash
+    "-", "–", "•", "●",
+];
+
 pub static TERMINAL_PUNCTUATION: [&str; 159] = [
     "᪩",
     "？",
