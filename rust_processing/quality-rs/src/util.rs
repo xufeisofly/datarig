@@ -10,6 +10,39 @@ pub const WORDS_KEY: &str = "words";
 pub const TEXT_KEY: &str = "text";
 static PARAGRAPH_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"\n").unwrap());
 static LINE_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"\n+").unwrap());
+pub static STOP_WORDS: [&str; 8] = ["the", "be", "to", "of", "and", "that", "have", "with"];
+
+pub static PUNCTUATION: Lazy<String> = Lazy::new(|| {
+    // 原始标点字符串
+    let mut s = String::from(
+        "!/—”:％１〈&(、━\\【#%「」，】；+^]~“《„';’{|∶´[=-`*．（–？！：$～«〉,><》)?）。…@_.\"}►»",
+    );
+
+    // 加入控制字符区间: 0-8, 11-12, 13-31, 127-159
+    for &(start, end) in &[(0, 9), (11, 13), (13, 32), (127, 160)] {
+        for code in start..end {
+            if let Some(ch) = std::char::from_u32(code) {
+                s.push(ch);
+            }
+        }
+    }
+    s
+});
+
+pub static PUNCTUATION_SET: Lazy<HashSet<char>> = Lazy::new(|| {
+    // 从 PUNCTUATION 字符串收集所有字符
+    let mut set: HashSet<char> = PUNCTUATION.chars().collect();
+
+    // 把 TERMINAL_PUNCTUATION 里的各字符也加入
+    for &s in TERMINAL_PUNCTUATION.iter() {
+        for ch in s.chars() {
+            set.insert(ch);
+        }
+    }
+
+    set
+});
+
 pub static TERMINAL_PUNCTUATION: [&str; 159] = [
     "᪩",
     "？",

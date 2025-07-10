@@ -229,6 +229,18 @@ fn process_data(
         ],
         lang: "en".to_string(),
     }));
+    filters.push(Box::new(filter::GopherQualityFilter {
+        min_doc_words: 50,
+        max_doc_words: 100000,
+        min_avg_word_length: 3,
+        max_avg_word_length: 10,
+        max_symbol_word_ratio: 0.1,
+        max_bullet_lines_ratio: 0.9,
+        max_ellipsis_lines_ratio: 0.3,
+        max_non_alpha_words_ratio: 0.8,
+        min_stop_words: 2,
+        lang: "en".to_string(),
+    }));
     filters.push(Box::new(filter::FinewebQualityFilter {
         line_punct_thr: 0.12,
         short_line_length: 30,

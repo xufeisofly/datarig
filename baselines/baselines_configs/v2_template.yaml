@@ -1,0 +1,39 @@
+# V2
+- source: cc
+  steps:
+    - func: email_and_phone_removal_modifier
+    - func: citation_removal_modifier
+    - func: substring_line_modifier
+      max_length: 10
+      banlist: "items in cart"
+      remove_substring_only: True
+    - func: substring_line_modifier
+      max_length: 10
+      banlist: "Read more..."
+      location: suffix
+      remove_substring_only: True
+    - func: substring_line_modifier
+      max_length: 10
+      banlist: "Read more"
+      location: suffix
+      remove_substring_only: True
+    - func: substring_line_modifier
+      max_length: 10
+      banlist: "Sign-in"
+      location: prefix
+      remove_substring_only: False
+    - func: line_removal_modifier
+      min_word_cnt_per_line: 3
+    - func: substring_line_modifier
+      max_length: 5
+      banlist: ""
+      banlist_file: "baselines/mappers/banlists/short_line_keywords.txt"
+    - func: word_length_modifier
+    - func: lorem_ipsum_filter
+    - func: min_sentences_filter
+    - func: cache_split_words_modifier
+    - func: massive_web_repetition_filters
+      tokenizer: "fineweb"
+    - func: fineweb_gopher_quality_filter
+      model: v2
+    - func: uncache_split_words_modifier

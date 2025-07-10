@@ -212,6 +212,66 @@ pub struct GopherQualityFilter {
 
 impl Filter for GopherQualityFilter {
     fn filter(&self, data: &mut Value) -> Result<bool, Error> {
+        let text = match data.get(util::TEXT_KEY).and_then(Value::as_str) {
+            Some(s) if !s.trim().is_empty() => s.trim(),
+            _ => return Ok(false),
+        };
+        let words_result = util::split_words(text, Some(data), &self.lang, true, true);
+        match words_result {
+            Ok(words) => {
+                let n_words = words.len() as f64;
+                let non_symbol_words: Vec<&String> = words
+                    .iter()
+                    .filter(|w| w.chars().any(|ch| !util::PUNCTUATION_SET.contains(&ch)))
+                    .collect();
+                let n_non_symbol_words: usize = non_symbol_words.len();
+
+                if n_non_symbol_words < self.min_doc_words {
+                    return Ok(false);
+                }
+                if n_non_symbol_words > self.max_doc_words {
+                    return Ok(false);
+                }
+                let avg_n_words: f64 = non_symbol_words.iter().map(|w| w.len() as f64).sum::<f64>()
+                    / n_non_symbol_words as f64;
+                if avg_n_words < self.min_avg_word_length as f64 {
+                    return Ok(false);
+                }
+                if avg_n_words > self.max_avg_word_length as f64 {
+                    return Ok(false);
+                }
+
+                if words
+                    .iter()
+                    .filter(|w| util::STOP_WORDS.contains(&w.as_str()))
+                    .count()
+                    < self.min_stop_words
+                {
+                    return Ok(false);
+                }
+
+                if text.matches("#").count() as f64 / n_words > self.max_symbol_word_ratio {
+                    return Ok(false);
+                }
+
+                if (text.matches("...").count() + text.matches("…").count()) as f64 / n_words
+                    > self.max_symbol_word_ratio
+                {
+                    return Ok(false);
+                }
+
+                // TODO
+            }
+            Err(e) => {
+                println!("split words failed, error: {}", e);
+                let text_len = text.len() as f64;
+                if text_len as usize > 1000 {
+                    return Ok(true);
+                }
+                return Ok(false);
+            }
+        }
+
         Ok(true)
     }
 
