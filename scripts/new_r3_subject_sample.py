@@ -121,13 +121,19 @@ def count_n_word_line(file_name):
     
     
 if __name__ == '__main__':
-    oss_dir = "oss://si002558te8h/code/"
+    oss_dir = "oss://train1/basemodel-subjet-data-processed/hpc-processed/Ultra-FineWeb/token/ultrafineweb_zh/"
+    object_keys = "basemodel-subjet-data-processed/hpc-processed/Ultra-FineWeb/token/ultrafineweb_zh/"
     bucket_name, path = oss.split_file_path(oss_dir)
     bucket = oss.Bucket(bucket_name)
-    output_folder = "/mnt/nas/zh_data/"  # 本地输出文件夹
+    output_folder = "/mnt/nas/zh_data/oss_ultrafineweb_zh/"  # 本地输出文件夹
     # 下载OSS文件到本地
     # oss.download_file('oss://si002558te8h/code/2beval.zip', output_folder, bucket)
-    bucket.get_object_to_file('code/lfu-14b-pretrain-v3-z2000_code.zip', "/mnt/nas/zh_data/lfu-14b-pretrain-v3-z2000_code.zip")
+    print(bucket_name)
+    files = oss.get_sub_files(bucket, object_keys)
+    for file in tqdm(files):
+        file_name = os.path.basename(file)
+        bucket.get_object_to_file(file, f"{output_folder}{file_name}")
+    # bucket.get_object_to_file('code/lfu-14b-pretrain-v3-z2000_code.zip', "/mnt/nas/zh_data/lfu-14b-pretrain-v3-z2000_code.zip")
     
     # ------------------------------------------------------------------
     # oss_dir = "oss://si002558te8h/dclm/output/dclm_pool_en/s2/s1=1/s2=0/processed_data/"
