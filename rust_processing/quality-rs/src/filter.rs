@@ -1,6 +1,8 @@
 use crate::util;
 use anyhow::{Error, Result};
+use counter::Counter;
 use serde_json::Value;
+use std::collections::HashSet;
 
 // 想要添加规则，新建一个 Filter struct 实现这个 trait 就好
 pub trait Filter {
@@ -70,6 +72,38 @@ pub struct GopherRepetitionFilter {
     pub lang: String,
 }
 
+fn repetition_filter(
+    segments: Vec<&str>,
+    dup_para_frac: f64,
+    dup_para_char_frac: f64,
+) -> Result<bool> {
+    if !segments.is_empty() {
+        let total_chars: usize = segments.iter().map(|p| p.len()).sum();
+        let segment_counts: Counter<&str> = segments.into_iter().collect();
+
+        let repeated_segs: usize = segment_counts
+            .iter()
+            .filter(|(_, &cnt)| cnt > 1)
+            .map(|(_, &cnt)| cnt)
+            .sum();
+
+        if repeated_segs as f64 / segment_counts.len() as f64 > dup_para_frac {
+            return Ok(false);
+        }
+
+        let repeated_chars: usize = segment_counts
+            .iter()
+            .filter(|(_seg, &cnt)| cnt > 1)
+            .map(|(seg, &cnt)| seg.len() * cnt)
+            .sum();
+        if repeated_chars as f64 / total_chars as f64 > dup_para_char_frac {
+            return Ok(false);
+        }
+    }
+
+    Ok(true)
+}
+
 impl Filter for GopherRepetitionFilter {
     fn filter(&self, data: &mut Value) -> Result<bool, Error> {
         let text = match data.get(util::TEXT_KEY).and_then(Value::as_str) {
@@ -77,54 +111,76 @@ impl Filter for GopherRepetitionFilter {
             _ => return Ok(false),
         };
 
-        let text_len = text.len() as f64;
-
         let paragraphs = util::split_paragraphs(text);
-
-        if !paragraphs.is_empty() {
-            let (para_duplicates, para_char_duplicates) = util::find_duplicates(&paragraphs);
-            if para_duplicates as f64 / paragraphs.len() as f64 > self.dup_para_frac {
-                return Ok(false);
-            }
-            if para_char_duplicates as f64 / text_len > self.dup_para_char_frac {
-                return Ok(false);
-            }
+        if !repetition_filter(paragraphs, self.dup_para_frac, self.dup_para_char_frac)? {
+            return Ok(false);
         }
 
         let lines = util::split_lines(text);
-        if !lines.is_empty() {
-            let (line_duplicates, line_char_duplicates) = util::find_duplicates(&lines);
-            if line_duplicates as f64 / lines.len() as f64 > self.dup_line_frac {
-                return Ok(false);
-            }
-            if line_char_duplicates as f64 / text_len > self.dup_line_char_frac {
-                return Ok(false);
-            }
+        if !repetition_filter(lines, self.dup_line_frac, self.dup_line_char_frac)? {
+            return Ok(false);
         }
 
-        let words_result = util::split_words(text, Some(data), &self.lang, false, true);
+        let words_result = util::split_words(text, Some(data), &self.lang, true, true);
         match words_result {
             Ok(words) => {
+                let total_chars: usize = words.iter().map(|w| w.len()).sum();
                 for &(n, n_frac) in &self.top_n_grams {
                     let n_grams = util::get_n_grams(&words, n as usize);
                     if n_grams.is_empty() {
                         continue;
                     }
-                    let top_char_length = util::find_top_duplicate(&n_grams);
-                    if top_char_length as f64 / text_len > n_frac {
+
+                    let ngram_counts: Counter<Vec<&str>> = n_grams.into_iter().collect();
+                    let ordered = ngram_counts.most_common_ordered();
+
+                    let max_count = match ordered.first().map(|&(_, cnt)| cnt) {
+                        Some(cnt) if cnt > 1 => cnt,
+                        _ => continue,
+                    };
+
+                    let max_len = ordered
+                        .iter()
+                        .filter(|&(_, cnt)| *cnt == max_count)
+                        .map(|(ngram, _)| ngram.iter().map(|w| w.len()).sum::<usize>())
+                        .max()
+                        .unwrap_or(0);
+
+                    let repeated_chars = max_len * max_count;
+                    if repeated_chars as f64 / total_chars as f64 > n_frac {
                         return Ok(false);
                     }
                 }
 
                 for &(n, n_frac) in &self.dup_n_grams {
-                    let n_duplicates_char = util::find_all_duplicate_fast(&words, n as usize);
-                    if n_duplicates_char as f64 / text_len > n_frac {
+                    let n_grams = util::get_n_grams(&words, n as usize);
+                    if n_grams.is_empty() {
+                        continue;
+                    }
+
+                    let ngram_counts: Counter<Vec<&str>> =
+                        n_grams.iter().map(|s| s.clone()).collect();
+
+                    let mut repeated_word_indices: HashSet<usize> = HashSet::new();
+                    for (idx, ngram) in n_grams.iter().enumerate() {
+                        if ngram_counts.get(ngram).copied().unwrap_or(0) > 1 {
+                            for i in idx..(idx + n as usize) {
+                                repeated_word_indices.insert(i);
+                            }
+                        }
+                    }
+
+                    let repeated_word_char_count: usize =
+                        repeated_word_indices.iter().map(|&i| words[i].len()).sum();
+
+                    if repeated_word_char_count as f64 / total_chars as f64 > n_frac {
                         return Ok(false);
                     }
                 }
             }
             Err(e) => {
                 println!("split words failed, error: {}", e);
+                let text_len = text.len() as f64;
                 if text_len as usize > 1000 {
                     return Ok(true);
                 }
