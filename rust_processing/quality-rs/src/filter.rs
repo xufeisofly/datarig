@@ -5,7 +5,7 @@ use serde_json::Value;
 use std::collections::HashSet;
 
 // 想要添加规则，新建一个 Filter struct 实现这个 trait 就好
-pub trait Filter {
+pub trait Filter: Send + Sync {
     fn filter(&self, data: &mut Value) -> Result<bool, Error>;
     #[allow(dead_code)]
     fn name(&self) -> &str;

@@ -39,6 +39,51 @@ struct Args {
     threads: usize,
 }
 
+fn register_filters() -> Arc<Vec<Box<dyn filter::Filter>>> {
+    let filters: Arc<Vec<Box<dyn filter::Filter>>> = Arc::new(vec![
+        Box::new(filter::CacheTokenFilter {
+            lang: "en".to_string(),
+        }),
+        Box::new(filter::GopherRepetitionFilter {
+            dup_line_frac: 0.3,
+            dup_para_frac: 0.3,
+            dup_line_char_frac: 0.2,
+            dup_para_char_frac: 0.2,
+            top_n_grams: vec![(2, 0.2), (3, 0.18), (4, 0.16)],
+            dup_n_grams: vec![
+                (5, 0.15),
+                (6, 0.14),
+                (7, 0.13),
+                (8, 0.12),
+                (9, 0.11),
+                (10, 0.10),
+            ],
+            lang: "en".to_string(),
+        }),
+        Box::new(filter::GopherQualityFilter {
+            min_doc_words: 50,
+            max_doc_words: 100000,
+            min_avg_word_length: 3,
+            max_avg_word_length: 10,
+            max_symbol_word_ratio: 0.1,
+            max_bullet_lines_ratio: 0.9,
+            max_ellipsis_lines_ratio: 0.3,
+            max_non_alpha_words_ratio: 0.8,
+            min_stop_words: 2,
+            lang: "en".to_string(),
+        }),
+        Box::new(filter::FinewebQualityFilter {
+            line_punct_thr: 0.12,
+            short_line_length: 30,
+            short_line_thr: 0.67,
+            char_duplicates_ratio: 0.1,
+            new_line_ratio: 0.3,
+        }),
+        Box::new(filter::UncacheTokenFilter {}),
+    ]);
+    filters
+}
+
 fn process_files(
     input: Vec<PathBuf>,
     output: &PathBuf,
@@ -61,7 +106,10 @@ fn process_files(
     let loop_start_time = Instant::now();
     let threadpool = ThreadPool::new(*threads);
 
+    let filters: Arc<Vec<Box<dyn filter::Filter>>> = register_filters();
+
     for input_file in input_files.into_iter() {
+        let filters = Arc::clone(&filters);
         let output_file = get_output_filename(&input_file, output);
         let pbar_option: Option<Arc<Mutex<ProgressBar>>> = if no_progress_bar {
             None
@@ -82,6 +130,7 @@ fn process_files(
             let result = rt.block_on(quality_filtering(
                 input_file.clone(),
                 output_file.clone(),
+                &filters,
                 pbar_option.clone(),
             ));
 
@@ -111,6 +160,7 @@ fn get_output_filename(input_filename: &PathBuf, output_directory: &PathBuf) -> 
 async fn quality_filtering(
     input_file: PathBuf,
     output_file: PathBuf,
+    filters: &[Box<dyn filter::Filter>],
     pbar_option: Option<Arc<Mutex<ProgressBar>>>,
 ) -> Result<(), Error> {
     let filename = input_file.file_name().unwrap_or_default().to_os_string();
@@ -151,48 +201,6 @@ async fn quality_filtering(
     let mut output_data: Vec<u8> = Vec::new();
     let mut fully_skipped = 0;
     let mut count = 0;
-
-    let mut filters: Vec<Box<dyn filter::Filter>> = Vec::new();
-    // TODO 在这里注册更多的 Filter Trait
-    filters.push(Box::new(filter::CacheTokenFilter {
-        lang: "en".to_string(),
-    }));
-    filters.push(Box::new(filter::GopherRepetitionFilter {
-        dup_line_frac: 0.3,
-        dup_para_frac: 0.3,
-        dup_line_char_frac: 0.2,
-        dup_para_char_frac: 0.2,
-        top_n_grams: vec![(2, 0.2), (3, 0.18), (4, 0.16)],
-        dup_n_grams: vec![
-            (5, 0.15),
-            (6, 0.14),
-            (7, 0.13),
-            (8, 0.12),
-            (9, 0.11),
-            (10, 0.10),
-        ],
-        lang: "en".to_string(),
-    }));
-    filters.push(Box::new(filter::GopherQualityFilter {
-        min_doc_words: 50,
-        max_doc_words: 100000,
-        min_avg_word_length: 3,
-        max_avg_word_length: 10,
-        max_symbol_word_ratio: 0.1,
-        max_bullet_lines_ratio: 0.9,
-        max_ellipsis_lines_ratio: 0.3,
-        max_non_alpha_words_ratio: 0.8,
-        min_stop_words: 2,
-        lang: "en".to_string(),
-    }));
-    filters.push(Box::new(filter::FinewebQualityFilter {
-        line_punct_thr: 0.12,
-        short_line_length: 30,
-        short_line_thr: 0.67,
-        char_duplicates_ratio: 0.1,
-        new_line_ratio: 0.3,
-    }));
-    filters.push(Box::new(filter::UncacheTokenFilter {}));
 
     let mut time_collector: HashMap<String, i64> = HashMap::new();
     for doc in docs {
