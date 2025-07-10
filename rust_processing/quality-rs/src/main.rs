@@ -152,13 +152,13 @@ async fn quality_filtering(
     let mut fully_skipped = 0;
     let mut count = 0;
 
-    let start_time = Instant::now();
+    let mut time_collector: HashMap<String, i64> = HashMap::new();
     for doc in docs {
         let doc = doc?;
         count += 1;
         let mut data: Value = serde_json::from_str(&doc).unwrap();
 
-        let process_result = process_data(&mut data);
+        let process_result = process_data(&mut data, &mut time_collector);
 
         match process_result {
             Ok(true) => {
@@ -169,11 +169,7 @@ async fn quality_filtering(
             Err(_) => {}
         }
     }
-    println!(
-        "filtering file {:?} in {:?} seconds",
-        filename,
-        start_time.elapsed().as_secs()
-    );
+    println!("filtering file {:?} in {:?}", filename, time_collector);
 
     let output_data = io::compress_data(output_data, &output_file);
     if fully_skipped < count {
@@ -208,7 +204,10 @@ async fn quality_filtering(
     Ok(())
 }
 
-fn process_data(data: &mut Value) -> Result<bool, Error> {
+fn process_data(
+    data: &mut Value,
+    time_collector: &mut HashMap<String, i64>,
+) -> Result<bool, Error> {
     let mut filters: Vec<Box<dyn filter::Filter>> = Vec::new();
     // TODO 在这里注册更多的 Filter Trait
     filters.push(Box::new(filter::CacheTokenFilter {
@@ -240,9 +239,12 @@ fn process_data(data: &mut Value) -> Result<bool, Error> {
     filters.push(Box::new(filter::UncacheTokenFilter {}));
 
     for f in filters {
-        if let Ok(false) = f.filter(data) {
+        let start_time = Instant::now();
+        if !f.filter(data)? {
             return Ok(false);
         }
+        let execution_time = start_time.elapsed().as_millis() as i64;
+        *time_collector.entry(f.name().to_string()).or_insert(0) += execution_time;
     }
     Ok(true)
 }
