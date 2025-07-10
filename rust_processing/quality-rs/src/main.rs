@@ -152,13 +152,55 @@ async fn quality_filtering(
     let mut fully_skipped = 0;
     let mut count = 0;
 
+    let mut filters: Vec<Box<dyn filter::Filter>> = Vec::new();
+    // TODO 在这里注册更多的 Filter Trait
+    filters.push(Box::new(filter::CacheTokenFilter {
+        lang: "en".to_string(),
+    }));
+    filters.push(Box::new(filter::GopherRepetitionFilter {
+        dup_line_frac: 0.3,
+        dup_para_frac: 0.3,
+        dup_line_char_frac: 0.2,
+        dup_para_char_frac: 0.2,
+        top_n_grams: vec![(2, 0.2), (3, 0.18), (4, 0.16)],
+        dup_n_grams: vec![
+            (5, 0.15),
+            (6, 0.14),
+            (7, 0.13),
+            (8, 0.12),
+            (9, 0.11),
+            (10, 0.10),
+        ],
+        lang: "en".to_string(),
+    }));
+    filters.push(Box::new(filter::GopherQualityFilter {
+        min_doc_words: 50,
+        max_doc_words: 100000,
+        min_avg_word_length: 3,
+        max_avg_word_length: 10,
+        max_symbol_word_ratio: 0.1,
+        max_bullet_lines_ratio: 0.9,
+        max_ellipsis_lines_ratio: 0.3,
+        max_non_alpha_words_ratio: 0.8,
+        min_stop_words: 2,
+        lang: "en".to_string(),
+    }));
+    filters.push(Box::new(filter::FinewebQualityFilter {
+        line_punct_thr: 0.12,
+        short_line_length: 30,
+        short_line_thr: 0.67,
+        char_duplicates_ratio: 0.1,
+        new_line_ratio: 0.3,
+    }));
+    filters.push(Box::new(filter::UncacheTokenFilter {}));
+
     let mut time_collector: HashMap<String, i64> = HashMap::new();
     for doc in docs {
         let doc = doc?;
         count += 1;
         let mut data: Value = serde_json::from_str(&doc).unwrap();
 
-        let process_result = process_data(&mut data, &mut time_collector);
+        let process_result = process_data(&mut data, &filters, &mut time_collector);
 
         match process_result {
             Ok(true) => {
@@ -206,51 +248,10 @@ async fn quality_filtering(
 
 fn process_data(
     data: &mut Value,
+    filters: &[Box<dyn filter::Filter>],
     time_collector: &mut HashMap<String, i64>,
 ) -> Result<bool, Error> {
-    let mut filters: Vec<Box<dyn filter::Filter>> = Vec::new();
-    // TODO 在这里注册更多的 Filter Trait
-    filters.push(Box::new(filter::CacheTokenFilter {
-        lang: "en".to_string(),
-    }));
-    filters.push(Box::new(filter::GopherRepetitionFilter {
-        dup_line_frac: 0.3,
-        dup_para_frac: 0.3,
-        dup_line_char_frac: 0.2,
-        dup_para_char_frac: 0.2,
-        top_n_grams: vec![(2, 0.2), (3, 0.18), (4, 0.16)],
-        dup_n_grams: vec![
-            (5, 0.15),
-            (6, 0.14),
-            (7, 0.13),
-            (8, 0.12),
-            (9, 0.11),
-            (10, 0.10),
-        ],
-        lang: "en".to_string(),
-    }));
-    filters.push(Box::new(filter::GopherQualityFilter {
-        min_doc_words: 50,
-        max_doc_words: 100000,
-        min_avg_word_length: 3,
-        max_avg_word_length: 10,
-        max_symbol_word_ratio: 0.1,
-        max_bullet_lines_ratio: 0.9,
-        max_ellipsis_lines_ratio: 0.3,
-        max_non_alpha_words_ratio: 0.8,
-        min_stop_words: 2,
-        lang: "en".to_string(),
-    }));
-    filters.push(Box::new(filter::FinewebQualityFilter {
-        line_punct_thr: 0.12,
-        short_line_length: 30,
-        short_line_thr: 0.67,
-        char_duplicates_ratio: 0.1,
-        new_line_ratio: 0.3,
-    }));
-    filters.push(Box::new(filter::UncacheTokenFilter {}));
-
-    for f in filters {
+    for f in filters.iter() {
         let start_time = Instant::now();
         if !f.filter(data)? {
             return Ok(false);
