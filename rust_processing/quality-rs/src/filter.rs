@@ -260,7 +260,42 @@ impl Filter for GopherQualityFilter {
                     return Ok(false);
                 }
 
-                // TODO
+                let lines = util::split_lines(text);
+                let max_bullet_count: f64 = self.max_bullet_lines_ratio * lines.len() as f64;
+                let bullet_count: usize = lines
+                    .iter()
+                    .filter(|line| {
+                        let line = line.trim_start();
+                        util::BULLET_POINT_SYMBOLS
+                            .iter()
+                            .any(|sym| line.starts_with(sym))
+                    })
+                    .count();
+
+                if bullet_count as f64 > max_bullet_count {
+                    return Ok(false);
+                }
+
+                let ellipsis_lines_count = lines
+                    .iter()
+                    .filter(|line| {
+                        let line = line.trim_end();
+                        line.ends_with("...") || line.ends_with("…")
+                    })
+                    .count();
+                if ellipsis_lines_count as f64 / lines.len() as f64 > self.max_ellipsis_lines_ratio
+                {
+                    return Ok(false);
+                }
+
+                let alpha_count = words
+                    .iter()
+                    .filter(|w| w.chars().any(|c| c.is_alphabetic()))
+                    .count();
+
+                if alpha_count as f64 / n_words < self.max_non_alpha_words_ratio {
+                    return Ok(false);
+                }
             }
             Err(e) => {
                 println!("split words failed, error: {}", e);
