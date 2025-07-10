@@ -219,7 +219,7 @@ async fn quality_filtering(
             Err(_) => {}
         }
     }
-    println!("filtering file {:?} in {:?}", filename, time_collector);
+    // println!("filtering file {:?} in {:?}", filename, time_collector);
 
     let output_data = io::compress_data(output_data, &output_file);
     if fully_skipped < count {
