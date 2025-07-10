@@ -1,4 +1,5 @@
 use anyhow::{Error, Result};
+use ngrams::Ngram;
 use once_cell::sync::Lazy;
 use regex::Regex;
 use serde_json::Value;
@@ -7,7 +8,7 @@ use vtext::tokenize::{Tokenizer, VTextTokenizerParams};
 
 pub const WORDS_KEY: &str = "words";
 pub const TEXT_KEY: &str = "text";
-static PARAGRAPH_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"\n{2,}").unwrap());
+static PARAGRAPH_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"\n").unwrap());
 static LINE_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"\n+").unwrap());
 pub static TERMINAL_PUNCTUATION: [&str; 159] = [
     "᪩",
@@ -171,6 +172,7 @@ pub static TERMINAL_PUNCTUATION: [&str; 159] = [
     "᰻",
 ];
 
+#[allow(dead_code)]
 pub fn find_duplicates(x: &[&str]) -> (usize, usize) {
     let mut unique = HashSet::with_capacity(x.len());
     let mut dup_cnt = 0;
@@ -185,6 +187,7 @@ pub fn find_duplicates(x: &[&str]) -> (usize, usize) {
     (dup_cnt, dup_chars)
 }
 
+#[allow(dead_code)]
 pub fn find_top_duplicate(x: &[String]) -> usize {
     let mut counter = HashMap::with_capacity(x.len());
 
@@ -201,6 +204,7 @@ pub fn find_top_duplicate(x: &[String]) -> usize {
         .unwrap_or(0)
 }
 
+#[allow(dead_code)]
 pub fn find_all_duplicate_fast(words: &[String], n: usize) -> usize {
     let m = words.len();
     if m < n || n == 0 {
@@ -263,6 +267,7 @@ pub fn find_all_duplicate_fast(words: &[String], n: usize) -> usize {
     dup_chars
 }
 
+#[allow(dead_code)]
 pub fn find_all_duplicate(words: &[String], n: usize) -> usize {
     let mut unique = HashSet::new();
     let mut repeated_chars = 0;
@@ -334,7 +339,7 @@ pub fn split_words(
 }
 
 pub fn split_paragraphs(text: &str) -> Vec<&str> {
-    PARAGRAPH_RE.split(text).collect()
+    PARAGRAPH_RE.split(text).map(|p| p.trim()).collect()
 }
 
 pub fn split_lines(text: &str) -> Vec<&str> {
@@ -347,12 +352,9 @@ pub fn clear_key(data: &mut Value, key: &str) {
     }
 }
 
-pub fn get_n_grams(words: &[String], n: usize) -> Vec<String> {
+pub fn get_n_grams(words: &[String], n: usize) -> Vec<Vec<&str>> {
     if words.len() < n {
         return vec![];
     }
-
-    (0..=words.len() - n)
-        .map(|i| words[i..i + n].join(" "))
-        .collect()
+    words.iter().map(String::as_str).ngrams(n).collect()
 }
