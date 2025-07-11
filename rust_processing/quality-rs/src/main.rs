@@ -196,7 +196,6 @@ async fn quality_filtering(
     filters: &[Box<dyn filter::Filter>],
     pbar_option: Option<Arc<Mutex<ProgressBar>>>,
 ) -> Result<(), Error> {
-    // let filename = input_file.file_name().unwrap_or_default().to_os_string();
     let docs: Box<dyn Iterator<Item = Result<String, Error>>> = if is_oss(&input_file) {
         Box::new(
             get_reader_from_oss(input_file, None)
@@ -254,7 +253,7 @@ async fn quality_filtering(
     }
 
     let stat_data: Vec<u8> = serde_json::to_vec_pretty(&stat_collector)?;
-    // println!("filtering file {:?} in {:?}", filename, time_collector);
+    // println!("filtering file in {:?}", stat_collector);
 
     let output_data = io::compress_data(output_data, &output_file);
     if fully_skipped < count {
