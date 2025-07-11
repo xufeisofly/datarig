@@ -60,6 +60,12 @@ impl FilterStat {
 
 fn register_filters() -> Arc<Vec<Box<dyn filter::Filter>>> {
     let filters: Arc<Vec<Box<dyn filter::Filter>>> = Arc::new(vec![
+        Box::new(filter::LineRemovalModifier {
+            max_removed_ratio: -1.0,
+            max_uppercase_ratio: 0.99,
+            min_word_cnt_per_line: 3,
+            lang: "en".to_string(),
+        }),
         Box::new(filter::CacheTokenFilter {
             lang: "en".to_string(),
         }),
@@ -190,7 +196,7 @@ async fn quality_filtering(
     filters: &[Box<dyn filter::Filter>],
     pbar_option: Option<Arc<Mutex<ProgressBar>>>,
 ) -> Result<(), Error> {
-    let filename = input_file.file_name().unwrap_or_default().to_os_string();
+    // let filename = input_file.file_name().unwrap_or_default().to_os_string();
     let docs: Box<dyn Iterator<Item = Result<String, Error>>> = if is_oss(&input_file) {
         Box::new(
             get_reader_from_oss(input_file, None)

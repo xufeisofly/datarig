@@ -8,8 +8,8 @@ use vtext::tokenize::{Tokenizer, VTextTokenizerParams};
 
 pub const WORDS_KEY: &str = "words";
 pub const TEXT_KEY: &str = "text";
-static PARAGRAPH_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"\n{2,}").unwrap());
-static LINE_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"\n").unwrap());
+static PARAGRAPH_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"\n").unwrap());
+static LINE_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"\n+").unwrap());
 pub static STOP_WORDS: [&str; 8] = ["the", "be", "to", "of", "and", "that", "have", "with"];
 
 pub static PUNCTUATION: Lazy<String> = Lazy::new(|| {
@@ -218,26 +218,6 @@ pub static TERMINAL_PUNCTUATION: [&str; 159] = [
     "៙",
     "᰻",
 ];
-
-static COUNTER_RE: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(
-        r"(?xi)           # 忽略大小写 + 支持空白注释
-        ^\W*              # 可选非单词字符开头（空格、标点）
-        \d                # 一位数字开头
-        (?:[,\.\d])*      # 后面可跟逗号、小数点或更多数字
-        (?:[KMBkmb])?     # 可选单位 K/M/B
-        \s+               # 至少一个空格分隔
-        (?:likes|shares|comments|retweets|reposts|quotes|bookmarks|upvotes|downvotes|downloads|views|followers)
-                          # 支持的动作词
-        \W*$              # 可选非单词字符结尾
-    "
-    )
-    .unwrap()
-});
-
-pub fn is_counter(input: &str) -> bool {
-    COUNTER_RE.is_match(input)
-}
 
 #[allow(dead_code)]
 pub fn find_duplicates(x: &[&str]) -> (usize, usize) {

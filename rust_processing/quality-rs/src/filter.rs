@@ -12,6 +12,135 @@ pub trait Filter: Send + Sync {
 }
 
 #[allow(dead_code)]
+pub struct LineRemovalModifier {
+    pub max_removed_ratio: f64,
+    pub max_uppercase_ratio: f64,
+    pub min_word_cnt_per_line: usize,
+    pub lang: String,
+}
+
+impl Filter for LineRemovalModifier {
+    fn filter(&self, data: &mut Value) -> Result<bool, Error> {
+        let text = match data
+            .get(util::TEXT_KEY)
+            .and_then(Value::as_str)
+            .map(str::trim)
+        {
+            Some(s) if !s.is_empty() => s.to_string(),
+            _ => return Ok(false),
+        };
+
+        let lines = util::split_lines(&text);
+        let mut new_lines: Vec<&str> = Vec::new();
+        let mut fraction_of_words_corrected_in_lines: usize = 0;
+
+        for line in lines {
+            let (is_filtered, removed_words_cnt) = self.line_filtering(line);
+            if !is_filtered {
+                new_lines.push(line);
+            }
+
+            fraction_of_words_corrected_in_lines += removed_words_cnt;
+        }
+
+        let new_text = new_lines.join("\n");
+        if new_text.is_empty() {
+            return Ok(false);
+        }
+
+        *data.get_mut(util::TEXT_KEY).unwrap() = Value::String(new_text.into());
+
+        if self.max_removed_ratio as usize > 0 {
+            let total_words_cnt = text.split_whitespace().count() as f64;
+            if total_words_cnt as usize > 0
+                && fraction_of_words_corrected_in_lines as f64 / total_words_cnt
+                    > self.max_removed_ratio
+            {
+                return Ok(false);
+            }
+        }
+
+        Ok(true)
+    }
+
+    fn name(&self) -> &str {
+        "LineRemovalModifier"
+    }
+}
+
+impl LineRemovalModifier {
+    fn line_filtering(&self, line: &str) -> (bool, usize) {
+        let line_norm = line.trim().to_lowercase();
+        if line_norm.is_empty() {
+            return (true, 0);
+        }
+
+        let word_cnt_line = line_norm.split(' ').count();
+        if word_cnt_line < self.min_word_cnt_per_line {
+            return (true, word_cnt_line);
+        }
+
+        if self.check_javascript(&line_norm) {
+            return (true, word_cnt_line);
+        }
+
+        if self.check_cookie(&line_norm) {
+            return (true, word_cnt_line);
+        }
+
+        let num_uppercase = line.chars().filter(|c| c.is_uppercase()).count();
+        if num_uppercase as f64 / line.len() as f64 > self.max_uppercase_ratio {
+            return (true, word_cnt_line);
+        }
+
+        if line_norm.chars().all(|c| c.is_numeric()) {
+            return (true, word_cnt_line);
+        }
+
+        if util::is_counter(&line_norm) {
+            return (true, word_cnt_line);
+        }
+
+        (false, 0)
+    }
+
+    fn check_javascript(&self, line: &str) -> bool {
+        if !line.contains("javascript") {
+            return false;
+        }
+        if line.contains("enable") {
+            return true;
+        }
+        if line.contains("disable") {
+            return true;
+        }
+        if line.contains("require") {
+            return true;
+        }
+        if line.contains("activate") {
+            return true;
+        }
+        if line.contains("browser") {
+            return true;
+        }
+        false
+    }
+
+    fn check_cookie(&self, line: &str) -> bool {
+        const POLICY_SUBSTRINGS: [&str; 6] = [
+            "terms of use",
+            "privacy policy",
+            "cookie policy",
+            "uses cookies",
+            "use of cookies",
+            "use cookies",
+        ];
+
+        POLICY_SUBSTRINGS.iter().any(|p| line.contains(p))
+    }
+}
+
+#[allow(dead_code)]
 pub struct CacheTokenFilter {
     pub lang: String,
 }
