@@ -48,7 +48,7 @@ impl Filter for LineRemovalModifier {
             return Ok(false);
         }
 
-        *data.get_mut(util::TEXT_KEY).unwrap() = Value::String(new_text.into());
+        data[util::TEXT_KEY] = Value::String(new_text.into());
 
         if self.max_removed_ratio as usize > 0 {
             let total_words_cnt = text.split_whitespace().count() as f64;
