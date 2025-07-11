@@ -1,11 +1,13 @@
 use anyhow::{Error, Result};
 use clap::Parser;
 use flate2::read::MultiGzDecoder;
+use indexmap::IndexMap;
 use indicatif::{ProgressBar, ProgressStyle};
 use io::expand_dirs;
 use oss::split_oss_path;
 use oss::{get_reader_from_oss, is_oss};
 use oss_rust_sdk::async_object::*;
+use serde::Serialize;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::fs::OpenOptions;
@@ -37,6 +39,23 @@ struct Args {
 
     #[arg(long, default_value_t = 0)]
     threads: usize,
+}
+
+#[derive(Debug, Serialize)]
+struct FilterStat {
+    execution_time: i64,
+    page_in: i64,
+    page_out: i64,
+}
+
+impl FilterStat {
+    fn new() -> Self {
+        Self {
+            execution_time: 0,
+            page_in: 0,
+            page_out: 0,
+        }
+    }
 }
 
 fn register_filters() -> Arc<Vec<Box<dyn filter::Filter>>> {
@@ -110,7 +129,7 @@ fn process_files(
 
     for input_file in input_files.into_iter() {
         let filters = Arc::clone(&filters);
-        let output_file = get_output_filename(&input_file, output);
+        let (output_file, stat_file) = get_output_filename(&input_file, output);
         let pbar_option: Option<Arc<Mutex<ProgressBar>>> = if no_progress_bar {
             None
         } else {
@@ -130,6 +149,7 @@ fn process_files(
             let result = rt.block_on(quality_filtering(
                 input_file.clone(),
                 output_file.clone(),
+                stat_file.clone(),
                 &filters,
                 pbar_option.clone(),
             ));
@@ -152,14 +172,21 @@ fn process_files(
     Ok(())
 }
 
-fn get_output_filename(input_filename: &PathBuf, output_directory: &PathBuf) -> PathBuf {
+fn get_output_filename(input_filename: &PathBuf, output_directory: &PathBuf) -> (PathBuf, PathBuf) {
     let file_name = input_filename.file_name().unwrap();
-    output_directory.clone().join(file_name)
+    (
+        output_directory
+            .clone()
+            .join("processed_data")
+            .join(file_name),
+        output_directory.clone().join("stats").join(file_name),
+    )
 }
 
 async fn quality_filtering(
     input_file: PathBuf,
     output_file: PathBuf,
+    stat_file: PathBuf,
     filters: &[Box<dyn filter::Filter>],
     pbar_option: Option<Arc<Mutex<ProgressBar>>>,
 ) -> Result<(), Error> {
@@ -202,13 +229,13 @@ async fn quality_filtering(
     let mut fully_skipped = 0;
     let mut count = 0;
 
-    let mut time_collector: HashMap<String, i64> = HashMap::new();
+    let mut stat_collector: IndexMap<String, FilterStat> = IndexMap::new();
     for doc in docs {
         let doc = doc?;
         count += 1;
         let mut data: Value = serde_json::from_str(&doc).unwrap();
 
-        let process_result = process_data(&mut data, &filters, &mut time_collector);
+        let process_result = process_data(&mut data, &filters, &mut stat_collector);
 
         match process_result {
             Ok(true) => {
@@ -219,18 +246,27 @@ async fn quality_filtering(
             Err(_) => {}
         }
     }
+
+    let stat_data: Vec<u8> = serde_json::to_vec_pretty(&stat_collector)?;
     // println!("filtering file {:?} in {:?}", filename, time_collector);
 
     let output_data = io::compress_data(output_data, &output_file);
     if fully_skipped < count {
         if is_oss(&output_file) {
             let (output_bucket, output_key) = split_oss_path(output_file);
+            let (_, stat_key) = split_oss_path(stat_file);
             let client = oss::get_bucket(output_bucket);
             let mut headers = HashMap::new();
             headers.insert("content-type", "text/plain");
+
             let data: &[u8] = &output_data;
             let _ = client
-                .put_object(data, output_key.clone(), headers, None)
+                .put_object(data, output_key.clone(), headers.clone(), None)
+                .await;
+
+            let stat_data: &[u8] = &stat_data;
+            let _ = client
+                .put_object(stat_data, stat_key.clone(), headers.clone(), None)
                 .await;
         } else {
             let mut output_file = OpenOptions::new()
@@ -240,6 +276,14 @@ async fn quality_filtering(
                 .truncate(true)
                 .open(&output_file)?;
             output_file.write_all(&output_data)?;
+
+            let mut stat_file = OpenOptions::new()
+                .read(false)
+                .write(true)
+                .create(true)
+                .truncate(true)
+                .open(&stat_file)?;
+            stat_file.write_all(&stat_data)?;
         }
     }
 
@@ -257,15 +301,25 @@ async fn quality_filtering(
 fn process_data(
     data: &mut Value,
     filters: &[Box<dyn filter::Filter>],
-    time_collector: &mut HashMap<String, i64>,
+    stat_collector: &mut IndexMap<String, FilterStat>,
 ) -> Result<bool, Error> {
     for f in filters.iter() {
         let start_time = Instant::now();
-        if !f.filter(data)? {
+
+        let result = f.filter(data);
+
+        let execution_time = start_time.elapsed().as_millis() as i64;
+        let stat = stat_collector
+            .entry(f.name().to_string())
+            .or_insert_with(|| FilterStat::new());
+        stat.execution_time += execution_time;
+        stat.page_in += 1;
+
+        if result? {
+            stat.page_out += 1;
+        } else {
             return Ok(false);
         }
-        let execution_time = start_time.elapsed().as_millis() as i64;
-        *time_collector.entry(f.name().to_string()).or_insert(0) += execution_time;
     }
     Ok(true)
 }
