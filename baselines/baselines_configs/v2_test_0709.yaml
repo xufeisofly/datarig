@@ -39,3 +39,8 @@
     - func: fineweb_quality_filter
       high_quality_ratio_value: -1
     - func: uncache_split_words_modifier
+    - func: bad_words_modifier
+      banned_filepath: "baselines/mappers/banlists/zh-badwords.txt"
+      banned_language: "zh"
+      remove_word: True
+      redis_record_key: "zh_bad_words_doc_count"	
