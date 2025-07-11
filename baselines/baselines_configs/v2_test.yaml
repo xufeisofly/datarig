@@ -3,7 +3,6 @@
   steps:
     - func: email_and_phone_removal_modifier
     - func: citation_removal_modifier
-    - func: short_line_modifier
     - func: substring_line_modifier
       max_length: 10
       banlist: "items in cart"
@@ -24,7 +23,7 @@
       location: prefix
       remove_substring_only: True
     - func: line_removal_modifier
-      min_word_cnt_per_line: 1
+      min_word_cnt_per_line: 4
     - func: word_length_modifier
     - func: lorem_ipsum_filter
     - func: min_sentences_filter
