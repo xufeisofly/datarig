@@ -25,22 +25,9 @@ def fineweb_quality(doc, short_line_length=30) -> Dict:
     
     return doc
 
-
-def high_quality_ratio_filter(doc) -> Dict:
-    text = doc['text']
-    lines = text.split("\n")
-    doc['high_quality_ratio_10'] = high_quality_ratio(lines, model='fasttext', high_quality_min_line_num=10, language='eng')
-    return doc
-
-
-def fasttext_filter(doc) -> Dict:
-    model = load_fasttext_model('fasttext_oh_eli5.bin')
-    doc['score'] = classify_fasttext_hq_prob(model, doc['text'])
-    return doc
-    
-
             
 if __name__ == '__main__':
+    # 抽样
     f = "oss://si002558te8h/dclm/output/c4_noclean_prepare_sampled/c4-train.00000-of-07168_processed.jsonl.zst"
 
     lines = []
@@ -54,6 +41,8 @@ if __name__ == '__main__':
     target_path = "oss://si002558te8h/dclm/origin/v2_raw_sample/c4-train.00000-of-07168_processed.jsonl.zst"
     write_jsonl(lines, target_path)
 
+    # 分析数据
+    
     target_path = "oss://si002558te8h/dclm/output/v2_fineweb_quality_thr/processed_data/c4-train.00000-of-07168_processed.jsonl.zst"
 
     docs = []
@@ -61,8 +50,6 @@ if __name__ == '__main__':
 
     def process(doc, i):
         doc = fineweb_quality(doc)
-        # doc = high_quality_ratio_filter(doc)
-        # doc = fasttext_filter(doc)
         print("=====", i)
         return doc
     
