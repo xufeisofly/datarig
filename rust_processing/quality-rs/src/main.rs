@@ -39,7 +39,7 @@ static ALLOC: jemallocator::Jemalloc = jemallocator::Jemalloc;
 
 #[derive(Parser, Debug)]
 struct Args {
-    #[arg(required = true, long)]
+    #[arg(required = false, long)]
     input: Vec<PathBuf>,
 
     #[arg(required = true, long)]
