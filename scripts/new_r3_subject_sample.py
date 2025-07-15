@@ -120,28 +120,55 @@ def count_n_word_line(file_name):
     df1.to_excel('/mnt/nas/zh_data/dclm_pool_head_en_all_short_line_words_output.xlsx', index=False, engine='xlsxwriter')    
     
     
+def count_long_line_words(file_name_list):
+    output_dict = defaultdict(list)
+    for file_name in tqdm(file_name_list):
+        file_path = oss.join_file_path('si002558te8h', file_name)
+        file_lines = read_jsonl(file_path)
+        for i, s_dict in enumerate(file_lines):
+            text_str = s_dict.get('text', '')
+            page_lines = text_str.split('\n')
+            for a_line in page_lines:
+                if 500>= len(a_line.replace(' ', '')) >= 200:
+                    output_dict['200-500 line'].append(a_line)
+                    words = split_words(a_line, ignore_punctuation=True)   
+                    output_dict['200-500_start_word'].append(' '.join(words[:10]))
+                    output_dict['200-500_end_word'].append(' '.join(words[-10:]))
+                    
+                # if len(a_line.replace(' ', '')) >= 500:
+                #     output_dict['>=500 line'].append(a_line)
+                #     words = split_words(a_line, ignore_punctuation=True)   
+                #     output_dict['>=500_start_word'].append(' '.join(words[:10]))
+                #     output_dict['>=500_end_word'].append(' '.join(words[-10:]))
+        # if len(output_dict['>=500 line']) > 5000:
+        if len(output_dict['200-500 line']) > 5000:
+            break
+    # 输出结果
+    df2 = pd.DataFrame(output_dict)
+    df2.to_excel('./dclm_pool_200_500_long_lines.xlsx', index=False, engine='xlsxwriter')
+   
 if __name__ == '__main__':
-    oss_dir = "oss://train1/basemodel-subjet-data-processed/hpc-processed/Ultra-FineWeb/token/ultrafineweb_zh/"
-    object_keys = "basemodel-subjet-data-processed/hpc-processed/Ultra-FineWeb/token/ultrafineweb_zh/"
-    bucket_name, path = oss.split_file_path(oss_dir)
-    bucket = oss.Bucket(bucket_name)
-    output_folder = "/mnt/nas/zh_data/oss_ultrafineweb_zh/"  # 本地输出文件夹
-    # 下载OSS文件到本地
-    # oss.download_file('oss://si002558te8h/code/2beval.zip', output_folder, bucket)
-    print(bucket_name)
-    files = oss.get_sub_files(bucket, object_keys)
-    for file in tqdm(files):
-        file_name = os.path.basename(file)
-        bucket.get_object_to_file(file, f"{output_folder}{file_name}")
+    # oss_dir = "oss://train1/basemodel-subjet-data-processed/hpc-processed/Ultra-FineWeb/token/ultrafineweb_zh/"
+    # object_keys = "basemodel-subjet-data-processed/hpc-processed/Ultra-FineWeb/token/ultrafineweb_zh/"
+    # bucket_name, path = oss.split_file_path(oss_dir)
+    # bucket = oss.Bucket(bucket_name)
+    # output_folder = "/mnt/nas/zh_data/oss_ultrafineweb_zh/"  # 本地输出文件夹
+    # # 下载OSS文件到本地
+    # # oss.download_file('oss://si002558te8h/code/2beval.zip', output_folder, bucket)
+    # print(bucket_name)
+    # files = oss.get_sub_files(bucket, object_keys)
+    # for file in tqdm(files):
+    #     file_name = os.path.basename(file)
+    #     bucket.get_object_to_file(file, f"{output_folder}{file_name}")
     # bucket.get_object_to_file('code/lfu-14b-pretrain-v3-z2000_code.zip', "/mnt/nas/zh_data/lfu-14b-pretrain-v3-z2000_code.zip")
     
     # ------------------------------------------------------------------
-    # oss_dir = "oss://si002558te8h/dclm/output/dclm_pool_en/s2/s1=1/s2=0/processed_data/"
-    # bucket_name, path = oss.split_file_path(oss_dir)
-    # bucket = oss.Bucket(bucket_name)
-    # files_list = oss.get_sub_files(bucket, path)
-    # # print(len(files_list))
-    # count_n_word_line(files_list[0])
+    oss_dir = "oss://si002558te8h/dclm/output/dclm_pool_en/s2/s1=1/s2=0/processed_data/"
+    bucket_name, path = oss.split_file_path(oss_dir)
+    bucket = oss.Bucket(bucket_name)
+    files_list = oss.get_sub_files(bucket, path)
+    # print(len(files_list))
+    count_long_line_words(files_list)
     # ------------------------------------------------------------------
     # subject_paths = oss.get_sub_folders(bucket, path)
     # # print(subject_paths)
