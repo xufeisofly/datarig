@@ -145,7 +145,6 @@ fn process_tasks(
         }
 
         let task = task_item.unwrap();
-        info!("Processing tasks: {}", task.get_id());
         processed_any = true;
 
         let file_range = task.file_range.clone();

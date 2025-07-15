@@ -131,10 +131,11 @@ impl TaskQueue {
                 if let Some(task_id) = task_json.get("id").and_then(|v| v.as_str()) {
                     let key = self.get_processing_task_key(task_id);
                     // 再次获取锁
-                    self.conn
-                        .lock()
-                        .unwrap()
-                        .set_ex(key, worker.unwrap_or(""), TASK_TIMEOUT)?;
+                    let _: () = self.conn.lock().unwrap().set_ex(
+                        key,
+                        worker.unwrap_or(""),
+                        TASK_TIMEOUT,
+                    )?;
                     let task_item: TaskItem = serde_json::from_value(task_json).map_err(|e| {
                         redis::RedisError::from((
                             redis::ErrorKind::TypeError,
