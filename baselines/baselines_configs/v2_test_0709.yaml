@@ -19,7 +19,7 @@
       remove_substring_only: True
     - func: substring_line_modifier
       max_length: 10
-      banlist: "Sign-in"
+      banlist: ["Sign-in", "Sign in", "SignIn", "Sign-out", "Sign out", "SignOut"]
       location: prefix
       remove_substring_only: False
     - func: line_removal_modifier
@@ -43,4 +43,4 @@
       banned_filepath: "baselines/mappers/banlists/zh-badwords.txt"
       banned_language: "zh"
       remove_word: True
-      redis_record_key: "zh_bad_words_doc_count"	
+      redis_record_key: "zh_bad_words_doc_count"

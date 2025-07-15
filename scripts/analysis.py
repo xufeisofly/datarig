@@ -12,7 +12,7 @@ csv.field_size_limit(sys.maxsize)
 
 
 def fineweb_quality(doc, short_line_length=30) -> Dict:
-    text = doc['text']
+    text = str(doc['text'])
     lines = text.split("\n")
     doc['line_num'] = len(lines)
     stop_chars = tuple(TERMINAL_PUNCTUATION)
@@ -27,23 +27,24 @@ def fineweb_quality(doc, short_line_length=30) -> Dict:
 
             
 if __name__ == '__main__':
-    # 抽样
-    f = "oss://si002558te8h/dclm/output/c4_noclean_prepare_sampled/c4-train.00000-of-07168_processed.jsonl.zst"
+    # # 抽样
+    # f = "oss://si002558te8h/dclm/output/c4_noclean_prepare_sampled/c4-train.00000-of-07168_processed.jsonl.zst"
 
-    lines = []
-    count = 0
-    for line in read_jsonl(f):
-        if count >= 30000:
-            break
-        lines.append(line)
-        count += 1
+    # lines = []
+    # count = 0
+    # for line in read_jsonl(f):
+    #     if count >= 30000:
+    #         break
+    #     lines.append(line)
+    #     count += 1
 
-    target_path = "oss://si002558te8h/dclm/origin/v2_raw_sample/c4-train.00000-of-07168_processed.jsonl.zst"
-    write_jsonl(lines, target_path)
+    # target_path = "oss://si002558te8h/dclm/origin/v2_raw_sample/c4-train.00000-of-07168_processed.jsonl.zst"
+    # write_jsonl(lines, target_path)
 
     # 分析数据
     
-    target_path = "oss://si002558te8h/dclm/output/v2_fineweb_quality_thr/processed_data/c4-train.00000-of-07168_processed.jsonl.zst"
+    # target_path = "oss://si002558te8h/dclm/output/v2_fineweb_quality_thr/processed_data/c4-train.00000-of-07168_processed.jsonl.zst"
+    target_path = "/mnt/nas/zh_data/short_line_processed_result.jsonl"
 
     docs = []
     old_docs = list(read_jsonl(target_path))
@@ -64,12 +65,13 @@ if __name__ == '__main__':
 
         print(len(docs))
 
-    stat_path = "oss://si002558te8h/dclm/output/v2_fineweb_quality_thr/c4-train.00000-of-07168_stat.jsonl.zst"
+    # stat_path = "oss://si002558te8h/dclm/output/v2_fineweb_quality_thr/c4-train.00000-of-07168_stat.jsonl.zst"
+    stat_path = "/mnt/nas/zh_data/v2_data/short_line_stat.jsonl"
     write_jsonl(docs, stat_path)
 
 
     headers = ['text', 'line_num', 'line_punct_ratio', 'short_line_ratio', 'char_dup_ratio']
-    output_csv = "./c4-train.00000-of-07168_stat.csv"
+    output_csv = "./short_line_stat.csv"
     with open(output_csv, mode='w', newline='') as file:
         writer = csv.writer(file)
         writer.writerow(headers)
