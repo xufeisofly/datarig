@@ -259,9 +259,10 @@ async fn quality_filtering(
     }
 
     let stat_data: Vec<u8> = serde_json::to_vec_pretty(&stat_collector)?;
-    // info!("filtering file in {:?}", stat_collector);
+    log::debug!("filtering file in {:?}", stat_collector);
 
     let output_data = io::compress_data(output_data, &output_file);
+
     if fully_skipped < count {
         if is_oss(&output_file) {
             let (output_bucket, output_key) = split_oss_path(output_file);
