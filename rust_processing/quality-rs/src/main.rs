@@ -1,9 +1,11 @@
-use anyhow::{Error, Result};
+use anyhow::Error;
 use clap::Parser;
+use color_eyre::eyre::Result;
 use flate2::read::MultiGzDecoder;
 use indexmap::IndexMap;
 use indicatif::{ProgressBar, ProgressStyle};
 use io::expand_dirs;
+use log::{error, info};
 use oss::split_oss_path;
 use oss::{get_reader_from_oss, is_oss};
 use oss_rust_sdk::async_object::*;
@@ -17,6 +19,7 @@ use std::sync::{Arc, Mutex};
 use std::thread::available_parallelism;
 use std::time::Instant;
 use threadpool::ThreadPool;
+use util::print_banner;
 
 use zstd::stream::read::Decoder as ZstDecoder;
 
@@ -24,6 +27,9 @@ mod filter;
 mod io;
 mod oss;
 mod util;
+
+#[global_allocator]
+static ALLOC: jemallocator::Jemalloc = jemallocator::Jemalloc;
 
 /*======================================================
 =                              ARGS                    =
@@ -144,7 +150,7 @@ fn process_files(
 
         threadpool.execute(move || {
             if no_progress_bar {
-                println!("Processing {input_file:?}...");
+                info!("Processing {input_file:?}...");
             }
 
             let rt = tokio::runtime::Builder::new_current_thread()
@@ -163,14 +169,14 @@ fn process_files(
             match result {
                 Ok(_) => {}
                 Err(err) => {
-                    eprintln!("Error processing {:?}; {:?}", input_file, err);
+                    error!("Error processing {:?}; {:?}", input_file, err);
                 }
             }
         });
     }
 
     threadpool.join();
-    println!(
+    info!(
         "Complete filtering all files in {:?} seconds",
         loop_start_time.elapsed().as_secs()
     );
@@ -253,7 +259,7 @@ async fn quality_filtering(
     }
 
     let stat_data: Vec<u8> = serde_json::to_vec_pretty(&stat_collector)?;
-    // println!("filtering file in {:?}", stat_collector);
+    // info!("filtering file in {:?}", stat_collector);
 
     let output_data = io::compress_data(output_data, &output_file);
     if fully_skipped < count {
@@ -334,6 +340,7 @@ fn process_data(
 ==============================================================*/
 
 fn main() -> Result<()> {
+    print_banner();
     env_logger::init();
 
     let args = Args::parse();

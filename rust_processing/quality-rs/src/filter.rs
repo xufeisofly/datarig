@@ -1,5 +1,6 @@
 use crate::util;
-use anyhow::{Error, Result};
+use anyhow::Error;
+use color_eyre::eyre::Result;
 use counter::Counter;
 use serde_json::Value;
 use std::collections::HashSet;
@@ -205,7 +206,7 @@ fn repetition_filter(
     segments: Vec<&str>,
     dup_para_frac: f64,
     dup_para_char_frac: f64,
-) -> Result<bool> {
+) -> Result<bool, Error> {
     if !segments.is_empty() {
         let total_chars: usize = segments.iter().map(|p| p.len()).sum();
         let segment_counts: Counter<&str> = segments.into_iter().collect();
