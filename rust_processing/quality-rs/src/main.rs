@@ -26,6 +26,8 @@ use zstd::stream::read::Decoder as ZstDecoder;
 mod filter;
 mod io;
 mod oss;
+mod task;
+mod task_queue;
 mod util;
 
 #[global_allocator]
@@ -45,6 +47,12 @@ struct Args {
 
     #[arg(long, default_value_t = 0)]
     threads: usize,
+
+    #[arg(long, default_value_t = false)]
+    use_redis_task: bool,
+
+    #[arg(long)]
+    queue_id: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -115,13 +123,92 @@ fn register_filters() -> Arc<Vec<Box<dyn filter::Filter>>> {
     filters
 }
 
-fn process_files(
+async fn process_tasks(
+    output: &PathBuf,
+    threads: &usize,
+    queue_id: &str,
+    no_progress_bar: bool,
+) -> Result<(), Error> {
+    let mut processed_any = false;
+    loop {
+        let (task_item, all_finished) = task::get_task_item_redis(queue_id).await?;
+
+        if task_item.is_none() {
+            if !all_finished && !processed_any {
+                info!("Waiting for tasks...");
+                tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
+                continue;
+            } else {
+                info!("All tasks finished!");
+                break;
+            }
+        }
+
+        let task = task_item.unwrap();
+        processed_any = true;
+
+        let file_range = task.file_range.clone();
+        let shard_dir = PathBuf::from(&task.shard_dir);
+
+        let all_files = expand_dirs(vec![shard_dir.clone()], None).unwrap();
+        let mut files_to_process = Vec::new();
+
+        match &task.files {
+            Some(task_files) if !task_files.is_empty() => {
+                for file in task_files {
+                    files_to_process.push(PathBuf::from(file));
+                }
+            }
+            _ => {
+                let start = file_range[0] as usize;
+                let end = if file_range[1] == -1 {
+                    all_files.len()
+                } else {
+                    file_range[1] as usize
+                };
+
+                if end <= all_files.len() {
+                    files_to_process.extend_from_slice(&all_files[start..end]);
+                } else if start < all_files.len() {
+                    files_to_process.extend_from_slice(&all_files[start..]);
+                }
+            }
+        }
+
+        let result = process_files(files_to_process, output, threads, no_progress_bar);
+        match result {
+            Ok(_) => {
+                info!("Task completed!");
+                task::mark_task_item_finished_redis(&task, queue_id).await?;
+            }
+            Err(e) => {
+                error!("Task failed: {:?}", e);
+                task::mark_task_item_failed_redis(&task, queue_id).await?;
+            }
+        }
+
+        tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+    }
+
+    Ok(())
+}
+
+fn process_input(
     input: Vec<PathBuf>,
     output: &PathBuf,
     threads: &usize,
     no_progress_bar: bool,
 ) -> Result<()> {
     let input_files = expand_dirs(input, None).unwrap();
+    process_files(input_files, output, threads, no_progress_bar)
+}
+
+fn process_files(
+    input_files: Vec<PathBuf>,
+    output: &PathBuf,
+    threads: &usize,
+    no_progress_bar: bool,
+) -> Result<()> {
     // Setup progress bar
     let pbar = ProgressBar::new(input_files.len() as u64)
         .with_style(
@@ -352,7 +439,12 @@ fn main() -> Result<()> {
         args.threads
     };
 
-    let _ = process_files(args.input, &args.output, &threads, false);
+    if args.use_redis_task {
+        let queue_id: &str = args.queue_id.as_deref().unwrap_or("default");
+        let _ = process_tasks(&args.output, &threads, queue_id, false);
+    } else {
+        let _ = process_input(args.input, &args.output, &threads, false);
+    }
 
     Ok(())
 }

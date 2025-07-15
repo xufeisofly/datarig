@@ -36,3 +36,4 @@ indexmap = { version = "2.10.0", features = ["serde"] }
 jemallocator = "0.5.4"
 eyre = "0.6.10"
 color-eyre = { version = "0.6.3" }
+redis = "0.23"
