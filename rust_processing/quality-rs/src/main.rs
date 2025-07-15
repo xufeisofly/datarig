@@ -16,8 +16,8 @@ use std::fs::OpenOptions;
 use std::io::{BufRead, BufReader, Write};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
-use std::thread::available_parallelism;
-use std::time::Instant;
+use std::thread::{available_parallelism, sleep};
+use std::time::{Duration, Instant};
 use threadpool::ThreadPool;
 use util::print_banner;
 
@@ -123,7 +123,7 @@ fn register_filters() -> Arc<Vec<Box<dyn filter::Filter>>> {
     filters
 }
 
-async fn process_tasks(
+fn process_tasks(
     output: &PathBuf,
     threads: &usize,
     queue_id: &str,
@@ -131,12 +131,12 @@ async fn process_tasks(
 ) -> Result<(), Error> {
     let mut processed_any = false;
     loop {
-        let (task_item, all_finished) = task::get_task_item_redis(queue_id).await?;
+        let (task_item, all_finished) = task::get_task_item_redis(queue_id)?;
 
         if task_item.is_none() {
             if !all_finished && !processed_any {
                 info!("Waiting for tasks...");
-                tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
+                sleep(Duration::from_secs(10));
                 continue;
             } else {
                 info!("All tasks finished!");
@@ -179,15 +179,15 @@ async fn process_tasks(
         match result {
             Ok(_) => {
                 info!("Task completed!");
-                task::mark_task_item_finished_redis(&task, queue_id).await?;
+                task::mark_task_item_finished_redis(&task, queue_id)?;
             }
             Err(e) => {
                 error!("Task failed: {:?}", e);
-                task::mark_task_item_failed_redis(&task, queue_id).await?;
+                task::mark_task_item_failed_redis(&task, queue_id)?;
             }
         }
 
-        tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+        sleep(Duration::from_secs(1));
     }
 
     Ok(())
