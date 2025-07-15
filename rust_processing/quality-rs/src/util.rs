@@ -430,8 +430,6 @@ pub fn get_n_grams(words: &[String], n: usize) -> Vec<Vec<&str>> {
 pub fn print_banner() {
     println!(
         r"
-        \n
-
      _____          ___                         ___
     /  /::\        /  /\                       /__/\
    /  /:/\:\      /  /:/                      |  |::\
@@ -443,7 +441,6 @@ pub fn print_banner() {
     \  \::/      \  \:\/:/      \  \::/      \  \:\
      \__\/        \  \::/        \__\/        \  \:\
                    \__\/                       \__\/     			
-        \n
         ",
     );
 }
