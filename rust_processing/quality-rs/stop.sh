@@ -1,8 +1,5 @@
 #!/bin/bash
-servers=(
-	10.200.48.119
-	10.200.48.146
-)
+mapfile -t servers < server_list.txt
 
 pass='CBLDamo@2025'
 
