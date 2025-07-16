@@ -41,4 +41,4 @@ done
 wait
 
 tmux kill-session -t datarig 2>/dev/null
-tmux new-session -d -s datarig "set -a && source /root/.env && ./quality-rs ${args}"
+tmux new-session -d -s datarig "./quality-rs ${args}"
