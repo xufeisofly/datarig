@@ -1,8 +1,28 @@
 use crate::util;
-use anyhow::{Error, Result};
+use anyhow::Error;
+use color_eyre::eyre::Result;
 use counter::Counter;
+use serde::Serialize;
 use serde_json::Value;
 use std::collections::HashSet;
+
+#[warn(private_interfaces)]
+#[derive(Debug, Serialize)]
+pub struct FilterStat {
+    pub execution_time: i64,
+    pub page_in: i64,
+    pub page_out: i64,
+}
+
+impl FilterStat {
+    pub fn new() -> Self {
+        Self {
+            execution_time: 0,
+            page_in: 0,
+            page_out: 0,
+        }
+    }
+}
 
 // 想要添加规则，新建一个 Filter struct 实现这个 trait 就好
 pub trait Filter: Send + Sync {
@@ -17,6 +37,17 @@ pub struct LineRemovalModifier {
     pub max_uppercase_ratio: f64,
     pub min_word_cnt_per_line: usize,
     pub lang: String,
+}
+
+impl Default for LineRemovalModifier {
+    fn default() -> Self {
+        Self {
+            max_removed_ratio: -1.0,
+            max_uppercase_ratio: 0.99,
+            min_word_cnt_per_line: 3,
+            lang: "en".to_string(),
+        }
+    }
 }
 
 impl Filter for LineRemovalModifier {
@@ -145,6 +176,14 @@ pub struct CacheTokenFilter {
     pub lang: String,
 }
 
+impl Default for CacheTokenFilter {
+    fn default() -> Self {
+        Self {
+            lang: "en".to_string(),
+        }
+    }
+}
+
 impl Filter for CacheTokenFilter {
     fn filter(&self, data: &mut Value) -> Result<bool, Error> {
         let text = match data.get(util::TEXT_KEY).and_then(Value::as_str) {
@@ -178,6 +217,12 @@ impl Filter for CacheTokenFilter {
 #[allow(dead_code)]
 pub struct UncacheTokenFilter;
 
+impl Default for UncacheTokenFilter {
+    fn default() -> Self {
+        Self {}
+    }
+}
+
 impl Filter for UncacheTokenFilter {
     fn filter(&self, data: &mut Value) -> Result<bool, Error> {
         util::clear_key(data, util::WORDS_KEY);
@@ -201,11 +246,32 @@ pub struct GopherRepetitionFilter {
     pub lang: String,
 }
 
+impl Default for GopherRepetitionFilter {
+    fn default() -> Self {
+        Self {
+            dup_line_frac: 0.3,
+            dup_para_frac: 0.3,
+            dup_line_char_frac: 0.2,
+            dup_para_char_frac: 0.2,
+            top_n_grams: vec![(2, 0.2), (3, 0.18), (4, 0.16)],
+            dup_n_grams: vec![
+                (5, 0.15),
+                (6, 0.14),
+                (7, 0.13),
+                (8, 0.12),
+                (9, 0.11),
+                (10, 0.10),
+            ],
+            lang: "en".to_string(),
+        }
+    }
+}
+
 fn repetition_filter(
     segments: Vec<&str>,
     dup_para_frac: f64,
     dup_para_char_frac: f64,
-) -> Result<bool> {
+) -> Result<bool, Error> {
     if !segments.is_empty() {
         let total_chars: usize = segments.iter().map(|p| p.len()).sum();
         let segment_counts: Counter<&str> = segments.into_iter().collect();
@@ -339,6 +405,23 @@ pub struct GopherQualityFilter {
     pub lang: String,
 }
 
+impl Default for GopherQualityFilter {
+    fn default() -> Self {
+        Self {
+            min_doc_words: 50,
+            max_doc_words: 100000,
+            min_avg_word_length: 3,
+            max_avg_word_length: 10,
+            max_symbol_word_ratio: 0.1,
+            max_bullet_lines_ratio: 0.9,
+            max_ellipsis_lines_ratio: 0.3,
+            max_non_alpha_words_ratio: 0.8,
+            min_stop_words: 2,
+            lang: "en".to_string(),
+        }
+    }
+}
+
 impl Filter for GopherQualityFilter {
     fn filter(&self, data: &mut Value) -> Result<bool, Error> {
         let text = match data.get(util::TEXT_KEY).and_then(Value::as_str) {
@@ -452,6 +535,18 @@ pub struct FinewebQualityFilter {
     pub short_line_thr: f64,
     pub char_duplicates_ratio: f64,
     pub new_line_ratio: f64,
+}
+
+impl Default for FinewebQualityFilter {
+    fn default() -> Self {
+        Self {
+            line_punct_thr: 0.12,
+            short_line_length: 30,
+            short_line_thr: 0.67,
+            char_duplicates_ratio: 0.1,
+            new_line_ratio: 0.3,
+        }
+    }
 }
 
 impl Filter for FinewebQualityFilter {

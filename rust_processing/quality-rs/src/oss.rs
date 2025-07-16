@@ -1,7 +1,7 @@
-use anyhow::Result;
 use async_compression::tokio::bufread::GzipDecoder as asyncGZ;
 use async_compression::tokio::bufread::ZstdDecoder as asyncZstd;
 use bytes::Bytes;
+use color_eyre::eyre::Result;
 use futures::{pin_mut, stream};
 use oss_rust_sdk::async_object::*;
 use oss_rust_sdk::errors::Error as OSSError;

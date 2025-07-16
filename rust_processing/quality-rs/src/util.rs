@@ -1,4 +1,5 @@
-use anyhow::{Error, Result};
+use anyhow::Error;
+use color_eyre::eyre::Result;
 use ngrams::Ngram;
 use once_cell::sync::Lazy;
 use regex::Regex;
@@ -424,4 +425,22 @@ pub fn get_n_grams(words: &[String], n: usize) -> Vec<Vec<&str>> {
         return vec![];
     }
     words.iter().map(String::as_str).ngrams(n).collect()
+}
+
+pub fn print_banner() {
+    println!(
+        r"
+     _____          ___                         ___
+    /  /::\        /  /\                       /__/\
+   /  /:/\:\      /  /:/                      |  |::\
+  /  /:/  \:\    /  /:/       ___     ___     |  |:|:\
+ /__/:/ \__\:|  /  /:/  ___  /__/\   /  /\  __|__|:|\:\
+ \  \:\ /  /:/ /__/:/  /  /\ \  \:\ /  /:/ /__/::::| \:\
+  \  \:\  /:/  \  \:\ /  /:/  \  \:\  /:/  \  \:\~~\__\/
+   \  \:\/:/    \  \:\  /:/    \  \:\/:/    \  \:\
+    \  \::/      \  \:\/:/      \  \::/      \  \:\
+     \__\/        \  \::/        \__\/        \  \:\
+                   \__\/                       \__\/     			
+        ",
+    );
 }
