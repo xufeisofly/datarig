@@ -3,6 +3,7 @@
 server0=10.200.48.109
 servers=(
 	10.200.48.119
+	10.200.48.146
 )
 
 pass='CBLDamo@2025'
@@ -38,3 +39,8 @@ EOF
 done
 
 wait
+
+tmux kill-session -t datarig 2>/dev/null
+tmux new-session -d -s datarig "set -a && source /root/.env && ./quality-rs ${args}"
+
+
