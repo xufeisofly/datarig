@@ -14,9 +14,6 @@ sshpass -p ${pass} ssh -o StrictHostKeyChecking=no root@$server <<EOF
 sudo apt install -y sshpass
 sudo apt install -y tmux
 
-sshpass --version
-tmux --version
-
 echo "[$server] == done"
 EOF
 ) &
