@@ -322,7 +322,7 @@ pub fn process_data(
 
         let result = f.filter(data);
 
-        let execution_time = start_time.elapsed().as_millis() as i64;
+        let execution_time = start_time.elapsed().as_secs() as i64;
         let stat = stat_collector
             .entry(f.name().to_string())
             .or_insert_with(|| FilterStat::new());
