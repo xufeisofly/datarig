@@ -2,8 +2,27 @@ use crate::util;
 use anyhow::Error;
 use color_eyre::eyre::Result;
 use counter::Counter;
+use serde::Serialize;
 use serde_json::Value;
 use std::collections::HashSet;
+
+#[warn(private_interfaces)]
+#[derive(Debug, Serialize)]
+pub struct FilterStat {
+    pub execution_time: i64,
+    pub page_in: i64,
+    pub page_out: i64,
+}
+
+impl FilterStat {
+    pub fn new() -> Self {
+        Self {
+            execution_time: 0,
+            page_in: 0,
+            page_out: 0,
+        }
+    }
+}
 
 // 想要添加规则，新建一个 Filter struct 实现这个 trait 就好
 pub trait Filter: Send + Sync {
