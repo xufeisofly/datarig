@@ -72,25 +72,9 @@ impl FilterStat {
     }
 }
 
-fn register_filters() -> Arc<Vec<Box<dyn filter::Filter>>> {
-    let filters: Arc<Vec<Box<dyn filter::Filter>>> = Arc::new(vec![
-        Box::new(filter::LineRemovalModifier {
-            max_removed_ratio: -1.0,
-            max_uppercase_ratio: 0.99,
-            min_word_cnt_per_line: 3,
-            lang: "en".to_string(),
-        }),
-        Box::new(filter::CacheTokenFilter::default()),
-        Box::new(filter::GopherRepetitionFilter::default()),
-        Box::new(filter::GopherQualityFilter::default()),
-        Box::new(filter::FinewebQualityFilter::default()),
-        Box::new(filter::UncacheTokenFilter::default()),
-    ]);
-    filters
-}
-
 fn process_tasks(
     output: &PathBuf,
+    filters: &Arc<Vec<Box<dyn filter::Filter>>>,
     threads: &usize,
     queue_id: &str,
     no_progress_bar: bool,
@@ -143,7 +127,7 @@ fn process_tasks(
             }
         }
 
-        let result = process_files(files_to_process, output, threads, no_progress_bar);
+        let result = process_files(files_to_process, output, filters, threads, no_progress_bar);
         match result {
             Ok(_) => {
                 info!("Task completed!");
@@ -164,16 +148,18 @@ fn process_tasks(
 fn process_input(
     input: Vec<PathBuf>,
     output: &PathBuf,
+    filters: &Arc<Vec<Box<dyn filter::Filter>>>,
     threads: &usize,
     no_progress_bar: bool,
 ) -> Result<()> {
     let input_files = expand_dirs(input, None).unwrap();
-    process_files(input_files, output, threads, no_progress_bar)
+    process_files(input_files, output, filters, threads, no_progress_bar)
 }
 
 fn process_files(
     input_files: Vec<PathBuf>,
     output: &PathBuf,
+    filters: &Arc<Vec<Box<dyn filter::Filter>>>,
     threads: &usize,
     no_progress_bar: bool,
 ) -> Result<()> {
@@ -192,7 +178,7 @@ fn process_files(
     let loop_start_time = Instant::now();
     let threadpool = ThreadPool::new(*threads);
 
-    let filters: Arc<Vec<Box<dyn filter::Filter>>> = register_filters();
+    // let filters: Arc<Vec<Box<dyn filter::Filter>>> = register_filters();
 
     for input_file in input_files.into_iter() {
         let filters = Arc::clone(&filters);
@@ -407,11 +393,25 @@ fn main() -> Result<()> {
         args.threads
     };
 
+    let filters: Arc<Vec<Box<dyn filter::Filter>>> = Arc::new(vec![
+        Box::new(filter::LineRemovalModifier {
+            max_removed_ratio: -1.0,
+            max_uppercase_ratio: 0.99,
+            min_word_cnt_per_line: 3,
+            lang: "en".to_string(),
+        }),
+        Box::new(filter::CacheTokenFilter::default()),
+        Box::new(filter::GopherRepetitionFilter::default()),
+        Box::new(filter::GopherQualityFilter::default()),
+        Box::new(filter::FinewebQualityFilter::default()),
+        Box::new(filter::UncacheTokenFilter::default()),
+    ]);
+
     if args.use_redis_task {
         let queue_id: &str = args.queue_id.as_deref().unwrap_or("default");
-        let _ = process_tasks(&args.output, &threads, queue_id, false);
+        let _ = process_tasks(&args.output, &filters, &threads, queue_id, false);
     } else {
-        let _ = process_input(args.input, &args.output, &threads, false);
+        let _ = process_input(args.input, &args.output, &filters, &threads, false);
     }
 
     Ok(())
