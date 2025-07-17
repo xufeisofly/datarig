@@ -700,7 +700,7 @@ def fineweb_quality_filter(
         stop_chars = None,
         short_line_thr: float = 0.67,
         short_line_length: int = 30,
-        short_line_ratio_lines_num: int = 12,
+        long_line_ration: float = 0.5,
         new_line_ratio: float = 0.3,
         char_duplicates_ratio: float = 0.1,
         high_quality_ratio_value: float = -1,
@@ -727,6 +727,8 @@ def fineweb_quality_filter(
                               high_quality_min_line_num=high_quality_min_line_num,
                               language=language) < high_quality_ratio_value:
             return set_filter_reason_if_annotate(page, "line_punct_ratio_filter"+token, annotate)
+        if not long_line_char_ration(lines, long_line_ration):
+            return set_filter_reason_if_annotate(page, "line_punct_ratio_filter"+token, annotate)
 
     ratio = sum(1 for line in lines if len(line) <= short_line_length) / len(lines)
     if ratio > short_line_thr:
@@ -736,6 +738,8 @@ def fineweb_quality_filter(
                               high_quality_min_line_num=high_quality_min_line_num,
                               language=language) < high_quality_ratio_value:        
             return set_filter_reason_if_annotate(page, "short_line_ratio_filter"+token, annotate)
+        if not long_line_char_ration(lines, long_line_ration):
+            return set_filter_reason_if_annotate(page, "line_punct_ratio_filter"+token, annotate)
 
     ratio = find_duplicates(lines)[1] / len(page[CONTENT].replace("\n", ""))
 
@@ -819,6 +823,13 @@ def high_quality_ratio(lines, model, high_quality_min_line_num, language):
     return high_quality_num/all_quality_num        
 
 
+def long_line_char_ration(lines, long_line_ration):
+    all_lines_length = sum([len(_line) for _line in lines])
+    if any(len(_line)/all_lines_length > long_line_ration for _line in lines):
+        return True
+    return False
+    
+    
 def short_line_ratio_filter(
         page: Dict,
         short_line_thr: float = 0.67,

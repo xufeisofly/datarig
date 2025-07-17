@@ -475,6 +475,8 @@ def substring_line_modifier(banlist: Union[str, List], case_sensitive=False, ban
         lines = page[CONTENT].split('\n')
         lines_without_substring = []
         for line in lines:
+            if line == 'A B C D E F G H I J K L M N O P Q R S T U V W X Y Z':
+                continue
             if max_length is None or len(line.split()) <= max_length:
                 if remove_substring_only:
                     modified_line = pattern.sub("", line)
