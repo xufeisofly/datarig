@@ -700,7 +700,7 @@ def fineweb_quality_filter(
         stop_chars = None,
         short_line_thr: float = 0.67,
         short_line_length: int = 30,
-        long_line_ration: float = 0.5,
+        short_line_char_ratio: float = 0.1,
         new_line_ratio: float = 0.3,
         char_duplicates_ratio: float = 0.1,
         high_quality_ratio_value: float = -1,
@@ -719,27 +719,20 @@ def fineweb_quality_filter(
     if not stop_chars:
         stop_chars = tuple(TERMINAL_PUNCTUATION)
         
+    short_line_char_len = sum(len(line) for line in lines if len(line) <= short_line_length) / len(lines)
+    page_length = len(page[CONTENT].replace("\n", ""))
+        
     ratio = sum(1 for line in lines if line.endswith(stop_chars)) / len(lines)
     if ratio < line_punct_thr and not (ratio == 0 and line_punct_exclude_zero):
-        if high_quality_ratio_value > 0 and \
-           high_quality_ratio(lines,
-                              model=model,
-                              high_quality_min_line_num=high_quality_min_line_num,
-                              language=language) < high_quality_ratio_value:
+        if short_line_char_len/page_length > short_line_char_ratio:
             return set_filter_reason_if_annotate(page, "line_punct_ratio_filter"+token, annotate)
-        if not long_line_char_ration(lines, long_line_ration):
-            return set_filter_reason_if_annotate(page, "line_punct_ratio_filter"+token, annotate)
+        
 
     ratio = sum(1 for line in lines if len(line) <= short_line_length) / len(lines)
     if ratio > short_line_thr:
-        if high_quality_ratio_value > 0 and \
-           high_quality_ratio(lines,
-                              model=model,
-                              high_quality_min_line_num=high_quality_min_line_num,
-                              language=language) < high_quality_ratio_value:        
+        if short_line_char_len/page_length > short_line_char_ratio:
             return set_filter_reason_if_annotate(page, "short_line_ratio_filter"+token, annotate)
-        if not long_line_char_ration(lines, long_line_ration):
-            return set_filter_reason_if_annotate(page, "short_line_ratio_filter"+token, annotate)
+        
 
     ratio = find_duplicates(lines)[1] / len(page[CONTENT].replace("\n", ""))
 
