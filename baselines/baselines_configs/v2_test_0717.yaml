@@ -25,7 +25,7 @@
     - func: line_removal_modifier
       min_word_cnt_per_line: 3
     - func: substring_line_modifier
-      max_length: 5
+      max_length: 6
       banlist: ""
       banlist_file: "baselines/mappers/banlists/short_line_keywords.txt"
     - func: word_length_modifier
