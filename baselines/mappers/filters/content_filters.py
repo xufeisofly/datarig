@@ -719,7 +719,7 @@ def fineweb_quality_filter(
     if not stop_chars:
         stop_chars = tuple(TERMINAL_PUNCTUATION)
         
-    short_line_char_len = sum(len(line) for line in lines if len(line) <= short_line_length) / len(lines)
+    short_line_char_len = sum(len(line) for line in lines if len(line) <= short_line_length)
     page_length = len(page[CONTENT].replace("\n", ""))
         
     ratio = sum(1 for line in lines if line.endswith(stop_chars)) / len(lines)
