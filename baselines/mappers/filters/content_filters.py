@@ -739,7 +739,7 @@ def fineweb_quality_filter(
                               language=language) < high_quality_ratio_value:        
             return set_filter_reason_if_annotate(page, "short_line_ratio_filter"+token, annotate)
         if not long_line_char_ration(lines, long_line_ration):
-            return set_filter_reason_if_annotate(page, "line_punct_ratio_filter"+token, annotate)
+            return set_filter_reason_if_annotate(page, "short_line_ratio_filter"+token, annotate)
 
     ratio = find_duplicates(lines)[1] / len(page[CONTENT].replace("\n", ""))
 
