@@ -724,14 +724,12 @@ def fineweb_quality_filter(
         
     ratio = sum(1 for line in lines if line.endswith(stop_chars)) / len(lines)
     if ratio < line_punct_thr and not (ratio == 0 and line_punct_exclude_zero):
-        if short_line_char_len/page_length > short_line_char_ratio:
-            return set_filter_reason_if_annotate(page, "line_punct_ratio_filter"+token, annotate)
+        return set_filter_reason_if_annotate(page, "line_punct_ratio_filter"+token, annotate)
         
 
     ratio = sum(1 for line in lines if len(line) <= short_line_length) / len(lines)
     if ratio > short_line_thr:
-        if short_line_char_len/page_length > short_line_char_ratio:
-            return set_filter_reason_if_annotate(page, "short_line_ratio_filter"+token, annotate)
+        return set_filter_reason_if_annotate(page, "short_line_ratio_filter"+token, annotate)
         
 
     ratio = find_duplicates(lines)[1] / len(page[CONTENT].replace("\n", ""))
